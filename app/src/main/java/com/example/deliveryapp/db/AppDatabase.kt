@@ -40,7 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "report_db"
                 )
                 .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigrationFrom(1, 2, 3)  // v1〜v3 はリリース前の開発版のみ
                 .build()
                 .also { INSTANCE = it }
             }

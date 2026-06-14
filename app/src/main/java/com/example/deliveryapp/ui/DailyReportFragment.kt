@@ -713,73 +713,16 @@ class DailyReportFragment : Fragment() {
             setBackgroundColor(surfaceColor)
         }
 
-        // ヘッダー
-        val headerRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding((20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        headerRow.addView(TextView(ctx).apply {
-            text = "日報メニュー"; textSize = 20f; typeface = Typeface.DEFAULT_BOLD
-            setTextColor(onSurfaceColor)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        headerRow.addView(TextView(ctx).apply {
-            text = "✕"; textSize = 22f; gravity = Gravity.CENTER
-            setTextColor(onSurfaceVariant)
-            background = android.util.TypedValue().also {
-                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
-            layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
-            setOnClickListener { sheet.dismiss() }
-        })
-        root.addView(headerRow)
-        root.addView(View(ctx).apply {
-            setBackgroundColor(outlineVariant)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
-        })
-
         val ripple = android.util.TypedValue().also {
             ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
         }.resourceId
 
-        fun row(emoji: String, title: String, sub: String, color: Int = onSurfaceColor, action: () -> Unit) {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                setBackgroundResource(ripple)
-                setPadding((20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt())
-            }
-            row.addView(TextView(ctx).apply {
-                text = emoji; textSize = 28f; gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams((52 * dp).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
-            })
-            val col = LinearLayout(ctx).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    .also { it.marginStart = (14 * dp).toInt() }
-            }
-            col.addView(TextView(ctx).apply {
-                text = title; textSize = 17f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color)
-            })
-            if (sub.isNotBlank()) col.addView(TextView(ctx).apply {
-                text = sub; textSize = 14f; setTextColor(onSurfaceVariant)
-                maxLines = 2
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    .also { it.topMargin = (2 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
-            })
-            row.addView(col)
-            row.setOnClickListener { sheet.dismiss(); action() }
-            root.addView(row)
-        }
+        root.addMenuHeader("日報メニュー", dp, onSurfaceColor, onSurfaceVariant, outlineVariant) { sheet.dismiss() }
 
-        fun divider() = root.addView(View(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
-                .also { it.setMargins((84 * dp).toInt(), (4 * dp).toInt(), 0, (4 * dp).toInt()) }
-            setBackgroundColor(outlineVariant)
-        })
+        fun row(emoji: String, title: String, sub: String, color: Int = onSurfaceColor, action: () -> Unit) =
+            root.addMenuRow(emoji, title, sub, dp, color, onSurfaceVariant, ripple, { sheet.dismiss() }, action)
+
+        fun divider() = root.addMenuDivider(dp, outlineVariant)
 
         // ── 今日の記録
         row("📅", "今日の日報を記録", "今日の行を開いて入力する") { openTodayDialog() }
