@@ -1,9 +1,9 @@
 ﻿# Routist build/backup/distribute script
 
-$env:JAVA_HOME  = "C:\Program Files\Android\Android Studio1\jbr"
+$env:JAVA_HOME  = "C:\Users\rodge\.jdks\jbr-17.0.14"
 $env:PATH       = "$env:JAVA_HOME\bin;C:\Tools\gh\bin;$env:PATH"
 $adb            = "C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-$projectDir     = "C:\Users\rodge\DeliveryApp"
+$projectDir     = "C:\Users\rodge\Desktop\Routist"
 $releasesDir    = "$projectDir\releases"
 
 Set-Location $projectDir
