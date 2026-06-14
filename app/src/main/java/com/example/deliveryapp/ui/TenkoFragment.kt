@@ -827,8 +827,6 @@ class TenkoFragment : Fragment() {
         divider()
         // ── 危険操作
         row("🗑", "今月の点呼データを削除", "削除後は元に戻せません", redColor) { confirmDeleteMonth() }
-        divider()
-        row("🚪", "アプリを終了", "Routist を閉じる") { activity?.finishAffinity() }
 
         root.addView(View(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (20 * dp).toInt())

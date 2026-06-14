@@ -529,6 +529,13 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         startGeocoding(groupId)
     }
 
+    fun replaceDeliveries(newItems: List<Delivery>) {
+        val groupId = _currentGroupId.value ?: return
+        val reordered = newItems.mapIndexed { i, d -> d.copy(order = i + 1) }
+        commitDeliveries(groupId, reordered)
+        startGeocoding(groupId)
+    }
+
     // 複数件削除
     fun deleteDeliveries(ids: Set<String>) {
         val groupId = _currentGroupId.value ?: return

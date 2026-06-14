@@ -476,7 +476,7 @@ class DeliveryListFragment : Fragment() {
         }
 
         val roomCount = delivery.roomList.size
-        val roomTitle = if (roomCount == 0) "部屋リストを追加" else "部屋リスト（${roomCount}室）"
+        val roomTitle = if (roomCount == 0) "部屋を追加" else "部屋リスト（${roomCount}室）"
         val roomSub   = if (roomCount == 0) "マンションの部屋ごとに訪問状況を管理する"
                         else {
                             val visited = delivery.roomList.count { !it.status.isNullOrBlank() }
@@ -1923,19 +1923,15 @@ class DeliveryListFragment : Fragment() {
                 }
             } else {
                 // プレーンテキスト形式（1行1件の住所リスト）
-                // 先頭の「1. 」「・」「- 」などの番号・記号を除去して住所として取り込む
                 val stripPrefix = Regex("^\\s*[0-9]+[.．。)）]\\s*|^\\s*[・\\-→▶]\\s*")
-                // 1行目がタイトル行（件数を含む）なら読み飛ばす
                 val lines = text.lines()
                     .map { it.trim() }
                     .filter { it.isNotBlank() }
                 val startIdx = if (lines.firstOrNull()?.contains("件") == true) 1 else 0
                 lines.drop(startIdx).forEachIndexed { i, raw ->
-                    // 「名前（住所）  [備考]」形式の解析
                     val withoutExtras = raw.substringBefore("  [").substringBefore("\t[")
                     val cleaned = stripPrefix.replace(withoutExtras, "").trim()
                     if (cleaned.isBlank()) return@forEachIndexed
-                    // 「名前（住所）」 → name と address を分離
                     val nameAddrMatch = Regex("^(.+?)（(.+)）$").find(cleaned)
                     val (name, address) = if (nameAddrMatch != null) {
                         nameAddrMatch.groupValues[1].trim() to nameAddrMatch.groupValues[2].trim()
@@ -1954,31 +1950,128 @@ class DeliveryListFragment : Fragment() {
             return
         }
 
-        // 1件追加はエリアチェックをスキップ（都道府県ダイアログが出ると邪魔なため）
-        // 住所リスト内の都道府県を検出し、既存リストとの混在も含めてチェック
-        val prefRegex = Regex("""[^\s]+[都道府県]""")
+        // ── Step A: ルート選択
+        val groups = viewModel.groups.value ?: emptyList()
+        when {
+            groups.isEmpty() -> {
+                // ルートなし → 新しいルートを作成してインポート
+                val input = android.widget.EditText(ctx).apply {
+                    hint = "例: 月曜ルート"
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT
+                    setPadding(64, 32, 64, 16)
+                }
+                AlertDialog.Builder(ctx)
+                    .setTitle("新しいルートを作成")
+                    .setMessage("ルートがありません。インポート先のルート名を入力してください。")
+                    .setView(input)
+                    .setPositiveButton("作成してインポート") { _, _ ->
+                        val name = input.text.toString().trim().ifBlank { "ルート1" }
+                        val group = viewModel.createGroup(name)
+                        viewModel.switchGroup(group.id)
+                        importListToCurrentGroup(toAdd)
+                    }
+                    .setNegativeButton("キャンセル", null)
+                    .show()
+            }
+            groups.size > 1 -> {
+                // 複数ルートあり → どのルートに追加するか選択
+                val currentId = viewModel.currentGroupId.value ?: ""
+                val items = (groups.map { g ->
+                    if (g.id == currentId) "${g.name}（現在）" else g.name
+                } + listOf("＋ 新しいルートを作成")).toTypedArray()
+                AlertDialog.Builder(ctx)
+                    .setTitle("インポート先のルートを選択")
+                    .setItems(items) { _, which ->
+                        if (which == groups.size) {
+                            // 新しいルートを作成
+                            val input = android.widget.EditText(ctx).apply {
+                                hint = "例: 月曜ルート"
+                                inputType = android.text.InputType.TYPE_CLASS_TEXT
+                                setPadding(64, 32, 64, 16)
+                            }
+                            AlertDialog.Builder(ctx)
+                                .setTitle("新しいルートを作成")
+                                .setView(input)
+                                .setPositiveButton("作成してインポート") { _, _ ->
+                                    val name = input.text.toString().trim().ifBlank { "ルート${groups.size + 1}" }
+                                    val group = viewModel.createGroup(name)
+                                    viewModel.switchGroup(group.id)
+                                    importListToCurrentGroup(toAdd)
+                                }
+                                .setNegativeButton("キャンセル", null)
+                                .show()
+                        } else {
+                            val chosen = groups[which]
+                            if (chosen.id != currentId) viewModel.switchGroup(chosen.id)
+                            importListToCurrentGroup(toAdd)
+                        }
+                    }
+                    .setNegativeButton("キャンセル", null)
+                    .show()
+            }
+            else -> {
+                // ルートが1つのみ → そのまま Step B へ
+                importListToCurrentGroup(toAdd)
+            }
+        }
+    }
+
+    private fun importListToCurrentGroup(toAdd: List<Delivery>) {
+        val ctx = requireContext()
+        val existingCount = viewModel.deliveries.value?.size ?: 0
         val routeName = viewModel.currentGroup()?.name ?: "現在のルート"
-        if (toAdd.size <= 1) {
+        if (existingCount > 0) {
+            // ── Step B: 追加 or 置き換え
             AlertDialog.Builder(ctx)
                 .setTitle("${toAdd.size}件をインポート")
-                .setMessage("「$routeName」に追加します。よろしいですか？")
-                .setPositiveButton("追加") { _, _ ->
-                    viewModel.appendDeliveries(toAdd)
-                    android.widget.Toast.makeText(ctx, "${toAdd.size}件を追加しました", android.widget.Toast.LENGTH_SHORT).show()
-                }
+                .setMessage("「$routeName」にはすでに${existingCount}件あります。\nどちらで処理しますか？")
+                .setPositiveButton("追加する") { _, _ -> proceedWithImport(toAdd, replace = false) }
+                .setNeutralButton("置き換える") { _, _ -> proceedWithImport(toAdd, replace = true) }
+                .setNegativeButton("キャンセル", null)
+                .show()
+        } else {
+            proceedWithImport(toAdd, replace = false)
+        }
+    }
+
+    private fun proceedWithImport(toAdd: List<Delivery>, replace: Boolean) {
+        val ctx = requireContext()
+        val routeName = viewModel.currentGroup()?.name ?: "現在のルート"
+
+        fun doImport(items: List<Delivery>, excludedCount: Int = 0) {
+            if (replace) viewModel.replaceDeliveries(items)
+            else viewModel.appendDeliveries(items)
+            val action = if (replace) "件で置き換えました" else "件を追加しました"
+            val msg = if (excludedCount > 0) "${items.size}$action（${excludedCount}件を除外）"
+                      else "${items.size}$action"
+            android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show()
+        }
+
+        // ── Step C: エリアチェック（1件以下はスキップ）
+        if (toAdd.size <= 1) {
+            val verb = if (replace) "置き換え" else "追加"
+            AlertDialog.Builder(ctx)
+                .setTitle("${toAdd.size}件をインポート")
+                .setMessage("「$routeName」に${verb}します。よろしいですか？")
+                .setPositiveButton(verb) { _, _ -> doImport(toAdd) }
                 .setNegativeButton("キャンセル", null)
                 .show()
             return
         }
 
-        // 既存の配達リストの都道府県（カウント付き）
-        val existingByPref = linkedMapOf<String, Int>()
-        for (d in viewModel.deliveries.value ?: emptyList()) {
-            val p = prefRegex.find(d.address)?.value ?: continue
-            existingByPref[p] = (existingByPref[p] ?: 0) + 1
+        val prefRegex = Regex("""[^\s]+[都道府県]""")
+
+        // 置き換えモードでは既存リストを無視してエリアチェック
+        val existingByPref = if (replace) linkedMapOf()
+        else {
+            val map = linkedMapOf<String, Int>()
+            for (d in viewModel.deliveries.value ?: emptyList()) {
+                val p = prefRegex.find(d.address)?.value ?: continue
+                map[p] = (map[p] ?: 0) + 1
+            }
+            map
         }
 
-        // 今回インポートする住所の都道府県
         val newByPref = linkedMapOf<String, MutableList<Delivery>>()
         val noPref = mutableListOf<Delivery>()
         for (d in toAdd) {
@@ -1987,13 +2080,11 @@ class DeliveryListFragment : Fragment() {
             else noPref.add(d)
         }
 
-        // 追加後に混在するか（今回のリスト内で複数 OR 既存と違うエリアが混じる）
         val newPrefs = newByPref.keys.toSet()
         val existingPrefs = existingByPref.keys.toSet()
         val wouldMix = newByPref.size > 1 || (existingPrefs.isNotEmpty() && newPrefs.any { it !in existingPrefs })
 
         if (wouldMix) {
-            // チェックボックスは「今回追加する都道府県」だけ表示（既存は変更不可なので情報として表示）
             val newPrefList = newByPref.keys.toList()
             val items = newPrefList.map { p ->
                 val existCount = existingByPref[p]
@@ -2008,35 +2099,30 @@ class DeliveryListFragment : Fragment() {
                 else ""
             } else ""
 
+            val verb = if (replace) "置き換え" else "追加"
             AlertDialog.Builder(ctx)
-                .setTitle("追加するエリアを選択")
-                .setMessage("「$routeName」に追加します。\n${existingInfo}追加するエリアのチェックを確認してください。")
+                .setTitle("${verb}するエリアを選択")
+                .setMessage("「$routeName」に${verb}します。\n${existingInfo}${verb}するエリアのチェックを確認してください。")
                 .setMultiChoiceItems(items, checked) { _, i, v -> checked[i] = v }
-                .setPositiveButton("追加") { _, _ ->
+                .setPositiveButton(verb) { _, _ ->
                     val selected = mutableListOf<Delivery>()
                     newPrefList.forEachIndexed { i, p -> if (checked[i]) selected.addAll(newByPref[p]!!) }
                     selected.addAll(noPref)
                     if (selected.isEmpty()) return@setPositiveButton
                     val ordered = selected.sortedBy { toAdd.indexOf(it) }
-                    viewModel.appendDeliveries(ordered)
-                    val excluded = toAdd.size - ordered.size
-                    val msg = if (excluded > 0) "${ordered.size}件を追加しました（${excluded}件を除外）"
-                              else "${ordered.size}件を追加しました"
-                    android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show()
+                    doImport(ordered, toAdd.size - ordered.size)
                 }
                 .setNegativeButton("キャンセル", null)
                 .show()
             return
         }
 
-        // 単一エリアかつ既存と混在なし → 通常確認
+        // 単一エリアかつ混在なし → 通常確認
+        val verb = if (replace) "置き換え" else "追加"
         AlertDialog.Builder(ctx)
             .setTitle("${toAdd.size}件をインポート")
-            .setMessage("「$routeName」に追加します。よろしいですか？")
-            .setPositiveButton("追加") { _, _ ->
-                viewModel.appendDeliveries(toAdd)
-                android.widget.Toast.makeText(ctx, "${toAdd.size}件を追加しました", android.widget.Toast.LENGTH_SHORT).show()
-            }
+            .setMessage("「$routeName」に${verb}します。よろしいですか？")
+            .setPositiveButton(verb) { _, _ -> doImport(toAdd) }
             .setNegativeButton("キャンセル", null)
             .show()
     }
