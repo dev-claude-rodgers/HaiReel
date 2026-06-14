@@ -41,6 +41,7 @@ import com.rodgers.routist.model.ReportPattern
 import com.rodgers.routist.model.WorkRecord
 import com.rodgers.routist.util.BackupManager
 import com.rodgers.routist.util.GeocodingClient
+import com.rodgers.routist.util.LicenseManager
 import com.rodgers.routist.util.PatternStorage
 import com.rodgers.routist.util.SignatureStorage
 import com.rodgers.routist.viewmodel.DeliveryViewModel
@@ -1170,7 +1171,12 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
             }
             listRoot.addView(addBtn)
             addBtn.setOnClickListener {
-                showPatternEditDialog(null) { rebuildList() }
+                val patternCount = PatternStorage.getAll(ctx).size
+                if (patternCount >= 1 && !LicenseManager.isPro(ctx)) {
+                    LicenseManager.showUpgradeDialog(ctx)
+                } else {
+                    showPatternEditDialog(null) { rebuildList() }
+                }
             }
 
             if (patterns.isEmpty()) {
@@ -1441,6 +1447,7 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
     private fun showAssignmentSummarySheet() {
         if (!isAdded) return
         val ctx   = requireContext()
+        if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return }
         val dp    = ctx.resources.displayMetrics.density
         val ym    = reportViewModel.yearMonth.value
         val (y, m) = ym.split("-").map { it.toInt() }
@@ -1608,6 +1615,7 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
     private fun exportExcel() {
         if (!isAdded) return
         val ctx = requireContext()
+        if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return }
         val ym  = reportViewModel.yearMonth.value
         exportNippo(ctx, ym)
     }
@@ -1659,6 +1667,7 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
     private fun backupData() {
         if (!isAdded) return
         val ctx = requireContext()
+        if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return }
         lifecycleScope.launch {
             try {
                 val file = BackupManager.createBackup(ctx)

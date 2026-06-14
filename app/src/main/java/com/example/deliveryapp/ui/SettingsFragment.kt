@@ -16,6 +16,7 @@ import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.routist.R
 import com.rodgers.routist.util.AppSettings
+import com.rodgers.routist.util.LicenseManager
 import com.rodgers.routist.util.themeColor
 
 class SettingsFragment : Fragment() {
@@ -93,6 +94,14 @@ class SettingsFragment : Fragment() {
             root.addView(row)
         }
 
+        val isPro    = LicenseManager.isPro(ctx)
+        val proColor = if (isPro) ContextCompat.getColor(ctx, R.color.colorActionGreen) else colorOnSurface
+        val proEmoji = if (isPro) "✅" else "🔑"
+        val proTitle = if (isPro) "Pro版 有効" else "Pro版を有効化"
+        val proSub   = if (isPro) "ライセンスキー: ${LicenseManager.getStoredKey(ctx)}"
+                       else "複数案件・Excel出力・バックアップが使えます"
+        row(proEmoji, proTitle, proSub, proColor) { if (!isPro) showLicenseDialog() }
+        root.addView(divider())
         row("⚙️", "アプリ設定", "表示・雇用形態・報酬・セキュリティなど") { showAppSettingsDialog() }
         root.addView(divider())
         row("ℹ️", "アプリについて", "バージョン情報・開発者") {
@@ -104,6 +113,34 @@ class SettingsFragment : Fragment() {
         row("🚪", "アプリを終了", "アプリを完全に終了する", redColor) { activity?.finishAffinity() }
 
         return root
+    }
+
+    private fun showLicenseDialog() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val dp  = ctx.resources.displayMetrics.density
+        val et  = android.widget.EditText(ctx).apply {
+            hint = "XXXX-XXXX-XXXX-XXXX"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or
+                        android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setPadding((20 * dp).toInt(), (12 * dp).toInt(), (20 * dp).toInt(), (12 * dp).toInt())
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("ライセンスキーを入力")
+            .setMessage("購入時に発行されたライセンスキーを入力してください。")
+            .setView(et)
+            .setPositiveButton("認証") { _, _ ->
+                val key = et.text.toString().trim()
+                if (LicenseManager.activate(ctx, key)) {
+                    android.widget.Toast.makeText(ctx, "Pro版が有効になりました！", android.widget.Toast.LENGTH_LONG).show()
+                    activity?.recreate()
+                } else {
+                    android.widget.Toast.makeText(ctx, "ライセンスキーが正しくありません", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
     }
 
     private fun showPrivacyPolicyDialog() {

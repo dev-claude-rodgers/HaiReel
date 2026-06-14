@@ -40,6 +40,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.rodgers.routist.R
 import com.rodgers.routist.databinding.FragmentListBinding
+import com.rodgers.routist.util.LicenseManager
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.util.TimeSlotColor
 import com.rodgers.routist.model.Delivery
@@ -1751,6 +1752,11 @@ class DeliveryListFragment : Fragment() {
 
     private fun showCreateGroupDialog() {
         val ctx = requireContext()
+        val existingCount = viewModel.groups.value?.size ?: 0
+        if (existingCount >= 1 && !LicenseManager.isPro(ctx)) {
+            LicenseManager.showUpgradeDialog(ctx)
+            return
+        }
         val input = EditText(ctx).apply {
             hint = "ルート名を入力"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
