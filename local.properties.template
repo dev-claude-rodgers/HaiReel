@@ -1,0 +1,8 @@
+## このファイルをコピーして local.properties にリネームし、APIキーを設定してください
+## local.properties はGitに含めないでください
+
+sdk.dir=C\:\\Users\\rodge\\AppData\\Local\\Android\\Sdk
+
+## Google Maps Platform で取得したAPIキー
+## https://console.cloud.google.com/ → Maps SDK for Android を有効化
+MAPS_API_KEY=YOUR_API_KEY_HERE

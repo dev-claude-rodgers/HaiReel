@@ -1,0 +1,119 @@
+package com.rodgers.routist.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.rodgers.routist.db.AppDatabase
+import com.rodgers.routist.model.TenkoRecord
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class TenkoViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val dao = AppDatabase.getInstance(app).tenkoDao()
+    private val monthFmt = DateTimeFormatter.ofPattern("yyyy-MM")
+
+    private val _yearMonth = MutableStateFlow(LocalDate.now().format(monthFmt))
+    val yearMonth: StateFlow<String> = _yearMonth
+
+    private val _assignmentId = MutableStateFlow("")
+    val assignmentId: StateFlow<String> = _assignmentId
+
+    val monthRecords: StateFlow<List<TenkoRecord>> =
+        combine(_yearMonth, _assignmentId) { ym, aid -> ym to aid }
+            .flatMapLatest { (ym, aid) -> dao.getByMonthFlow(ym, aid) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setAssignmentId(id: String) { _assignmentId.value = id }
+
+    fun previousMonth() {
+        val d = LocalDate.parse("${_yearMonth.value}-01").minusMonths(1)
+        _yearMonth.value = d.format(monthFmt)
+    }
+
+    fun nextMonth() {
+        val d = LocalDate.parse("${_yearMonth.value}-01").plusMonths(1)
+        _yearMonth.value = d.format(monthFmt)
+    }
+
+    fun todayDate(): String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+    fun jumpToToday() {
+        _yearMonth.value = LocalDate.now().format(monthFmt)
+    }
+
+    fun saveBefore(
+        date: String, @Suppress("UNUSED_PARAMETER") existing: TenkoRecord?,
+        method: String, time: String,
+        health: Boolean, fatigue: Boolean,
+        alcohol: Double, inspection: Boolean,
+        instruction: String, checker: String
+    ) = viewModelScope.launch {
+        val aid = _assignmentId.value
+        val current = dao.getByDate(date, aid)
+        val record = current?.copy(
+            beforeMethod = method, beforeTime = time,
+            beforeHealth = health, beforeFatigue = fatigue,
+            beforeAlcohol = alcohol, beforeInspection = inspection,
+            beforeInstruction = instruction.ifBlank { null },
+            beforeChecker = checker.ifBlank { null }
+        ) ?: TenkoRecord(
+            date = date, assignmentId = aid,
+            beforeMethod = method, beforeTime = time,
+            beforeHealth = health, beforeFatigue = fatigue,
+            beforeAlcohol = alcohol, beforeInspection = inspection,
+            beforeInstruction = instruction.ifBlank { null },
+            beforeChecker = checker.ifBlank { null }
+        )
+        if (current != null) dao.update(record) else dao.insert(record)
+    }
+
+    fun saveAfter(
+        date: String, @Suppress("UNUSED_PARAMETER") existing: TenkoRecord?,
+        method: String, time: String,
+        health: Boolean, fatigue: Boolean,
+        alcohol: Double, accident: Boolean, vehicle: Boolean,
+        instruction: String, checker: String, note: String = ""
+    ) = viewModelScope.launch {
+        val aid = _assignmentId.value
+        val current = dao.getByDate(date, aid)
+        val record = current?.copy(
+            afterMethod = method, afterTime = time,
+            afterHealth = health, afterFatigue = fatigue,
+            afterAlcohol = alcohol, afterAccident = accident,
+            afterVehicle = vehicle,
+            afterInstruction = instruction.ifBlank { null },
+            afterChecker = checker.ifBlank { null },
+            note = note.ifBlank { null }
+        ) ?: TenkoRecord(
+            date = date, assignmentId = aid,
+            afterMethod = method, afterTime = time,
+            afterHealth = health, afterFatigue = fatigue,
+            afterAlcohol = alcohol, afterAccident = accident,
+            afterVehicle = vehicle,
+            afterInstruction = instruction.ifBlank { null },
+            afterChecker = checker.ifBlank { null },
+            note = note.ifBlank { null }
+        )
+        if (current != null) dao.update(record) else dao.insert(record)
+    }
+
+    fun delete(record: TenkoRecord) = viewModelScope.launch { dao.delete(record) }
+
+    fun deleteMonth(yearMonth: String) = viewModelScope.launch { dao.deleteByMonth(yearMonth) }
+
+    suspend fun recordsForMonth(yearMonth: String): List<TenkoRecord> =
+        dao.getByMonth(yearMonth, _assignmentId.value)
+
+    suspend fun allRecordsForMonth(yearMonth: String): List<TenkoRecord> =
+        dao.getAllByMonth(yearMonth)
+}

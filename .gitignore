@@ -1,0 +1,25 @@
+﻿# Build outputs
+/build/
+app/build/
+*.apk
+*.aab
+*.ap_
+
+# Gradle
+.gradle/
+local.properties
+gradle.properties
+
+# Android Studio
+.idea/
+*.iml
+*.iws
+captures/
+
+# Keys / secrets
+routist-release.keystore
+*.keystore
+*.jks
+
+# Logs
+*.log

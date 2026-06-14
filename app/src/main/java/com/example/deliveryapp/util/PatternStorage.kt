@@ -1,0 +1,96 @@
+﻿package com.rodgers.routist.util
+
+import android.content.Context
+import com.rodgers.routist.model.ReportPattern
+
+object PatternStorage {
+    private const val PREFS = "report_patterns"
+
+    private fun p(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    fun getIds(ctx: Context): List<Int> {
+        val raw = p(ctx).getString("ids", "") ?: ""
+        return if (raw.isBlank()) emptyList()
+        else raw.split(",").mapNotNull { it.trim().toIntOrNull() }
+    }
+
+    private fun putIds(ctx: Context, ids: List<Int>) =
+        p(ctx).edit().putString("ids", ids.joinToString(",")).apply()
+
+    fun get(ctx: Context, id: Int): ReportPattern? {
+        if (!getIds(ctx).contains(id)) return null
+        val sp = p(ctx)
+        return ReportPattern(
+            id            = id,
+            title         = sp.getString("${id}_title",      "稼働報告書") ?: "稼働報告書",
+            clientName    = sp.getString("${id}_client",     "") ?: "",
+            driverName    = sp.getString("${id}_driver",     "") ?: "",
+            closingDay    = sp.getInt(   "${id}_closing",    25),
+            deliveryLabel = sp.getString("${id}_deliv_lbl",  "配達件数") ?: "配達件数",
+            packageLabel  = sp.getString("${id}_pkg_lbl",    "個数") ?: "個数",
+            showTime      = sp.getBoolean("${id}_col_time",  true),
+            showDelivery  = sp.getBoolean("${id}_col_deliv", true),
+            showPackage   = sp.getBoolean("${id}_col_pkg",   true),
+            showDistance  = sp.getBoolean("${id}_col_dist",  true),
+            showArea      = sp.getBoolean("${id}_col_area",  true),
+            showRemarks   = sp.getBoolean("${id}_col_rem",   true)
+        )
+    }
+
+    fun getAll(ctx: Context): List<ReportPattern> = getIds(ctx).mapNotNull { get(ctx, it) }
+
+    fun save(ctx: Context, pattern: ReportPattern) {
+        val ids = getIds(ctx).toMutableList()
+        if (!ids.contains(pattern.id)) { ids.add(pattern.id); putIds(ctx, ids) }
+        p(ctx).edit().apply {
+            putString ("${pattern.id}_title",      pattern.title)
+            putString ("${pattern.id}_client",     pattern.clientName)
+            putString ("${pattern.id}_driver",     pattern.driverName)
+            putInt    ("${pattern.id}_closing",    pattern.closingDay)
+            putString ("${pattern.id}_deliv_lbl",  pattern.deliveryLabel)
+            putString ("${pattern.id}_pkg_lbl",    pattern.packageLabel)
+            putBoolean("${pattern.id}_col_time",   pattern.showTime)
+            putBoolean("${pattern.id}_col_deliv",  pattern.showDelivery)
+            putBoolean("${pattern.id}_col_pkg",    pattern.showPackage)
+            putBoolean("${pattern.id}_col_dist",   pattern.showDistance)
+            putBoolean("${pattern.id}_col_area",   pattern.showArea)
+            putBoolean("${pattern.id}_col_rem",    pattern.showRemarks)
+        }.apply()
+    }
+
+    fun delete(ctx: Context, id: Int) {
+        val ids = getIds(ctx).toMutableList().also { it.remove(id) }
+        putIds(ctx, ids)
+        p(ctx).edit().apply {
+            listOf("title","client","driver","closing","deliv_lbl","pkg_lbl",
+                   "col_time","col_deliv","col_pkg","col_dist","col_area","col_rem")
+                .forEach { remove("${id}_$it") }
+        }.apply()
+        if (getActiveId(ctx) == id) setActiveId(ctx, ids.firstOrNull() ?: -1)
+    }
+
+    fun nextId(ctx: Context): Int {
+        val sp = p(ctx); val n = sp.getInt("next_id", 0)
+        sp.edit().putInt("next_id", n + 1).apply()
+        return n
+    }
+
+    fun getActiveId(ctx: Context): Int = p(ctx).getInt("active_id", -1)
+    fun setActiveId(ctx: Context, id: Int) = p(ctx).edit().putInt("active_id", id).apply()
+
+    fun setNextId(ctx: Context, id: Int) = p(ctx).edit().putInt("next_id", id).apply()
+
+    fun getActive(ctx: Context): ReportPattern = ensureDefault(ctx)
+
+    fun ensureDefault(ctx: Context): ReportPattern {
+        val ids = getIds(ctx)
+        if (ids.isEmpty()) {
+            val def = ReportPattern.default(nextId(ctx))
+            save(ctx, def); setActiveId(ctx, def.id); return def
+        }
+        val aid = getActiveId(ctx)
+        val validId = if (ids.contains(aid)) aid else ids.first()
+        if (validId != aid) setActiveId(ctx, validId)
+        return get(ctx, validId) ?: ReportPattern.default(validId)
+    }
+}

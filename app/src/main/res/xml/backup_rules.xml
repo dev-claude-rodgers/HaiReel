@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- 配達データ・点呼記録はバックアップ対象外（アプリ内バックアップ機能を使用） -->
+    <exclude domain="database" path="report_db" />
+    <exclude domain="sharedpref" path="kado_settings.xml" />
+    <exclude domain="sharedpref" path="delivery_prefs.xml" />
+</full-backup-content>

@@ -1,0 +1,43 @@
+[versions]
+agp = "8.3.2"
+splashscreen = "1.0.1"
+junit = "4.13.2"
+kotlin = "1.9.23"
+coreKtx = "1.13.1"
+appcompat = "1.7.0"
+material = "1.12.0"
+lifecycle = "2.8.2"
+fragment = "1.7.1"
+maps = "18.2.0"
+mapsUtils = "3.8.2"
+coroutines = "1.8.1"
+gson = "2.10.1"
+activity = "1.9.0"
+room = "2.6.1"
+ksp = "1.9.23-1.0.20"
+mlkit-text-recognition-japanese = "16.0.1"
+biometric = "1.1.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-livedata = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycle" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragment" }
+androidx-activity = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
+maps-sdk = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "maps" }
+maps-utils = { group = "com.google.maps.android", name = "android-maps-utils", version.ref = "mapsUtils" }
+coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+mlkit-text-recognition-japanese = { group = "com.google.mlkit", name = "text-recognition-japanese", version.ref = "mlkit-text-recognition-japanese" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

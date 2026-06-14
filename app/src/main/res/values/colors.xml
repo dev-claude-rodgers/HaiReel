@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#0066CC</color>
+    <color name="colorPrimaryDark">#004999</color>
+    <color name="white">#FFFFFF</color>
+    <color name="colorError">#CC0000</color>
+    <!-- 背景 -->
+    <color name="colorBackground">#F5F5F5</color>
+    <!-- ヒント帯 -->
+    <color name="colorHintBg">#E8E8E8</color>
+    <color name="colorHintText">#333333</color>
+    <!-- 配達リスト -->
+    <color name="colorTimeSlot">#0066CC</color>
+    <color name="colorAccentOrange">#CC4400</color>
+    <!-- メモ背景 -->
+    <color name="colorNoteBg">#FFF8E1</color>
+    <color name="colorNoteBorder">#FFD54F</color>
+    <!-- 日報 -->
+    <color name="colorReportPrimary">#000000</color>
+    <color name="colorReportPrimaryBg">#FFFFFF</color>
+    <color name="colorReportSummaryBg">#F5F5F5</color>
+    <color name="colorReportSummaryText">#000000</color>
+    <color name="colorReportSecondaryText">#555555</color>
+    <!-- 日付テキスト -->
+    <color name="colorSaturdayText">#1565C0</color>
+    <color name="colorSundayText">#B71C1C</color>
+    <color name="colorWeekdayText">#000000</color>
+    <!-- 行背景 -->
+    <color name="colorDayBg">#FFFFFF</color>
+    <color name="colorTodayBg">#F0F0F0</color>
+    <!-- アクションボタン -->
+    <color name="colorActionGreen">#1B5E20</color>
+    <color name="colorActionRed">#B71C1C</color>
+    <!-- SOS -->
+    <color name="colorSosDanger">#CC0000</color>
+    <!-- 点呼 -->
+    <color name="colorSuccess">#1B5E20</color>
+    <!-- ボトムナビゲーション -->
+    <color name="colorNavUnselected">#9E9E9E</color>
+</resources>
