@@ -5,8 +5,6 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
@@ -129,21 +127,7 @@ class DeliveryListFragment : Fragment() {
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             this.adapter = this@DeliveryListFragment.adapter
-            addItemDecoration(object : RecyclerView.ItemDecoration() {
-                private val paint = Paint().apply {
-                    color = android.graphics.Color.parseColor("#CCCCCC")
-                    strokeWidth = resources.displayMetrics.density * 1f
-                }
-                override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
-                    val left = parent.paddingLeft.toFloat()
-                    val right = (parent.width - parent.paddingRight).toFloat()
-                    for (i in 0 until parent.childCount - 1) {
-                        val child = parent.getChildAt(i)
-                        val bottom = child.bottom.toFloat() + child.translationY
-                        c.drawLine(left, bottom, right, bottom, paint)
-                    }
-                }
-            })
+            addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
         }
 
         ItemTouchHelper(object : ItemTouchHelper.Callback() {
