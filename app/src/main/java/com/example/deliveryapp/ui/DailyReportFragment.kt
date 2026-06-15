@@ -1021,8 +1021,6 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
         }
         scroll.addView(listRoot)
 
-        var dialog: androidx.appcompat.app.AlertDialog? = null
-
         fun rebuildList() {
             listRoot.removeAllViews()
             val activeId = PatternStorage.getActiveId(ctx)
@@ -1150,7 +1148,7 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
 
         rebuildList()
 
-        dialog = MaterialAlertDialogBuilder(ctx)
+        MaterialAlertDialogBuilder(ctx)
             .setTitle("帳票設定")
             .setView(scroll)
             .setNegativeButton("閉じる", null)

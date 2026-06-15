@@ -3,8 +3,9 @@
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.rodgers.routist.db.AppDatabase
+import com.rodgers.routist.db.WorkRecordDao
 import com.rodgers.routist.model.WorkRecord
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,11 +16,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
+@HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
-class ReportViewModel(app: Application) : AndroidViewModel(app) {
-
-    private val dao = AppDatabase.getInstance(app).workRecordDao()
+class ReportViewModel @Inject constructor(
+    app: Application,
+    private val dao: WorkRecordDao
+) : AndroidViewModel(app) {
     private val monthFmt = DateTimeFormatter.ofPattern("yyyy-MM")
 
     private val _yearMonth = MutableStateFlow(LocalDate.now().format(monthFmt))
