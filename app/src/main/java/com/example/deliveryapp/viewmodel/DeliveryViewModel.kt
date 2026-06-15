@@ -27,7 +27,12 @@ import kotlinx.coroutines.withContext
 import android.util.Log
 import java.io.File
 
-class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
+class DeliveryViewModel(
+    app: Application,
+    private val repo: DeliveryRepository
+) : AndroidViewModel(app) {
+
+    constructor(app: Application) : this(app, DeliveryRepository(app))
 
     companion object {
         private const val TAG = "DeliveryViewModel"
@@ -55,7 +60,6 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         updateAllDeliveries(groupId, updated)
     }
 
-    private val repo = DeliveryRepository(app)
     private val geocodingJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     // グループ一覧
