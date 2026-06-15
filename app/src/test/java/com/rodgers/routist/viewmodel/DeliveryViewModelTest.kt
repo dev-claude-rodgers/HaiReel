@@ -151,6 +151,64 @@ class DeliveryViewModelTest {
         assertEquals("g2", vm.currentGroupId.value)
         assertEquals(2, vm.deliveries.value?.size)
     }
+
+    // ── エラーパス ───────────────────────────────────────────
+
+    @Test
+    fun `loadInitialData失敗時はerrorMessageが設定される`() {
+        coEvery { mockRepo.loadInitialData() } throws RuntimeException("DB破損")
+        val vm = DeliveryViewModel(mockApp, mockRepo)
+
+        assertEquals("データの読み込みに失敗しました", vm.errorMessage.value)
+    }
+
+    @Test
+    fun `loadInitialData失敗時はdeliveriesが空リストのまま`() {
+        coEvery { mockRepo.loadInitialData() } throws RuntimeException("DB破損")
+        val vm = DeliveryViewModel(mockApp, mockRepo)
+
+        assertTrue(vm.deliveries.value?.isEmpty() == true)
+    }
+
+    @Test
+    fun `toggleCompletedで存在しないIDは無視される`() {
+        val beforeSize = viewModel.deliveries.value?.size
+
+        viewModel.toggleCompleted("存在しないID")
+
+        assertEquals(beforeSize, viewModel.deliveries.value?.size)
+    }
+
+    @Test
+    fun `deleteDeliveryで存在しないIDは何も起きない`() {
+        val beforeSize = viewModel.deliveries.value?.size
+
+        viewModel.deleteDelivery("存在しないID")
+
+        assertEquals(beforeSize, viewModel.deliveries.value?.size)
+    }
+
+    @Test
+    fun `switchGroupで同じIDを指定しても二重処理されない`() {
+        val beforeId = viewModel.currentGroupId.value
+
+        viewModel.switchGroup(beforeId ?: "")
+
+        assertEquals(beforeId, viewModel.currentGroupId.value)
+    }
+
+    @Test
+    fun `markAllCompletedで空リストはクラッシュしない`() {
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to emptyList())
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo)
+
+        vm.markAllCompleted()
+
+        assertTrue(vm.deliveries.value?.isEmpty() == true)
+    }
 }
 
 private fun <T> LiveData<T>.getOrNull(): T? = value

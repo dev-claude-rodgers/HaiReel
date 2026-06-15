@@ -1054,17 +1054,22 @@ class DeliveryViewModel(
     }
 
     private suspend fun loadAll() {
-        val data = repo.loadInitialData()
-        withContext(Dispatchers.Main) {
-            _groups.value = data.groups
-            cleanupOrphanedDownloadFiles(data.groups)
-            createMissingDownloadFiles(data.groups)
-            _allDeliveries.value = data.allDeliveries
-            val savedId = repo.getCurrentGroupId()
-            val targetId = if (savedId != null && data.groups.any { it.id == savedId }) savedId
-                           else data.groups.firstOrNull()?.id ?: ""
-            _currentGroupId.value = targetId
-            _deliveries.value = data.allDeliveries[targetId] ?: emptyList()
+        try {
+            val data = repo.loadInitialData()
+            withContext(Dispatchers.Main) {
+                _groups.value = data.groups
+                cleanupOrphanedDownloadFiles(data.groups)
+                createMissingDownloadFiles(data.groups)
+                _allDeliveries.value = data.allDeliveries
+                val savedId = repo.getCurrentGroupId()
+                val targetId = if (savedId != null && data.groups.any { it.id == savedId }) savedId
+                               else data.groups.firstOrNull()?.id ?: ""
+                _currentGroupId.value = targetId
+                _deliveries.value = data.allDeliveries[targetId] ?: emptyList()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "初期データ読み込み失敗", e)
+            _errorMessage.postValue("データの読み込みに失敗しました")
         }
     }
 }

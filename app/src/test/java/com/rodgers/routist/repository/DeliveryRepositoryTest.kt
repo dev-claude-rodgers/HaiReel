@@ -271,4 +271,57 @@ class DeliveryRepositoryTest {
         repo.clearFileUri("g1")
         assertNull(repo.getFileUri("g1"))
     }
+
+    // ── エラーパス / エッジケース ────────────────────────────
+
+    @Test
+    fun `存在しないグループの配達先は空リスト`() = runBlocking {
+        val result = repo.loadDeliveries("存在しないグループ")
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `migrateGlobalAreaHintでgroupIdが空文字のとき移行せずlegacyを返す`() {
+        prefs.edit().putString("area_hint", "新宿区").apply()
+        val result = repo.migrateGlobalAreaHint("")
+
+        // legacy値は返す
+        assertEquals("新宿区", result)
+        // ただしgroupId別キーへの移行は行わない（旧キーも残る）
+        assertEquals("新宿区", prefs.getString("area_hint", null))
+        assertEquals("", repo.getAreaHint(""))
+    }
+
+    @Test
+    fun `clearGroupPrefsが存在しないキーでクラッシュしない`() {
+        repo.clearGroupPrefs("存在しないグループ")
+    }
+
+    @Test
+    fun `saveDeliveriesでsort_orderが保持される`() = runBlocking {
+        val deliveries = listOf(
+            Delivery(id = "d3", order = 3, address = "3番目"),
+            Delivery(id = "d1", order = 1, address = "1番目"),
+            Delivery(id = "d2", order = 2, address = "2番目")
+        )
+        repo.saveDeliveries("g1", deliveries)
+        val loaded = repo.loadDeliveries("g1")
+
+        assertEquals("d1", loaded[0].id)
+        assertEquals("d2", loaded[1].id)
+        assertEquals("d3", loaded[2].id)
+    }
+
+    @Test
+    fun `SharedPrefsにgroups不正JSONがあってもloadInitialDataがクラッシュしない`() = runBlocking {
+        prefs.edit().putString("groups", "壊れたJSON{{{").apply()
+        val data = repo.loadInitialData()
+        assertNotNull(data)
+        assertTrue(data.groups.isEmpty())
+    }
+
+    @Test
+    fun `getAreaHintでgroupIdが空文字のときは空文字を返す`() {
+        assertEquals("", repo.getAreaHint(""))
+    }
 }
