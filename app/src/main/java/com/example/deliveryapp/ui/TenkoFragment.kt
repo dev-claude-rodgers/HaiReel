@@ -40,6 +40,7 @@ import com.rodgers.routist.viewmodel.TenkoViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.routist.util.GeocodingClient
+import com.rodgers.routist.util.LocationTrackingService
 import com.rodgers.routist.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -302,6 +303,28 @@ class TenkoFragment : Fragment() {
         }
         root.addView(etChecker)
 
+        // ── 使用車両（2台以上登録時のみ選択表示）
+        val registeredVehicles = AppSettings.getVehicles(ctx).filter { it.isNotBlank() }
+        var selVehicleNumber = existing?.vehicleNumber
+            ?: registeredVehicles.firstOrNull() ?: ""
+        if (registeredVehicles.size >= 2) {
+            root.addView(sectionLabel("🚗", "使用車両"))
+            val vBtns = registeredVehicles.map { v ->
+                styledBtn(v).also { btn ->
+                    btn.layoutParams = LinearLayout.LayoutParams(0, (38 * dp).toInt(), 1f)
+                        .also { it.marginEnd = (4 * dp).toInt() }
+                }
+            }
+            fun refreshVehicle() = vBtns.forEachIndexed { i, btn ->
+                applyStyle(btn, registeredVehicles[i] == selVehicleNumber, cBlue, cBgBlue)
+            }
+            vBtns.forEachIndexed { i, btn ->
+                btn.setOnClickListener { selVehicleNumber = registeredVehicles[i]; refreshVehicle() }
+            }
+            refreshVehicle()
+            root.addView(hRow(*vBtns.toTypedArray()))
+        }
+
         val dlgBefore = AlertDialog.Builder(ctx)
             .setTitle("乗務前点呼  $date")
             .setView(scroll)
@@ -317,14 +340,18 @@ class TenkoFragment : Fragment() {
                     .setPositiveButton("保存する") { _, _ ->
                         viewModel.saveBefore(date, existing, selMethod, selTime,
                             healthOk, fatigueYes, alc, inspOk,
-                            etInstruction.text.toString().trim(), etChecker.text.toString().trim())
+                            etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
+                            selVehicleNumber)
+                        if (date == LocalDate.now().toString()) LocationTrackingService.start(ctx)
                         dlgBefore.dismiss()
                     }
                     .setNegativeButton("修正する", null).show()
             } else {
                 viewModel.saveBefore(date, existing, selMethod, selTime,
                     healthOk, fatigueYes, alc, inspOk,
-                    etInstruction.text.toString().trim(), etChecker.text.toString().trim())
+                    etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
+                    selVehicleNumber)
+                if (date == LocalDate.now().toString()) LocationTrackingService.start(ctx)
                 dlgBefore.dismiss()
             }
         }
@@ -509,6 +536,7 @@ class TenkoFragment : Fragment() {
                             healthOk, fatigueYes, alc, accidentYes, vehicleOk,
                             etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                             etNote.text.toString().trim())
+                        if (date == LocalDate.now().toString()) LocationTrackingService.stop(ctx)
                         dlgAfter.dismiss()
                     }
                     .setNegativeButton("修正する", null).show()
@@ -517,6 +545,7 @@ class TenkoFragment : Fragment() {
                     healthOk, fatigueYes, alc, accidentYes, vehicleOk,
                     etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                     etNote.text.toString().trim())
+                if (date == LocalDate.now().toString()) LocationTrackingService.stop(ctx)
                 dlgAfter.dismiss()
             }
         }
@@ -815,8 +844,8 @@ class TenkoFragment : Fragment() {
         val cOrange = Color.parseColor("#E65100")
         val cBlue   = Color.parseColor("#1565C0")
         val cGray   = Color.parseColor("#AAAAAA")
-        val cBg     = Color.parseColor("#2A2A2A")
-        val cOnSurf = Color.WHITE
+        val cBg     = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
+        val cOnSurf = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
 
         val scroll = android.widget.ScrollView(ctx)
         val root = LinearLayout(ctx).apply {
@@ -1073,9 +1102,16 @@ class TenkoFragment : Fragment() {
         val etCompany = field(AppSettings.getCompanyName(ctx), "例: 〇〇運送株式会社")
         root.addView(etCompany)
 
-        root.addView(label("車番（ナンバー）"))
-        val etVehicle = field(AppSettings.getVehicleNumber(ctx), "例: 品川 100 あ 1234")
-        root.addView(etVehicle)
+        val savedVehicles = AppSettings.getVehicles(ctx)
+        root.addView(label("車両1（ナンバー）"))
+        val etVehicle1 = field(savedVehicles[0], "例: 品川 100 あ 1234")
+        root.addView(etVehicle1)
+        root.addView(label("車両2（ナンバー）"))
+        val etVehicle2 = field(savedVehicles[1], "例: 練馬 200 い 5678")
+        root.addView(etVehicle2)
+        root.addView(label("車両3（ナンバー）"))
+        val etVehicle3 = field(savedVehicles[2], "使用しない場合は空欄")
+        root.addView(etVehicle3)
 
         // ── リスト右端の表示項目
         root.addView(label("リスト右端の表示"))
@@ -1098,7 +1134,11 @@ class TenkoFragment : Fragment() {
                 AppSettings.setDriverName(ctx,   etDriver.text.toString().trim())
                 AppSettings.setCheckerName(ctx,  etChecker.text.toString().trim())
                 AppSettings.setCompanyName(ctx,  etCompany.text.toString().trim())
-                AppSettings.setVehicleNumber(ctx, etVehicle.text.toString().trim())
+                AppSettings.setVehicles(ctx, listOf(
+                    etVehicle1.text.toString().trim(),
+                    etVehicle2.text.toString().trim(),
+                    etVehicle3.text.toString().trim()
+                ))
                 val selectedIdx = radioButtons.indexOfFirst { it.isChecked }.coerceAtLeast(0)
                 AppSettings.setTenkoRightDisplay(ctx, displayValues[selectedIdx])
                 adapter.notifyDataSetChanged()
@@ -1374,11 +1414,13 @@ class TenkoMonthAdapter(
                     textSize = 16f
                     val hintBg   = ContextCompat.getColor(ctx, R.color.colorHintBg)
                     val hintText = ContextCompat.getColor(ctx, R.color.colorHintText)
-                    setTextColor(if (done) Color.parseColor("#111111") else hintText)
+                    val chipDone = ctx.themeColor(com.google.android.material.R.attr.colorPrimaryContainer)
+                    val chipDoneText = ctx.themeColor(com.google.android.material.R.attr.colorOnPrimaryContainer)
+                    setTextColor(if (done) chipDoneText else hintText)
                     setTypeface(null, Typeface.BOLD)
                     background = GradientDrawable().apply {
-                        setColor(if (done) Color.parseColor("#EEEEEE") else hintBg)
-                        setStroke((1.5f*dp).toInt(), if (done) Color.parseColor("#EEEEEE") else hintBg)
+                        setColor(if (done) chipDone else hintBg)
+                        setStroke((1.5f*dp).toInt(), if (done) chipDone else hintBg)
                         cornerRadius = 6*dp
                     }
                     setPadding((14*dp).toInt(),(8*dp).toInt(),(14*dp).toInt(),(8*dp).toInt())

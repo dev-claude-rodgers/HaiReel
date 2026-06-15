@@ -252,9 +252,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 hasAny = true
             }
 
-            // フィルターなし・現在のグループのみルート線を表示
-            if (filter == null && showRouteLines && group.id == viewModel.currentGroupId.value && geocoded.size >= 2) {
-                val points = geocoded.map { LatLng(it.lat, it.lng) }
+            // フィルターなし・現在のグループのみルート線を表示（未完了のみ、2件以上のとき）
+            val incomplete = geocoded.filter { !it.isCompleted }
+            if (filter == null && showRouteLines && group.id == viewModel.currentGroupId.value && incomplete.size >= 2) {
+                val points = incomplete.map { LatLng(it.lat, it.lng) }
                 routeLine = map.addPolyline(
                     PolylineOptions()
                         .addAll(points)
@@ -467,7 +468,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         layout.addView(android.view.View(ctx).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#DDDDDD"))
+            setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant))
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt()
             ).also { it.topMargin = (4 * dp).toInt(); it.bottomMargin = (10 * dp).toInt() }

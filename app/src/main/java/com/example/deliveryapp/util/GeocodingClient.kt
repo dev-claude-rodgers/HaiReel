@@ -156,6 +156,27 @@ object GeocodingClient {
         } catch (e: Exception) { null }
     }
 
+    /** areaHint を付けずにジオコーディング（エリア修正用） */
+    suspend fun geocodeExact(address: String): GeoResult? = withContext(Dispatchers.IO) {
+        try {
+            val encoded = URLEncoder.encode(address, "UTF-8")
+            val urlBuilder = StringBuilder("$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey")
+            if (biasLat != 0.0 && biasLng != 0.0) {
+                urlBuilder.append("&bounds=${biasLat - 0.2},${biasLng - 0.2}|${biasLat + 0.2},${biasLng + 0.2}")
+            }
+            val json = fetch(urlBuilder.toString()) ?: return@withContext null
+            if (json.getString("status") != "OK") return@withContext null
+            val result = json.getJSONArray("results").getJSONObject(0)
+            val loc = result.getJSONObject("geometry").getJSONObject("location")
+            val raw = result.optString("formatted_address", "")
+            val formatted = raw
+                .replace(Regex("^日本[、,]\\s*"), "")
+                .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+                .trim()
+            GeoResult(lat = loc.getDouble("lat"), lng = loc.getDouble("lng"), formattedAddress = formatted)
+        } catch (e: Exception) { null }
+    }
+
     // 逆ジオコーディング: 座標→住所
     suspend fun reverseGeocode(lat: Double, lng: Double): GeoResult? = withContext(Dispatchers.IO) {
         try {

@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.rodgers.routist.model.TenkoRecord
 import com.rodgers.routist.model.WorkRecord
 
-@Database(entities = [WorkRecord::class, TenkoRecord::class], version = 6, exportSchema = true)
+@Database(entities = [WorkRecord::class, TenkoRecord::class], version = 7, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun workRecordDao(): WorkRecordDao
@@ -32,6 +32,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v6→v7: tenko_records に vehicleNumber 追加
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tenko_records ADD COLUMN vehicleNumber TEXT")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -39,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "report_db"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .fallbackToDestructiveMigrationFrom(1, 2, 3)  // v1〜v3 はリリース前の開発版のみ
                 .build()
                 .also { INSTANCE = it }

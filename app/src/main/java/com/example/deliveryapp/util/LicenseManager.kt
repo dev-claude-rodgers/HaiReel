@@ -37,7 +37,7 @@ object LicenseManager {
         return true
     }
 
-    private fun isValidKey(key: String): Boolean {
+    internal fun isValidKey(key: String): Boolean {
         return try {
             val payload  = key.substring(0, 8)
             val checksum = key.substring(8)

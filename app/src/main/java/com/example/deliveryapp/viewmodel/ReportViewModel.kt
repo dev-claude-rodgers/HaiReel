@@ -63,6 +63,9 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun recordsForPeriod(startDate: String, endDate: String): List<WorkRecord> =
         dao.recordsForPeriod(startDate, endDate, _assignmentId.value)
 
+    suspend fun recordsForPeriodWithAssignment(startDate: String, endDate: String, assignmentId: String): List<WorkRecord> =
+        dao.recordsForPeriod(startDate, endDate, assignmentId)
+
     // 全案件の記録を取得（サマリー用）
     suspend fun allRecordsForMonth(yearMonth: String): List<WorkRecord> =
         dao.recordsForMonth(yearMonth)

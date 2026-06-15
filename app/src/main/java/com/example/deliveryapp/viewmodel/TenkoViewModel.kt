@@ -56,7 +56,8 @@ class TenkoViewModel(app: Application) : AndroidViewModel(app) {
         method: String, time: String,
         health: Boolean, fatigue: Boolean,
         alcohol: Double, inspection: Boolean,
-        instruction: String, checker: String
+        instruction: String, checker: String,
+        vehicleNumber: String = ""
     ) = viewModelScope.launch {
         val aid = _assignmentId.value
         val current = dao.getByDate(date, aid)
@@ -65,14 +66,16 @@ class TenkoViewModel(app: Application) : AndroidViewModel(app) {
             beforeHealth = health, beforeFatigue = fatigue,
             beforeAlcohol = alcohol, beforeInspection = inspection,
             beforeInstruction = instruction.ifBlank { null },
-            beforeChecker = checker.ifBlank { null }
+            beforeChecker = checker.ifBlank { null },
+            vehicleNumber = vehicleNumber.ifBlank { null }
         ) ?: TenkoRecord(
             date = date, assignmentId = aid,
             beforeMethod = method, beforeTime = time,
             beforeHealth = health, beforeFatigue = fatigue,
             beforeAlcohol = alcohol, beforeInspection = inspection,
             beforeInstruction = instruction.ifBlank { null },
-            beforeChecker = checker.ifBlank { null }
+            beforeChecker = checker.ifBlank { null },
+            vehicleNumber = vehicleNumber.ifBlank { null }
         )
         if (current != null) dao.update(record) else dao.insert(record)
     }

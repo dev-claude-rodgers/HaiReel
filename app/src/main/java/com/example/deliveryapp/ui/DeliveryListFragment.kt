@@ -16,6 +16,7 @@ import android.widget.HorizontalScrollView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.text.InputFilter
 import android.text.InputType
 import android.widget.CheckBox
 import android.widget.EditText
@@ -224,12 +225,34 @@ class DeliveryListFragment : Fragment() {
             showItemOptions(delivery, showNavComplete = false)
         }
 
+        fun refreshAdapterGroupColor() {
+            val hex = viewModel.currentGroup()?.colorHex ?: "#F44336"
+            val c = try { android.graphics.Color.parseColor(hex) } catch (_: Exception) { android.graphics.Color.parseColor("#F44336") }
+            if (adapter.groupColor != c) {
+                adapter.groupColor = c
+                adapter.notifyDataSetChanged()
+            }
+        }
+
         viewModel.currentGroupId.observe(viewLifecycleOwner) {
             filterMode = FilterMode.ALL
             binding.chipIncomplete.isChecked = false
             binding.chipIncomplete.text = "すべて"
             exitSelectMode()
             applyFilter()
+            refreshAdapterGroupColor()
+        }
+
+        viewModel.groups.observe(viewLifecycleOwner) { refreshAdapterGroupColor() }
+
+        viewModel.outOfAreaCandidates.observe(viewLifecycleOwner) { items ->
+            if (items == null) return@observe
+            viewModel.clearOutOfAreaCandidates()
+            if (items.isEmpty()) {
+                Toast.makeText(requireContext(), "エリア外の住所はありません", Toast.LENGTH_SHORT).show()
+            } else {
+                showOutOfAreaCandidatesDialog(items)
+            }
         }
 
     }
@@ -1591,12 +1614,29 @@ class DeliveryListFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
-        headerRow.addView(TextView(ctx).apply {
-            text = "ルートメニュー"; textSize = 20f
+        val currentRouteColor = try {
+            android.graphics.Color.parseColor(viewModel.currentGroup()?.colorHex ?: "#F44336")
+        } catch (_: Exception) { android.graphics.Color.parseColor("#F44336") }
+        val titleRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        titleRow.addView(android.view.View(ctx).apply {
+            val s = (14 * dp).toInt()
+            layoutParams = LinearLayout.LayoutParams(s, s).also { it.marginEnd = (10 * dp).toInt() }
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(currentRouteColor)
+            }
+        })
+        titleRow.addView(TextView(ctx).apply {
+            text = viewModel.currentGroup()?.name ?: "ルートメニュー"
+            textSize = 20f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(onSurfaceColor)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
+        headerRow.addView(titleRow)
         headerRow.addView(TextView(ctx).apply {
             text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
             setTextColor(onSurfaceVariant)
@@ -1671,16 +1711,22 @@ class DeliveryListFragment : Fragment() {
         row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
         divider()
         // ── 共有
+        row("📄", "ルートを複製", "同じ内容で新しいルートを作成する") {
+            if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return@row }
+            val groupId = viewModel.currentGroupId.value ?: return@row
+            viewModel.copyGroup(groupId)
+        }
         row("📤", "ルートを共有", "LINE・SMS等で送る") { shareList() }
         divider()
         // ── 設定
         val areaLabel = viewModel.areaHint.value?.ifBlank { null } ?: "未設定"
         row("⚙", "配達地域", "現在: $areaLabel") { showAreaSettingDialog() }
-        val currentPatternId = viewModel.currentGroup()?.patternId ?: -1
-        val patternLabel = if (currentPatternId != -1) {
-            com.rodgers.routist.util.PatternStorage.get(ctx, currentPatternId)?.title ?: "未設定"
-        } else "未設定"
-        row("📋", "帳票パターン", "現在: $patternLabel") { showLinkPatternDialog(sheet) }
+        if (areaLabel != "未設定") {
+            row("🔧", "エリア外住所を修正", "配達地域と照合してエリア外の住所を修正する") {
+                viewModel.fetchOutOfAreaCandidates()
+                sheet.dismiss()
+            }
+        }
         divider()
         // ── 危険操作
         row("🗑", "このルートを削除", "削除後は元に戻せません", redColor) { confirmDeleteGroup() }
@@ -1705,20 +1751,152 @@ class DeliveryListFragment : Fragment() {
         scanLauncher.launch(Intent(requireContext(), ScanActivity::class.java))
     }
 
+    private fun showOutOfAreaCandidatesDialog(items: List<DeliveryViewModel.OutOfAreaItem>) {
+        val ctx = requireContext()
+        val dp = ctx.resources.displayMetrics.density
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
+
+        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
+        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        val primaryColor     = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
+
+        val selectedResults = mutableMapOf<String, com.rodgers.routist.util.GeocodingClient.GeoResult>()
+
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(surfaceColor)
+        }
+
+        // ヘッダー
+        val headerRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding((20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt())
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        headerRow.addView(TextView(ctx).apply {
+            text = "🔧 エリア外住所の修正（${items.size}件）"
+            textSize = 20f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(onSurfaceColor)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        headerRow.addView(TextView(ctx).apply {
+            text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
+            setTextColor(onSurfaceVariant)
+            background = android.util.TypedValue().also {
+                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
+            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
+            layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
+            setOnClickListener { sheet.dismiss() }
+        })
+        root.addView(headerRow)
+        root.addView(android.view.View(ctx).apply {
+            setBackgroundColor(outlineVariant)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
+        })
+
+        // 各エリア外アイテム
+        val bodyLayout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((20 * dp).toInt(), (8 * dp).toInt(), (20 * dp).toInt(), (24 * dp).toInt())
+        }
+
+        items.forEachIndexed { index, item ->
+            val delivery = item.delivery
+
+            if (index > 0) bodyLayout.addView(android.view.View(ctx).apply {
+                setBackgroundColor(outlineVariant)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
+                    .also { it.setMargins(0, (12 * dp).toInt(), 0, (12 * dp).toInt()) }
+            })
+
+            // 名前
+            bodyLayout.addView(TextView(ctx).apply {
+                text = if (!delivery.name.isNullOrBlank()) delivery.name else "（名前なし）"
+                textSize = 17f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setTextColor(onSurfaceColor)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .also { it.topMargin = (8 * dp).toInt() }
+            })
+            // 現在住所
+            bodyLayout.addView(TextView(ctx).apply {
+                text = "現在: ${delivery.address}"; textSize = 13f
+                setTextColor(onSurfaceVariant)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .also { it.topMargin = (2 * dp).toInt(); it.bottomMargin = (8 * dp).toInt() }
+            })
+
+            if (item.candidates.isEmpty()) {
+                bodyLayout.addView(TextView(ctx).apply {
+                    text = "候補が見つかりませんでした"; textSize = 14f
+                    setTextColor(onSurfaceVariant)
+                })
+            } else {
+                val radioGroup = android.widget.RadioGroup(ctx).apply { orientation = android.widget.RadioGroup.VERTICAL }
+                item.candidates.forEachIndexed { idx, candidate ->
+                    val rb = android.widget.RadioButton(ctx)
+                    rb.id = View.generateViewId()
+                    rb.text = candidate.formattedAddress; rb.textSize = 14f
+                    rb.setTextColor(onSurfaceColor)
+                    rb.isChecked = idx == 0
+                    radioGroup.addView(rb)
+                    if (idx == 0) selectedResults[delivery.id] = candidate
+                    rb.setOnCheckedChangeListener { _, checked ->
+                        if (checked) selectedResults[delivery.id] = candidate
+                    }
+                }
+                bodyLayout.addView(radioGroup)
+            }
+        }
+
+        val scroll = ScrollView(ctx).apply {
+            addView(bodyLayout)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+        root.addView(scroll)
+
+        // 保存ボタン
+        root.addView(android.view.View(ctx).apply {
+            setBackgroundColor(outlineVariant)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
+        })
+        val saveBtn = com.google.android.material.button.MaterialButton(ctx).apply {
+            text = "保存"; textSize = 16f
+            setBackgroundColor(primaryColor)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (52 * dp).toInt())
+                .also { it.setMargins((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt()) }
+            setOnClickListener {
+                selectedResults.forEach { (deliveryId, result) ->
+                    viewModel.applyOutOfAreaFix(deliveryId, result)
+                }
+                Toast.makeText(ctx, "${selectedResults.size}件を修正しました", Toast.LENGTH_SHORT).show()
+                sheet.dismiss()
+            }
+        }
+        root.addView(saveBtn)
+
+        sheet.setContentView(root)
+        sheet.show()
+    }
+
     private fun showAreaSettingDialog() {
         val ctx = requireContext()
         val edit = EditText(ctx).apply {
             setText(viewModel.areaHint.value ?: "")
-            hint = "例：神奈川県横浜市"
+            hint = "例：横浜市, 静岡市（漢字で入力）"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             setPadding(64, 24, 64, 24)
         }
         AlertDialog.Builder(ctx)
             .setTitle("配達地域")
-            .setMessage("都道府県・市区町村を設定すると、住所の検索精度が上がります。")
+            .setMessage("都道府県・市区町村を設定すると、住所の検索精度が上がります。複数のエリアはカンマ区切りで入力できます。")
             .setView(edit)
             .setPositiveButton("保存") { _, _ ->
-                viewModel.setAreaHint(edit.text.toString().trim())
+                val area = edit.text.toString().trim()
+                viewModel.setAreaHint(area)
+                if (area.isNotBlank()) showAddressCheckResult(area)
             }
             .setNeutralButton("クリア") { _, _ ->
                 viewModel.setAreaHint("")
@@ -1727,12 +1905,102 @@ class DeliveryListFragment : Fragment() {
             .show()
     }
 
+    private fun areaMatches(address: String, area: String): Boolean {
+        val areas = area.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
+        return areas.any { single ->
+            if (address.contains(single)) return@any true
+            // 都道府県プレフィックスを除いた市区町村以降で再確認
+            val cityPart = single.replace(Regex("^.+[都道府県]"), "")
+            cityPart.length >= 2 && address.contains(cityPart)
+        }
+    }
+
+    private fun showAddressCheckResult(area: String) {
+        val deliveries = viewModel.deliveries.value ?: return
+        if (deliveries.isEmpty()) return
+        val ctx = requireContext()
+        val dp = ctx.resources.displayMetrics.density
+
+        val notGeocoded = deliveries.filter { !it.isGeocoded }
+        val mismatched  = deliveries.filter { it.isGeocoded && !areaMatches(it.address, area) }
+
+        if (mismatched.isEmpty() && notGeocoded.isEmpty()) {
+            Toast.makeText(ctx, "✅ 全 ${deliveries.size} 件が「$area」内の住所です", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
+        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        val warnColor        = ContextCompat.getColor(ctx, R.color.colorActionRed)
+
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(surfaceColor)
+        }
+
+        // ヘッダー
+        root.addView(TextView(ctx).apply {
+            text = "住所精査結果"
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(onSurfaceColor)
+            setPadding((20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt(), (12 * dp).toInt())
+        })
+        root.addView(View(ctx).apply {
+            setBackgroundColor(outlineVariant)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
+        })
+
+        fun sectionLabel(text: String, color: Int) = root.addView(TextView(ctx).apply {
+            this.text = text; textSize = 15f; setTextColor(color)
+            setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (6 * dp).toInt())
+        })
+
+        fun itemRow(delivery: Delivery) = root.addView(TextView(ctx).apply {
+            val label = buildString {
+                append("${delivery.order}. ")
+                if (!delivery.name.isNullOrBlank()) append("${delivery.name}  ")
+                append(delivery.address)
+            }
+            text = label; textSize = 13f; setTextColor(onSurfaceVariant); maxLines = 2
+            setPadding((36 * dp).toInt(), (4 * dp).toInt(), (20 * dp).toInt(), (4 * dp).toInt())
+        })
+
+        // エリア外の可能性がある件
+        if (mismatched.isNotEmpty()) {
+            sectionLabel("⚠️  ${mismatched.size}件がエリア外の可能性があります", warnColor)
+            mismatched.forEach { itemRow(it) }
+        }
+
+        // 検索未完了の件
+        if (notGeocoded.isNotEmpty()) {
+            if (mismatched.isNotEmpty()) root.addView(View(ctx).apply {
+                setBackgroundColor(outlineVariant)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
+                    .also { it.setMargins(0, (8 * dp).toInt(), 0, (8 * dp).toInt()) }
+            })
+            sectionLabel("⏳  ${notGeocoded.size}件は住所検索中です（精査待ち）", onSurfaceVariant)
+            notGeocoded.forEach { itemRow(it) }
+        }
+
+        root.addView(View(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (32 * dp).toInt())
+        })
+
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
+        sheet.setContentView(ScrollView(ctx).apply { addView(root) })
+        sheet.show()
+    }
+
     private fun showRenameGroupDialog() {
         val ctx = requireContext()
         val group = viewModel.currentGroup() ?: return
         val input = EditText(ctx).apply {
             setText(group.name); selectAll()
             inputType = android.text.InputType.TYPE_CLASS_TEXT
+            filters = arrayOf(InputFilter.LengthFilter(20))
         }
         AlertDialog.Builder(ctx)
             .setTitle("ルート名を変更")
@@ -1760,6 +2028,7 @@ class DeliveryListFragment : Fragment() {
         val input = EditText(ctx).apply {
             hint = "ルート名を入力"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
+            filters = arrayOf(InputFilter.LengthFilter(20))
         }
         AlertDialog.Builder(ctx)
             .setTitle("新しいルートを追加")
@@ -2135,6 +2404,7 @@ class DeliveryAdapter(
     private val items = mutableListOf<Delivery>()
     var isSelectMode = false
     val selectedIds = mutableSetOf<String>()
+    var groupColor: Int = android.graphics.Color.parseColor("#F44336")
     private val imageExecutor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -2328,7 +2598,7 @@ class DeliveryAdapter(
                     itemView.setBackgroundColor(androidx.core.content.ContextCompat.getColor(ctx, R.color.colorDayBg))
                     tvName.setTextColor(androidx.core.content.ContextCompat.getColor(ctx, R.color.colorWeekdayText))
                     tvAddress.setTextColor(androidx.core.content.ContextCompat.getColor(ctx, R.color.colorWeekdayText))
-                    tvOrder.setTextColor(androidx.core.content.ContextCompat.getColor(ctx, R.color.colorTimeSlot))
+                    tvOrder.setTextColor(groupColor)
                 }
                 itemView.alpha = 1.0f
                 itemView.setOnClickListener { onTap(delivery) }

@@ -55,8 +55,28 @@ object AppSettings {
     fun getCompanyName(ctx: Context): String = p(ctx).getString("company_name", "") ?: ""
     fun setCompanyName(ctx: Context, v: String) = p(ctx).edit().putString("company_name", v).apply()
 
-    fun getVehicleNumber(ctx: Context): String = p(ctx).getString("vehicle_number", "") ?: ""
-    fun setVehicleNumber(ctx: Context, v: String) = p(ctx).edit().putString("vehicle_number", v).apply()
+    // 複数車両（最大3台）
+    fun getVehicles(ctx: Context): List<String> {
+        val p = p(ctx)
+        val legacy = p.getString("vehicle_number", null)
+        return listOf(
+            p.getString("vehicle_number_1", legacy ?: "") ?: "",
+            p.getString("vehicle_number_2", "") ?: "",
+            p.getString("vehicle_number_3", "") ?: ""
+        )
+    }
+    fun setVehicles(ctx: Context, list: List<String>) {
+        val edit = p(ctx).edit()
+        list.forEachIndexed { i, v -> edit.putString("vehicle_number_${i + 1}", v) }
+        edit.apply()
+    }
+    fun getVehicleNumber(ctx: Context): String =
+        getVehicles(ctx).firstOrNull { it.isNotBlank() }
+            ?: p(ctx).getString("vehicle_number", "") ?: ""
+    fun setVehicleNumber(ctx: Context, v: String) {
+        val current = getVehicles(ctx)
+        setVehicles(ctx, listOf(v, current[1], current[2]))
+    }
 
     // 点呼リマインダー（乗務前）
     fun getReminderBeforeEnabled(ctx: Context): Boolean = p(ctx).getBoolean("reminder_before_on", false)

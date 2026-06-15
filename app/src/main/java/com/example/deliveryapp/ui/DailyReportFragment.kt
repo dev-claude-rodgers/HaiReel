@@ -42,6 +42,7 @@ import com.rodgers.routist.model.WorkRecord
 import com.rodgers.routist.util.BackupManager
 import com.rodgers.routist.util.GeocodingClient
 import com.rodgers.routist.util.LicenseManager
+import com.rodgers.routist.util.LocationTrackingService
 import com.rodgers.routist.util.PatternStorage
 import com.rodgers.routist.util.SignatureStorage
 import com.rodgers.routist.viewmodel.DeliveryViewModel
@@ -122,11 +123,9 @@ class DailyReportFragment : Fragment() {
         val initPattern = PatternStorage.ensureDefault(requireContext())
         reportViewModel.setClosingDay(initPattern.closingDay)
 
-        // 選択中の案件IDを日報ViewModelに連動させ、案件名バーと帳票パターンを更新する
-        deliveryViewModel.currentGroupId.observe(viewLifecycleOwner) { groupId ->
-            reportViewModel.setAssignmentId(groupId ?: "")
+        // 案件名バーの表示を更新するヘルパー（ルート名変更時にも同期するため共通化）
+        val updateAssignmentBar = {
             val group = deliveryViewModel.currentGroup()
-            // 案件名バー
             if (group != null && group.name.isNotBlank()) {
                 binding.tvAssignment.visibility = View.VISIBLE
                 binding.tvAssignment.text = "📦 ${group.name}"
@@ -144,7 +143,18 @@ class DailyReportFragment : Fragment() {
             } else {
                 binding.tvAssignment.visibility = View.GONE
             }
+        }
+
+        // ビュー生成時点で正しい案件IDをViewModelに即時反映（collect開始前に確定させる）
+        reportViewModel.setAssignmentId(deliveryViewModel.currentGroupId.value ?: "")
+        updateAssignmentBar()
+
+        // 選択中の案件IDを日報ViewModelに連動させ、案件名バーと帳票パターンを更新する
+        deliveryViewModel.currentGroupId.observe(viewLifecycleOwner) { groupId ->
+            reportViewModel.setAssignmentId(groupId ?: "")
+            updateAssignmentBar()
             // 案件に紐づいた帳票パターンを自動適用
+            val group = deliveryViewModel.currentGroup()
             val linkedPatternId = group?.patternId ?: -1
             if (linkedPatternId != -1) {
                 val pattern = PatternStorage.get(requireContext(), linkedPatternId)
@@ -155,8 +165,11 @@ class DailyReportFragment : Fragment() {
             }
         }
 
+        // ルート名が変更されたときも案件名バーを同期する
+        deliveryViewModel.groups.observe(viewLifecycleOwner) { updateAssignmentBar() }
+
         // 月ラベル
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             reportViewModel.yearMonth.collect { ym ->
                 val (y, m) = ym.split("-").map { it.toInt() }
                 binding.tvMonth.text = "${y}年${m}月"
@@ -164,7 +177,7 @@ class DailyReportFragment : Fragment() {
         }
 
         // 日報リスト更新
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             combine(reportViewModel.records, reportViewModel.yearMonth) { records, ym ->
                 Pair(records, ym)
             }.collect { (records, ym) ->
@@ -419,29 +432,6 @@ class DailyReportFragment : Fragment() {
         root.addView(offsetLbl); root.addView(offsetRow)
         applyTimeVisibility()
 
-        // ── メーター
-        root.addView(label("開始メーター ／ 終了メーター（km）"))
-        val meterRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        val startMeterIn = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
-            if (record.startMeter > 0) setText(record.startMeter.toString())
-            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
-        }
-        val endMeterIn = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
-            if (record.endMeter > 0) setText(record.endMeter.toString())
-            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
-        }
-        meterRow.addView(startMeterIn)
-        meterRow.addView(TextView(ctx).apply { text = "km"; textSize = 13f; setTextColor(Color.GRAY) })
-        meterRow.addView(TextView(ctx).apply { text = "  〜  "; textSize = 14f })
-        meterRow.addView(endMeterIn)
-        meterRow.addView(TextView(ctx).apply { text = "km"; textSize = 13f; setTextColor(Color.GRAY) })
-        root.addView(meterRow)
-
         // ── 配達件数 / 個数
         root.addView(label("配達件数 ／ 個数"))
         val cntRow = LinearLayout(ctx).apply {
@@ -462,6 +452,49 @@ class DailyReportFragment : Fragment() {
         cntRow.addView(TextView(ctx).apply { text = " 個"; textSize = 13f })
         root.addView(cntRow)
 
+        // ── 報酬（件数のすぐ下）
+        val paymentType     = com.rodgers.routist.util.AppSettings.getPaymentType(ctx, reportViewModel.assignmentId.value)
+        val unitPrice       = com.rodgers.routist.util.AppSettings.getUnitPrice(ctx, reportViewModel.assignmentId.value)
+        val trackIncome     = paymentType != 2
+        val incomeLabelView = label(if (paymentType == 1 && unitPrice > 0) "報酬（件数単価: ${unitPrice}円）" else "報酬（円）")
+        val incomeIn = EditText(ctx).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
+            val initIncome = when {
+                record.income > 0 -> record.income.toString()
+                paymentType == 1 && unitPrice > 0 -> (unitPrice * record.deliveryCount).let { if (it > 0) it.toString() else "" }
+                else -> ""
+            }
+            setText(initIncome)
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+        if (trackIncome) {
+            root.addView(incomeLabelView)
+            root.addView(incomeIn)
+        }
+        if (paymentType == 1 && unitPrice > 0) {
+            var incomeManuallyEdited = false
+            var updatingIncome = false
+            incomeIn.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    if (!updatingIncome) incomeManuallyEdited = true
+                }
+            })
+            delivCntIn.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    if (!incomeManuallyEdited) {
+                        val cnt = delivCntIn.text.toString().toIntOrNull() ?: 0
+                        updatingIncome = true
+                        incomeIn.setText((unitPrice * cnt).toString())
+                        updatingIncome = false
+                    }
+                }
+            })
+        }
+
         // ── エリア
         root.addView(label("エリア"))
         val areaIn = EditText(ctx).apply {
@@ -473,7 +506,6 @@ class DailyReportFragment : Fragment() {
 
         // ── アルコールチェック
         root.addView(label("アルコールチェック"))
-        // 選択時の背景色・文字色（未実施=グレー / ○正常=グリーン / ×異常=レッド）
         val alcSelectedBg      = listOf("#9E9E9E", "#388E3C", "#D32F2F")
         val alcUnselectedColor = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
         val alcUnselectedText  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
@@ -513,20 +545,50 @@ class DailyReportFragment : Fragment() {
         applyAlcStyle()
         root.addView(alcRow)
 
+        // ── メーター
+        root.addView(label("開始メーター ／ 終了メーター（km）"))
+        val meterRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+        val startMeterIn = EditText(ctx).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
+            if (record.startMeter > 0) setText(record.startMeter.toString())
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+        }
+        val endMeterIn = EditText(ctx).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
+            if (record.endMeter > 0) setText(record.endMeter.toString())
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+        }
+        meterRow.addView(startMeterIn)
+        meterRow.addView(TextView(ctx).apply { text = "km"; textSize = 13f; setTextColor(Color.GRAY) })
+        meterRow.addView(TextView(ctx).apply { text = "  〜  "; textSize = 14f })
+        meterRow.addView(endMeterIn)
+        meterRow.addView(TextView(ctx).apply { text = "km"; textSize = 13f; setTextColor(Color.GRAY) })
+        root.addView(meterRow)
+
         // ── 走行距離（メーター差から自動計算）
         root.addView(label("走行距離（km）"))
         var distManuallyEdited = false
         val distIn = EditText(ctx).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            hint = "0.0"; setText(if (record.distanceKm > 0f) record.distanceKm.toString() else "")
+            hint = "0.0"
+            val gpsKm = if (record.distanceKm <= 0f)
+                LocationTrackingService.getTodayDistanceKm(ctx) else 0f
+            setText(when {
+                record.distanceKm > 0f -> record.distanceKm.toString()
+                gpsKm > 0f && record.date == LocalDate.now().toString() -> "%.1f".format(gpsKm)
+                else -> ""
+            })
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(distIn)
-        // setText による初期化の後にリスナーを登録する
+        var updatingDistFromMeter = false
         distIn.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-            override fun afterTextChanged(s: Editable?) { distManuallyEdited = true }
+            override fun afterTextChanged(s: Editable?) { if (!updatingDistFromMeter) distManuallyEdited = true }
         })
         distManuallyEdited = false
         val meterWatcher = object : TextWatcher {
@@ -536,73 +598,20 @@ class DailyReportFragment : Fragment() {
                 if (distManuallyEdited) return
                 val sm = startMeterIn.text.toString().toIntOrNull()
                 val em = endMeterIn.text.toString().toIntOrNull()
-                if (sm != null && em != null && em > sm) distIn.setText((em - sm).toString())
+                if (sm != null && em != null && em > sm) {
+                    updatingDistFromMeter = true
+                    distIn.setText((em - sm).toString())
+                    updatingDistFromMeter = false
+                }
             }
         }
         startMeterIn.addTextChangedListener(meterWatcher)
         endMeterIn.addTextChangedListener(meterWatcher)
 
-        // ── 備考
-        root.addView(label("備考"))
-        val remarksIn = EditText(ctx).apply {
-            hint = "特記事項など"; setText(record.remarks)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            maxLines = 3; layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(remarksIn)
-
-        // ── 報酬
-        val paymentType     = com.rodgers.routist.util.AppSettings.getPaymentType(ctx, reportViewModel.assignmentId.value)
-        val unitPrice       = com.rodgers.routist.util.AppSettings.getUnitPrice(ctx, reportViewModel.assignmentId.value)
-        val trackIncome     = paymentType != 2
-        val invoiceReg      = com.rodgers.routist.util.AppSettings.isInvoiceRegistered(ctx)
-        val invoiceBadge    = if (invoiceReg) "✅ インボイス登録済み" else "⚠️ インボイス未登録"
-        val incomeLabelView = label(buildString {
-            append(if (paymentType == 1 && unitPrice > 0) "報酬（件数単価: ${unitPrice}円）" else "報酬（円）")
-            append("  $invoiceBadge")
-        })
-        val incomeIn = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
-            val initIncome = when {
-                record.income > 0 -> record.income.toString()
-                paymentType == 1 && unitPrice > 0 -> (unitPrice * record.deliveryCount).let { if (it > 0) it.toString() else "" }
-                else -> ""
-            }
-            setText(initIncome)
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        if (trackIncome) {
-            root.addView(incomeLabelView)
-            root.addView(incomeIn)
-        }
-        if (paymentType == 1 && unitPrice > 0) {
-            var incomeManuallyEdited = false
-            var updatingIncome = false
-            incomeIn.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
-                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    if (!updatingIncome) incomeManuallyEdited = true
-                }
-            })
-            delivCntIn.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
-                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    if (!incomeManuallyEdited) {
-                        val cnt = delivCntIn.text.toString().toIntOrNull() ?: 0
-                        updatingIncome = true
-                        incomeIn.setText((unitPrice * cnt).toString())
-                        updatingIncome = false
-                    }
-                }
-            })
-        }
-
-        // ── 燃料費
+        // ── 燃料費（走行距離のすぐ下）
         val fuelPrice = com.rodgers.routist.util.AppSettings.getFuelPricePerLiter(ctx)
         val fuelEff   = com.rodgers.routist.util.AppSettings.getFuelEfficiencyKmPerL(ctx)
-        root.addView(label("燃料費（円）  ※ ${fuelPrice}円/L・${fuelEff}km/L で自動計算可"))
+        root.addView(label("燃料費（円）"))
         val fuelRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
@@ -634,33 +643,48 @@ class DailyReportFragment : Fragment() {
         fuelRow.addView(fuelIn); fuelRow.addView(fuelCalcBtn)
         root.addView(fuelRow)
 
-        MaterialAlertDialogBuilder(ctx)
+        // ── 備考
+        root.addView(label("備考"))
+        val remarksIn = EditText(ctx).apply {
+            hint = "特記事項など"; setText(record.remarks)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            maxLines = 3; layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+        root.addView(remarksIn)
+
+        val dlg = MaterialAlertDialogBuilder(ctx)
             .setTitle(if (record.id == 0L) "日報を記録（$selectedDate）" else "日報を修正（${record.date}）")
             .setView(scroll)
-            .setPositiveButton("保存") { _, _ ->
-                val sm   = startMeterIn.text.toString().toIntOrNull() ?: 0
-                val em   = endMeterIn.text.toString().toIntOrNull()   ?: 0
-                val dist = distIn.text.toString().toFloatOrNull()
-                    ?: if (em > sm) (em - sm).toFloat() else record.distanceKm
-                reportViewModel.save(record.copy(
-                    date          = selectedDate,
-                    startTime     = "%02d:%02d".format(startH, startM),
-                    endTime       = "%02d:%02d".format(endH, endM),
-                    endDateOffset = endDateOffset,
-                    startMeter    = sm, endMeter = em, distanceKm = dist,
-                    deliveryCount = delivCntIn.text.toString().toIntOrNull() ?: 0,
-                    packageCount  = pkgCntIn.text.toString().toIntOrNull()   ?: 0,
-                    area          = areaIn.text.toString().trim(),
-                    alcCheck      = alcValues[alcIdx],
-                    remarks       = remarksIn.text.toString().trim(),
-                    income        = incomeIn.text.toString().toIntOrNull() ?: 0,
-                    fuelCost      = fuelIn.text.toString().toIntOrNull() ?: 0,
-                    assignmentId  = reportViewModel.assignmentId.value
-                ))
-                Toast.makeText(ctx, "保存しました（$selectedDate）", Toast.LENGTH_SHORT).show()
-            }
+            .setPositiveButton("保存", null)
             .setNegativeButton("キャンセル", null)
             .show()
+        dlg.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener {
+            val sm = startMeterIn.text.toString().toIntOrNull() ?: 0
+            val em = endMeterIn.text.toString().toIntOrNull()   ?: 0
+            if (sm > 0 && em > 0 && sm >= em) {
+                Toast.makeText(ctx, "終了メーターは開始メーターより大きい値にしてください", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val dist = distIn.text.toString().toFloatOrNull()
+                ?: if (em > sm) (em - sm).toFloat() else record.distanceKm
+            reportViewModel.save(record.copy(
+                date          = selectedDate,
+                startTime     = "%02d:%02d".format(startH, startM),
+                endTime       = "%02d:%02d".format(endH, endM),
+                endDateOffset = endDateOffset,
+                startMeter    = sm, endMeter = em, distanceKm = dist,
+                deliveryCount = delivCntIn.text.toString().toIntOrNull() ?: 0,
+                packageCount  = pkgCntIn.text.toString().toIntOrNull()   ?: 0,
+                area          = areaIn.text.toString().trim(),
+                alcCheck      = alcValues[alcIdx],
+                remarks       = remarksIn.text.toString().trim(),
+                income        = incomeIn.text.toString().toIntOrNull() ?: 0,
+                fuelCost      = fuelIn.text.toString().toIntOrNull() ?: 0,
+                assignmentId  = reportViewModel.assignmentId.value
+            ))
+            Toast.makeText(ctx, "保存しました（$selectedDate）", Toast.LENGTH_SHORT).show()
+            dlg.dismiss()
+        }
     }
 
     // ─────── 削除 ───────
@@ -734,7 +758,6 @@ class DailyReportFragment : Fragment() {
         row("📄", "帳票設定", "取引先・締め日・Excel出力列") { showPatternListDialog() }
         row("🖊️", "作業者署名", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
         row("🤝", "取引先署名", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
-        row("⛽", "燃料費設定", "燃料単価・走行距離から燃料コストを管理する") { showFareCalculationDialog() }
         divider()
         // ── 出力・データ管理
         row("📊", "Excelを出力", "集計期間の稼働報告書を保存・共有") { exportExcel() }
@@ -797,12 +820,12 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
         val tv = android.widget.TextView(ctx).apply {
             this.text = text
             textSize = 14f
-            setTextColor(android.graphics.Color.parseColor("#CCCCCC"))
+            setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt())
             setLineSpacing(0f, 1.4f)
         }
         val scroll = android.widget.ScrollView(ctx).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#2A2A2A"))
+            setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurface))
             addView(tv)
         }
 
@@ -874,38 +897,6 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
         else rbContractor.isChecked = true
         root.addView(empGroup)
 
-        // ── 報酬設定
-        root.addView(section("── 報酬設定"))
-
-        root.addView(field("報酬タイプ"))
-        val payGroup = android.widget.RadioGroup(ctx).apply { orientation = android.widget.RadioGroup.VERTICAL }
-        val rbDaily  = android.widget.RadioButton(ctx).apply { text = "日当制";       id = View.generateViewId() }
-        val rbUnit   = android.widget.RadioButton(ctx).apply { text = "件数単価制";   id = View.generateViewId() }
-        val rbNone   = android.widget.RadioButton(ctx).apply { text = "なし";         id = View.generateViewId() }
-        payGroup.addView(rbDaily); payGroup.addView(rbUnit); payGroup.addView(rbNone)
-        when (com.rodgers.routist.util.AppSettings.getPaymentType(ctx, settingsGroupId)) {
-            1    -> rbUnit.isChecked = true
-            2    -> rbNone.isChecked = true
-            else -> rbDaily.isChecked = true
-        }
-        root.addView(payGroup)
-
-        val isInvoicedNow = com.rodgers.routist.util.AppSettings.isInvoiceRegistered(ctx)
-        val tvUnitLabel = field(if (isInvoicedNow) "件数単価（税抜）" else "件数単価（円）")
-        root.addView(tvUnitLabel)
-        val etUnit = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
-            val v = com.rodgers.routist.util.AppSettings.getUnitPrice(ctx, settingsGroupId)
-            if (v > 0) setText(v.toString())
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(etUnit)
-        val tvUnitTax = TextView(ctx).apply {
-            textSize = 12f; setTextColor(colorOutline)
-            visibility = if (isInvoicedNow) View.VISIBLE else View.GONE
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.topMargin = (2 * dp).toInt() }
-        }
-        root.addView(tvUnitTax)
         // ── 事業者情報
         root.addView(section("── 事業者情報"))
 
@@ -924,62 +915,6 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(etVehicle)
-
-        // ── 燃料費設定
-        root.addView(section("── 燃料費設定"))
-        root.addView(field("ガソリン単価（円/L）"))
-        val etFuelPrice = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "170"
-            val v = com.rodgers.routist.util.AppSettings.getFuelPricePerLiter(ctx)
-            setText(v.toString())
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(etFuelPrice)
-        root.addView(field("燃費（km/L）"))
-        val etFuelEff = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL; hint = "15.0"
-            val v = com.rodgers.routist.util.AppSettings.getFuelEfficiencyKmPerL(ctx)
-            setText(v.toString())
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(etFuelEff)
-
-        // ── インボイス設定
-        root.addView(section("── インボイス設定"))
-        val swInvoice = run {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.topMargin = (4 * dp).toInt() }
-            }
-            row.addView(TextView(ctx).apply {
-                text = "インボイス（適格請求書）登録済み"; textSize = 15f
-                setTextColor(colorOnSurface)
-                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
-            })
-            val sw = androidx.appcompat.widget.SwitchCompat(ctx).apply {
-                isChecked = com.rodgers.routist.util.AppSettings.isInvoiceRegistered(ctx)
-            }
-            row.addView(sw); root.addView(row); sw
-        }
-
-        fun updateUnitLabel() {
-            val price = etUnit.text.toString().toIntOrNull() ?: 0
-            if (swInvoice.isChecked) {
-                tvUnitLabel.text = "件数単価（税抜）"
-                tvUnitTax.visibility = View.VISIBLE
-                tvUnitTax.text = "消費税10%込: ${(price * 1.1).toInt()}円 / 件"
-            } else {
-                tvUnitLabel.text = "件数単価（円）"
-                tvUnitTax.visibility = View.GONE
-            }
-        }
-        swInvoice.setOnCheckedChangeListener { _, _ -> updateUnitLabel() }
-        etUnit.addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(s: android.text.Editable?) = updateUnitLabel()
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-        updateUnitLabel()
 
         // ── 点呼設定
         root.addView(section("── 点呼設定"))
@@ -1048,11 +983,6 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
             .setView(scroll)
             .setPositiveButton("保存") { _, _ ->
                 com.rodgers.routist.util.AppSettings.setEmploymentType(ctx, settingsGroupId, if (rbEmployee.isChecked) "employee" else "contractor")
-                com.rodgers.routist.util.AppSettings.setPaymentType(ctx, settingsGroupId, if (rbUnit.isChecked) 1 else if (rbNone.isChecked) 2 else 0)
-                com.rodgers.routist.util.AppSettings.setUnitPrice(ctx, settingsGroupId, etUnit.text.toString().toIntOrNull() ?: 0)
-                com.rodgers.routist.util.AppSettings.setFuelPricePerLiter(ctx, etFuelPrice.text.toString().toIntOrNull() ?: 170)
-                com.rodgers.routist.util.AppSettings.setFuelEfficiencyKmPerL(ctx, etFuelEff.text.toString().toFloatOrNull() ?: 15f)
-                com.rodgers.routist.util.AppSettings.setInvoiceRegistered(ctx, swInvoice.isChecked)
                 com.rodgers.routist.util.AppSettings.setCompanyName(ctx, etCompany.text.toString().trim())
                 com.rodgers.routist.util.AppSettings.setVehicleNumber(ctx, etVehicle.text.toString().trim())
                 com.rodgers.routist.util.AppSettings.setDriverName(ctx, etDriver.text.toString().trim())
@@ -1400,8 +1330,12 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
             val allRecords = reportViewModel.allRecordsForMonth(ym)
             if (!isAdded) return@launch
 
-            // assignmentId でグループ化
-            val byAssignment = allRecords.groupBy { it.assignmentId }
+            // assignmentId でグループ化し、削除済み案件（groupsに存在しないもの、ただし空欄=未分類は除く）を除外
+            val byAssignment = allRecords
+                .groupBy { it.assignmentId }
+                .filter { (assignmentId, _) ->
+                    assignmentId.isBlank() || groups.any { it.id == assignmentId }
+                }
 
             val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
             val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
@@ -1427,36 +1361,37 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
             })
 
-            var totalDays = 0; var totalDeliv = 0; var totalIncome = 0; var totalFuel = 0
+            fun addDivider(indent: Boolean) = root.addView(android.view.View(ctx).apply {
+                setBackgroundColor(outlineVariant)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
+                    .also { it.marginStart = if (indent) (20 * dp).toInt() else 0 }
+            })
 
-            fun addRow(label: String, colorHex: String?, records: List<com.rodgers.routist.model.WorkRecord>, isTotal: Boolean = false) {
-                val days   = records.size
-                val deliv  = records.sumOf { it.deliveryCount }
-                val income = records.sumOf { it.income }
-                val fuel   = records.sumOf { it.fuelCost }
-                if (!isTotal) { totalDays += days; totalDeliv += deliv; totalIncome += income; totalFuel += fuel }
+            fun stat(text: String) = TextView(ctx).apply {
+                this.text = text; textSize = 14f; setTextColor(onSurfaceVariant)
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
 
+            fun addRow(label: String, colorHex: String?,
+                       days: Int, deliv: Int, income: Int, fuel: Int,
+                       isTotal: Boolean = false) {
                 val row = LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
                     setPadding((20 * dp).toInt(), (14 * dp).toInt(), (20 * dp).toInt(), (14 * dp).toInt())
-                    if (isTotal) setBackgroundColor(android.graphics.Color.argb(20, 255, 255, 255))
                 }
                 // ラベル行
                 val labelRow = LinearLayout(ctx).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = android.view.Gravity.CENTER_VERTICAL
                 }
-                // カラードット
                 if (colorHex != null) {
                     labelRow.addView(android.view.View(ctx).apply {
-                        try { setBackgroundColor(android.graphics.Color.parseColor(colorHex)) } catch (_: Exception) {}
-                        layoutParams = LinearLayout.LayoutParams((10 * dp).toInt(), (10 * dp).toInt())
-                            .also { it.marginEnd = (10 * dp).toInt(); it.gravity = android.view.Gravity.CENTER_VERTICAL }
-                        // 円形にする
                         background = android.graphics.drawable.GradientDrawable().apply {
                             shape = android.graphics.drawable.GradientDrawable.OVAL
                             try { setColor(android.graphics.Color.parseColor(colorHex)) } catch (_: Exception) {}
                         }
+                        layoutParams = LinearLayout.LayoutParams((10 * dp).toInt(), (10 * dp).toInt())
+                            .also { it.marginEnd = (10 * dp).toInt(); it.gravity = android.view.Gravity.CENTER_VERTICAL }
                     })
                 }
                 labelRow.addView(TextView(ctx).apply {
@@ -1466,16 +1401,11 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
                     setTextColor(onSurface)
                 })
                 row.addView(labelRow)
-
                 // 数値行
                 val statsRow = LinearLayout(ctx).apply {
                     orientation = LinearLayout.HORIZONTAL
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                         .also { it.topMargin = (6 * dp).toInt() }
-                }
-                fun stat(value: String) = TextView(ctx).apply {
-                    text = value; textSize = 14f; setTextColor(onSurfaceVariant)
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
                 statsRow.addView(stat("${days}日稼働"))
                 statsRow.addView(stat("配達 ${deliv}件"))
@@ -1483,11 +1413,7 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
                 if (fuel   > 0) statsRow.addView(stat("燃料 %,d円".format(fuel)))
                 row.addView(statsRow)
                 root.addView(row)
-                root.addView(android.view.View(ctx).apply {
-                    setBackgroundColor(outlineVariant)
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
-                        .also { it.setMargins(if (isTotal) 0 else (20 * dp).toInt(), 0, 0, 0) }
-                })
+                addDivider(indent = !isTotal)
             }
 
             if (byAssignment.isEmpty()) {
@@ -1498,53 +1424,23 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 })
             } else {
-                // 案件ごとの行
+                var totalDays = 0; var totalDeliv = 0; var totalIncome = 0; var totalFuel = 0
+
                 byAssignment.forEach { (assignmentId, records) ->
-                    val group = groups.find { it.id == assignmentId }
-                    val label = group?.name ?: if (assignmentId.isBlank()) "未分類" else "削除済み案件"
-                    addRow(label, group?.colorHex, records)
+                    val group  = groups.find { it.id == assignmentId }
+                    val label  = group?.name ?: "未分類"
+                    val days   = records.size
+                    val deliv  = records.sumOf { it.deliveryCount }
+                    val income = records.sumOf { it.income }
+                    val fuel   = records.sumOf { it.fuelCost }
+                    totalDays   += days; totalDeliv  += deliv
+                    totalIncome += income; totalFuel += fuel
+                    addRow(label, group?.colorHex, days, deliv, income, fuel)
                 }
+
                 // 合計行（案件が複数のときのみ）
                 if (byAssignment.size > 1) {
-                    addRow("合計", null,
-                        listOf<com.rodgers.routist.model.WorkRecord>().also {
-                            // ダミー：合計値は addRow 内で totalXxx を使わず直接計算済み
-                        }, isTotal = false
-                    )
-                    // 合計を上書き表示
-                    root.removeViewAt(root.childCount - 1) // 直前のdivider削除
-                    root.removeViewAt(root.childCount - 1) // 合計行削除（再描画）
-                    val fakeRecords = List(totalDays) {
-                        com.rodgers.routist.model.WorkRecord(
-                            date = "", deliveryCount = if (it == 0) totalDeliv else 0,
-                            income = if (it == 0) totalIncome else 0,
-                            fuelCost = if (it == 0) totalFuel else 0
-                        )
-                    }
-                    // totalDays, totalDeliv, totalIncome, totalFuel を直接使って合計行を描画
-                    val totalRow = LinearLayout(ctx).apply {
-                        orientation = LinearLayout.VERTICAL
-                        setPadding((20 * dp).toInt(), (14 * dp).toInt(), (20 * dp).toInt(), (14 * dp).toInt())
-                        setBackgroundColor(android.graphics.Color.argb(15, 255, 255, 255))
-                    }
-                    totalRow.addView(TextView(ctx).apply {
-                        text = "合計"; textSize = 15f; typeface = android.graphics.Typeface.DEFAULT_BOLD; setTextColor(onSurface)
-                    })
-                    val statsRow2 = LinearLayout(ctx).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                            .also { it.topMargin = (6 * dp).toInt() }
-                    }
-                    fun stat2(v: String) = TextView(ctx).apply {
-                        text = v; textSize = 14f; setTextColor(onSurfaceVariant)
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    }
-                    statsRow2.addView(stat2("${totalDays}日稼働"))
-                    statsRow2.addView(stat2("配達 ${totalDeliv}件"))
-                    if (totalIncome > 0) statsRow2.addView(stat2("%,d円".format(totalIncome)))
-                    if (totalFuel   > 0) statsRow2.addView(stat2("燃料 %,d円".format(totalFuel)))
-                    totalRow.addView(statsRow2)
-                    root.addView(totalRow)
+                    addRow("合計", null, totalDays, totalDeliv, totalIncome, totalFuel, isTotal = true)
                 }
             }
 
@@ -1557,19 +1453,36 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
     // ─────── Excel出力 ───────
     private fun exportExcel() {
         if (!isAdded) return
-        val ctx = requireContext()
+        val ctx    = requireContext()
         if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return }
-        val ym  = reportViewModel.yearMonth.value
-        exportNippo(ctx, ym)
+        val ym     = reportViewModel.yearMonth.value
+        val groups = deliveryViewModel.groups.value ?: emptyList()
+        if (groups.size <= 1) {
+            exportNippo(ctx, ym, reportViewModel.assignmentId.value, deliveryViewModel.currentGroup()?.name ?: "")
+            return
+        }
+        val options = (listOf("すべての案件") + groups.map { it.name }).toTypedArray()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("出力する案件を選択")
+            .setItems(options) { _, which ->
+                if (which == 0) exportNippo(ctx, ym, "", "全案件")
+                else {
+                    val g = groups[which - 1]
+                    exportNippo(ctx, ym, g.id, g.name)
+                }
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
     }
 
-    private fun exportNippo(ctx: android.content.Context, ym: String) {
-        val pattern = PatternStorage.ensureDefault(ctx)
-        val assignmentName = deliveryViewModel.currentGroup()?.name ?: ""
+    private fun exportNippo(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String) {
+        val group   = if (assignmentId.isNotBlank()) (deliveryViewModel.groups.value ?: emptyList()).find { it.id == assignmentId } else null
+        val pid     = group?.patternId ?: -1
+        val pattern = if (pid != -1) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx) else PatternStorage.ensureDefault(ctx)
         lifecycleScope.launch {
             try {
                 val (startDate, endDate) = ReportViewModel.computePeriod(ym, pattern.closingDay)
-                val records = reportViewModel.recordsForPeriod(startDate, endDate)
+                val records = reportViewModel.recordsForPeriodWithAssignment(startDate, endDate, assignmentId)
                 if (records.isEmpty()) {
                     Toast.makeText(ctx, "この期間の記録がまだありません", Toast.LENGTH_SHORT).show()
                     return@launch

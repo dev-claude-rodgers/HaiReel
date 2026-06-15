@@ -23,9 +23,9 @@ object AddressParser {
 
         return if (cleaned.contains('\t')) {
             val parts = cleaned.split('\t', limit = 2)
-            Entry(parts[0].trim(), parts[1].trim())
+            Entry(parts[0].trim().take(20), parts[1].trim().take(50))
         } else {
-            Entry("", cleaned)
+            Entry("", cleaned.take(50))
         }
     }
 }

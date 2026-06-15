@@ -91,6 +91,14 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
     private val _pinAddedFromMap = MutableLiveData<Unit>()
     val pinAddedFromMap: LiveData<Unit> = _pinAddedFromMap
 
+    data class OutOfAreaItem(
+        val delivery: Delivery,
+        val candidates: List<GeocodingClient.GeoResult>
+    )
+    private val _outOfAreaCandidates = MutableLiveData<List<OutOfAreaItem>?>(null)
+    val outOfAreaCandidates: LiveData<List<OutOfAreaItem>?> = _outOfAreaCandidates
+    fun clearOutOfAreaCandidates() { _outOfAreaCandidates.value = null }
+
     private val _openEditForDelivery = MutableLiveData<String?>(null)
     val openEditForDelivery: LiveData<String?> = _openEditForDelivery
     fun requestEditDelivery(id: String) { _openEditForDelivery.value = id }
@@ -173,24 +181,44 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         val hint = if (groupId.isNotBlank()) prefs.getString("area_hint_$groupId", "") ?: "" else ""
         _areaHint.value = hint
         GeocodingClient.areaHint = hint
+        // 配達地域の中心座標を取得して位置バイアスをセット
+        if (hint.isNotBlank()) {
+            val keyword = hint.split(Regex("[,，、]")).first().trim()
+            viewModelScope.launch {
+                val geo = GeocodingClient.geocodeExact(keyword)
+                if (geo != null) {
+                    GeocodingClient.biasLat = geo.lat
+                    GeocodingClient.biasLng = geo.lng
+                }
+            }
+        } else {
+            GeocodingClient.biasLat = 0.0
+            GeocodingClient.biasLng = 0.0
+        }
     }
 
     // ---- グループ操作 ----
 
+    // リスト内の順番に基づいて全グループの色を再割り当てして保存（1番目=赤, 2番目=青…）
+    private fun normalizeGroupColors() {
+        val current = _groups.value ?: return
+        _groups.value = current.mapIndexed { i, g -> g.copy(colorHex = colorForIndex(i)) }
+        saveGroups()
+    }
+
     fun createGroup(name: String): DeliveryGroup {
         val index = _groups.value?.size ?: 0
         val group = DeliveryGroup(name = name, colorHex = colorForIndex(index))
-        val updated = (_groups.value ?: emptyList()) + group
-        _groups.value = updated
-        saveGroups()
-        return group
+        _groups.value = (_groups.value ?: emptyList()) + group
+        normalizeGroupColors()
+        return _groups.value!!.last()
     }
 
     fun deleteGroup(groupId: String) {
         val group = _groups.value?.find { it.id == groupId }
         val updated = (_groups.value ?: emptyList()).filter { it.id != groupId }
         _groups.value = updated
-        saveGroups()
+        normalizeGroupColors()
         prefs.edit().remove("group_$groupId").commit()
         group?.let { deleteDownloadsFile(groupId, it.name) }
 
@@ -205,6 +233,31 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                 _deliveries.value = emptyList()
             }
         }
+    }
+
+    fun copyGroup(sourceGroupId: String) {
+        val source = _groups.value?.find { it.id == sourceGroupId } ?: return
+        // 末尾の " N"（スペース＋数字）を除いたベース名で番号を管理
+        val baseName = source.name.replace(Regex(" \\d+$"), "")
+        val existing = _groups.value ?: emptyList()
+        val maxNum = existing.mapNotNull { g ->
+            when {
+                g.name == baseName -> 1
+                g.name.matches(Regex("${Regex.escape(baseName)} \\d+")) ->
+                    g.name.removePrefix("$baseName ").toIntOrNull()
+                else -> null
+            }
+        }.maxOrNull() ?: 1
+        val newGroup = createGroup("$baseName ${maxNum + 1}")
+        val copied = loadGroupDeliveries(sourceGroupId)
+            .mapIndexed { i, d -> d.copy(order = i + 1) }
+        if (copied.isNotEmpty()) {
+            saveGroupDeliveries(newGroup.id, copied)
+            val allMap = (_allDeliveries.value ?: emptyMap()).toMutableMap()
+            allMap[newGroup.id] = copied
+            _allDeliveries.value = allMap
+        }
+        switchGroup(newGroup.id)
     }
 
     fun renameGroup(groupId: String, newName: String) {
@@ -492,6 +545,33 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                     GeocodingClient.GeoResult(place.lat, place.lng, place.address)
                 }
             }
+            // 位置バイアス未設定の場合は補完
+            val aHint = _areaHint.value ?: ""
+            if (aHint.isNotBlank() && GeocodingClient.biasLat == 0.0 && GeocodingClient.biasLng == 0.0) {
+                val keyword = aHint.split(Regex("[,，、]")).first().trim()
+                val areaGeo = GeocodingClient.geocodeExact(keyword)
+                if (areaGeo != null) {
+                    GeocodingClient.biasLat = areaGeo.lat
+                    GeocodingClient.biasLng = areaGeo.lng
+                }
+            }
+            // エリア外ヒット時は配達地域キーワード＋ローカル部分で再試行
+            if (result != null && aHint.isNotBlank() && !isInArea(result.formattedAddress)) {
+                val localPart = extractLocalPart(newAddress)
+                val keywords = aHint.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
+                for (keyword in keywords) {
+                    val fixed = GeocodingClient.geocodeExact("$keyword $localPart")
+                    if (fixed != null && isInArea(fixed.formattedAddress)) { result = fixed; break }
+                    delay(100)
+                }
+                // geocodeExact で解決しなかった場合は Places API（位置バイアスあり）で再試行
+                if (!isInArea(result?.formattedAddress ?: "")) {
+                    val fixedPlace = GeocodingClient.searchPlaces(localPart).firstOrNull()?.let {
+                        GeocodingClient.GeoResult(it.lat, it.lng, it.address)
+                    }
+                    if (fixedPlace != null && isInArea(fixedPlace.formattedAddress)) result = fixedPlace
+                }
+            }
             if (result == null) {
                 _errorMessage.value = "住所を検索できませんでした。\nネットワーク接続を確認してください。"
             }
@@ -737,9 +817,73 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAreaHint(area: String) {
         val groupId = _currentGroupId.value ?: return
-        GeocodingClient.areaHint = area
+        // 複数エリア指定時は最初のエリアをジオコーディングのバイアスに使用
+        GeocodingClient.areaHint = area.split(Regex("[,，、]")).first().trim()
         _areaHint.value = area
         prefs.edit().putString("area_hint_$groupId", area).apply()
+        // 未ジオコーディング件の再試行＋エリア外住所の修正
+        if (area.isNotBlank()) {
+            startGeocoding(groupId)
+        }
+    }
+
+    /** エリア外住所の候補を検索してダイアログ用に公開する */
+    fun fetchOutOfAreaCandidates() {
+        val hint = _areaHint.value ?: return
+        if (hint.isBlank()) return
+        val deliveries = _deliveries.value ?: return
+        val outOfArea = deliveries.filter { it.isGeocoded && !isInArea(it.address) }
+        if (outOfArea.isEmpty()) {
+            _outOfAreaCandidates.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            val initHint = _areaHint.value ?: ""
+            if (initHint.isNotBlank() && GeocodingClient.biasLat == 0.0 && GeocodingClient.biasLng == 0.0) {
+                val keyword = initHint.split(Regex("[,，、]")).first().trim()
+                val areaGeo = GeocodingClient.geocodeExact(keyword)
+                if (areaGeo != null) { GeocodingClient.biasLat = areaGeo.lat; GeocodingClient.biasLng = areaGeo.lng }
+            }
+            val items = outOfArea.map { delivery ->
+                val candidates = mutableListOf<GeocodingClient.GeoResult>()
+                val keywords = hint.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
+                val localPart = extractLocalPart(delivery.address)
+                // 店名で Places API 検索
+                if (!delivery.name.isNullOrBlank()) {
+                    GeocodingClient.searchPlaces(delivery.name).forEach { p ->
+                        if (isInArea(p.address)) candidates.add(GeocodingClient.GeoResult(p.lat, p.lng, p.address))
+                    }
+                    delay(100)
+                }
+                // エリアキーワード + ローカル部分で geocodeExact
+                for (keyword in keywords) {
+                    if (candidates.size >= 5) break
+                    val r = GeocodingClient.geocodeExact("$keyword $localPart")
+                    if (r != null && isInArea(r.formattedAddress) && candidates.none { it.formattedAddress == r.formattedAddress }) candidates.add(r)
+                    delay(100)
+                }
+                // ローカル部分単体で Places API 検索
+                if (candidates.size < 5) {
+                    GeocodingClient.searchPlaces(localPart).forEach { p ->
+                        if (isInArea(p.address) && candidates.none { it.formattedAddress == p.address }) {
+                            candidates.add(GeocodingClient.GeoResult(p.lat, p.lng, p.address))
+                        }
+                    }
+                }
+                OutOfAreaItem(delivery, candidates.take(5))
+            }
+            _outOfAreaCandidates.postValue(items)
+        }
+    }
+
+    /** エリア外修正ダイアログで選択した候補を配達先に適用する */
+    fun applyOutOfAreaFix(deliveryId: String, result: GeocodingClient.GeoResult) {
+        val groupId = _currentGroupId.value ?: return
+        val list = _deliveries.value?.toMutableList() ?: return
+        val idx = list.indexOfFirst { it.id == deliveryId }
+        if (idx < 0) return
+        list[idx] = list[idx].copy(address = result.formattedAddress, lat = result.lat, lng = result.lng, isGeocoded = true)
+        commitDeliveries(groupId, list)
     }
 
     fun setLocationBias(lat: Double, lng: Double) {
@@ -749,6 +893,30 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- 内部処理 ----
 
+    // 配達地域のいずれかのキーワードを含む住所かどうか判定
+    private fun isInArea(address: String): Boolean {
+        val hint = _areaHint.value ?: return true
+        if (hint.isBlank()) return true
+        return hint.split(Regex("[,，、]"))
+            .map { it.trim() }.filter { it.isNotBlank() }
+            .any { keyword -> address.contains(keyword) }
+    }
+
+    // 住所から都道府県・最上位市郡を除いた「ローカル部分」を抽出
+    private fun extractLocalPart(address: String): String {
+        var s = address
+        // 都道府県を除去
+        s = s.replace(Regex("^.{2,4}[都道府県]"), "")
+        // 配達地域キーワード自体が先頭にあれば除去（同キーワードを再付与するため）
+        val keywords = (_areaHint.value ?: "").split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
+        for (kw in keywords) {
+            if (s.startsWith(kw)) return s.removePrefix(kw).trim()
+        }
+        // その他の市・郡を除去
+        s = s.replace(Regex("^.{1,8}[市郡]"), "")
+        return s.trim().ifBlank { address }
+    }
+
     private fun startGeocoding(groupId: String) {
         geocodingJobs[groupId]?.cancel()  // 前回のジオコーディングをキャンセル
         val originalList = _deliveries.value?.toList() ?: return
@@ -757,6 +925,17 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         val job = viewModelScope.launch {
             var workingList = originalList.toMutableList()
             var failedCount = 0
+
+            // 位置バイアス未設定の場合はエリアキーワードをジオコードして補完
+            val initHint = _areaHint.value ?: ""
+            if (initHint.isNotBlank() && GeocodingClient.biasLat == 0.0 && GeocodingClient.biasLng == 0.0) {
+                val keyword = initHint.split(Regex("[,，、]")).first().trim()
+                val areaGeo = GeocodingClient.geocodeExact(keyword)
+                if (areaGeo != null) {
+                    GeocodingClient.biasLat = areaGeo.lat
+                    GeocodingClient.biasLng = areaGeo.lng
+                }
+            }
 
             originalList.forEachIndexed { index, delivery ->
                 if (_currentGroupId.value != groupId) return@launch
@@ -768,6 +947,24 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                         // 住所APIでヒットしなかった場合は店名・施設名として Places API で検索
                         result = GeocodingClient.searchPlaces(delivery.address).firstOrNull()?.let { place ->
                             GeocodingClient.GeoResult(place.lat, place.lng, place.address)
+                        }
+                    }
+                    // エリア外ヒット時は配達地域キーワード＋ローカル部分で再試行
+                    val aHint = _areaHint.value ?: ""
+                    if (result != null && aHint.isNotBlank() && !isInArea(result.formattedAddress)) {
+                        val localPart = extractLocalPart(delivery.address)
+                        val keywords = aHint.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
+                        for (keyword in keywords) {
+                            val fixed = GeocodingClient.geocodeExact("$keyword $localPart")
+                            if (fixed != null && isInArea(fixed.formattedAddress)) { result = fixed; break }
+                            delay(100)
+                        }
+                        // geocodeExact で解決しなかった場合は Places API（位置バイアスあり）で再試行
+                        if (!isInArea(result?.formattedAddress ?: "")) {
+                            val fixedPlace = GeocodingClient.searchPlaces(localPart).firstOrNull()?.let {
+                                GeocodingClient.GeoResult(it.lat, it.lng, it.address)
+                            }
+                            if (fixedPlace != null && isInArea(fixedPlace.formattedAddress)) result = fixedPlace
                         }
                     }
                     if (result != null) {
@@ -796,6 +993,30 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                     delay(200)
                 }
             }
+            // 第2パス: 既にジオコーディング済みでエリア外の住所を修正
+            val hint2 = _areaHint.value ?: ""
+            if (hint2.isNotBlank() && _currentGroupId.value == groupId) {
+                val outOfArea = (_deliveries.value ?: emptyList()).filter { it.isGeocoded && !isInArea(it.address) }
+                outOfArea.forEach { delivery ->
+                    if (_currentGroupId.value != groupId) return@launch
+                    val localPart = extractLocalPart(delivery.address)
+                    for (keyword in hint2.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }) {
+                        val fixed = GeocodingClient.geocodeExact("$keyword $localPart")
+                        if (fixed != null && isInArea(fixed.formattedAddress)) {
+                            val cur = _deliveries.value ?: emptyList()
+                            val updated = cur.map { d ->
+                                if (d.id == delivery.id) d.copy(address = fixed.formattedAddress, lat = fixed.lat, lng = fixed.lng) else d
+                            }
+                            _deliveries.value = updated
+                            saveGroupDeliveries(groupId, updated)
+                            updateAllDeliveries(groupId, updated)
+                            break
+                        }
+                        delay(100)
+                    }
+                }
+            }
+
             if (_currentGroupId.value == groupId) {
                 if (failedCount > 0) {
                     _errorMessage.value = "住所を検索できなかった件数: ${failedCount}件\nネットワーク接続を確認してください。"

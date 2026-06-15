@@ -237,48 +237,6 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
         }
         root.addView(darkGroup)
 
-        // ── 雇用形態
-        root.addView(section("── 雇用形態"))
-        val empGroup     = android.widget.RadioGroup(ctx).apply { orientation = android.widget.RadioGroup.HORIZONTAL }
-        val rbContractor = android.widget.RadioButton(ctx).apply { text = "業務委託"; id = View.generateViewId() }
-        val rbEmployee   = android.widget.RadioButton(ctx).apply { text = "正社員・パート"; id = View.generateViewId() }
-        empGroup.addView(rbContractor); empGroup.addView(rbEmployee)
-        if (AppSettings.getEmploymentType(ctx) == "employee") rbEmployee.isChecked = true
-        else rbContractor.isChecked = true
-        root.addView(empGroup)
-
-        // ── 報酬設定
-        root.addView(section("── 報酬設定"))
-        root.addView(field("報酬タイプ"))
-        val payGroup = android.widget.RadioGroup(ctx).apply { orientation = android.widget.RadioGroup.VERTICAL }
-        val rbDaily  = android.widget.RadioButton(ctx).apply { text = "日当制"; id = View.generateViewId() }
-        val rbUnit   = android.widget.RadioButton(ctx).apply { text = "件数単価制"; id = View.generateViewId() }
-        val rbNone   = android.widget.RadioButton(ctx).apply { text = "なし"; id = View.generateViewId() }
-        payGroup.addView(rbDaily); payGroup.addView(rbUnit); payGroup.addView(rbNone)
-        when (AppSettings.getPaymentType(ctx)) {
-            1    -> rbUnit.isChecked = true
-            2    -> rbNone.isChecked = true
-            else -> rbDaily.isChecked = true
-        }
-        root.addView(payGroup)
-
-        val isInvoicedNow = AppSettings.isInvoiceRegistered(ctx)
-        val tvUnitLabel   = field(if (isInvoicedNow) "件数単価（税抜）" else "件数単価（円）")
-        root.addView(tvUnitLabel)
-        val etUnit = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
-            val v = AppSettings.getUnitPrice(ctx)
-            if (v > 0) setText(v.toString())
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(etUnit)
-        val tvUnitTax = TextView(ctx).apply {
-            textSize = 12f; setTextColor(colorOutline)
-            visibility = if (isInvoicedNow) View.VISIBLE else View.GONE
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.topMargin = (2 * dp).toInt() }
-        }
-        root.addView(tvUnitTax)
-
         // ── 事業者情報
         root.addView(section("── 事業者情報"))
         root.addView(field("事業者名"))
@@ -288,84 +246,28 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(etCompany)
-        root.addView(field("車番（ナンバー）"))
-        val etVehicle = EditText(ctx).apply {
+        val vehicles = AppSettings.getVehicles(ctx)
+        root.addView(field("車番１"))
+        val etVehicle1 = EditText(ctx).apply {
             hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
-            setText(AppSettings.getVehicleNumber(ctx))
+            setText(vehicles[0])
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        root.addView(etVehicle)
-
-        // ── 燃料費設定
-        root.addView(section("── 燃料費設定"))
-        root.addView(field("ガソリン単価（円/L）"))
-        val etFuelPrice = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER; hint = "170"
-            setText(AppSettings.getFuelPricePerLiter(ctx).toString())
+        root.addView(etVehicle1)
+        root.addView(field("車番２"))
+        val etVehicle2 = EditText(ctx).apply {
+            hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+            setText(vehicles[1])
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        root.addView(etFuelPrice)
-        root.addView(field("燃費（km/L）"))
-        val etFuelEff = EditText(ctx).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL; hint = "15.0"
-            setText(AppSettings.getFuelEfficiencyKmPerL(ctx).toString())
+        root.addView(etVehicle2)
+        root.addView(field("車番３"))
+        val etVehicle3 = EditText(ctx).apply {
+            hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+            setText(vehicles[2])
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        root.addView(etFuelEff)
-
-        // ── インボイス設定
-        root.addView(section("── インボイス設定"))
-        val swInvoice = run {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.topMargin = (4 * dp).toInt() }
-            }
-            row.addView(TextView(ctx).apply {
-                text = "インボイス（適格請求書）登録済み"; textSize = 15f
-                setTextColor(colorOnSurface)
-                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
-            })
-            val sw = androidx.appcompat.widget.SwitchCompat(ctx).apply {
-                isChecked = AppSettings.isInvoiceRegistered(ctx)
-            }
-            row.addView(sw); root.addView(row); sw
-        }
-
-        fun updateUnitLabel() {
-            val price = etUnit.text.toString().toIntOrNull() ?: 0
-            if (swInvoice.isChecked) {
-                tvUnitLabel.text = "件数単価（税抜）"
-                tvUnitTax.visibility = View.VISIBLE
-                tvUnitTax.text = "消費税10%込: ${(price * 1.1).toInt()}円 / 件"
-            } else {
-                tvUnitLabel.text = "件数単価（円）"
-                tvUnitTax.visibility = View.GONE
-            }
-        }
-        swInvoice.setOnCheckedChangeListener { _, _ -> updateUnitLabel() }
-        etUnit.addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(s: android.text.Editable?) = updateUnitLabel()
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-        updateUnitLabel()
-
-        // ── 点呼設定
-        root.addView(section("── 点呼設定"))
-        root.addView(field("ドライバー名"))
-        val etDriver = EditText(ctx).apply {
-            hint = "氏名"; inputType = InputType.TYPE_CLASS_TEXT
-            setText(AppSettings.getDriverName(ctx))
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(etDriver)
-        root.addView(field("確認者（運行管理者）名"))
-        val etChecker = EditText(ctx).apply {
-            hint = "自己点呼の場合は自分の名前"; inputType = InputType.TYPE_CLASS_TEXT
-            setText(AppSettings.getCheckerName(ctx))
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-        }
-        root.addView(etChecker)
+        root.addView(etVehicle3)
 
         // ── セキュリティ設定
         root.addView(section("── セキュリティ設定"))
@@ -409,16 +311,12 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
             .setTitle("アプリ設定")
             .setView(scroll)
             .setPositiveButton("保存") { _, _ ->
-                AppSettings.setEmploymentType(ctx, if (rbEmployee.isChecked) "employee" else "contractor")
-                AppSettings.setPaymentType(ctx, if (rbUnit.isChecked) 1 else if (rbNone.isChecked) 2 else 0)
-                AppSettings.setUnitPrice(ctx, etUnit.text.toString().toIntOrNull() ?: 0)
-                AppSettings.setFuelPricePerLiter(ctx, etFuelPrice.text.toString().toIntOrNull() ?: 170)
-                AppSettings.setFuelEfficiencyKmPerL(ctx, etFuelEff.text.toString().toFloatOrNull() ?: 15f)
-                AppSettings.setInvoiceRegistered(ctx, swInvoice.isChecked)
                 AppSettings.setCompanyName(ctx, etCompany.text.toString().trim())
-                AppSettings.setVehicleNumber(ctx, etVehicle.text.toString().trim())
-                AppSettings.setDriverName(ctx, etDriver.text.toString().trim())
-                AppSettings.setCheckerName(ctx, etChecker.text.toString().trim())
+                AppSettings.setVehicles(ctx, listOf(
+                    etVehicle1.text.toString().trim(),
+                    etVehicle2.text.toString().trim(),
+                    etVehicle3.text.toString().trim()
+                ))
                 val darkMode = when {
                     rbDarkDark.isChecked  -> AppCompatDelegate.MODE_NIGHT_YES
                     rbDarkLight.isChecked -> AppCompatDelegate.MODE_NIGHT_NO

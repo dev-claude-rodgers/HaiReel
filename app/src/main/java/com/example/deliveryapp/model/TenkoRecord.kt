@@ -30,7 +30,8 @@ data class TenkoRecord(
     val afterInstruction: String? = null,
     val afterChecker: String? = null,
 
-    val note: String? = null
+    val note: String? = null,
+    val vehicleNumber: String? = null   // 乗務前点呼で選択した車番
 ) {
     val beforeDone: Boolean get() = beforeTime != null
     val afterDone: Boolean get() = afterTime != null
