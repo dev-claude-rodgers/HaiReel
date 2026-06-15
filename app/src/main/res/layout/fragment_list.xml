@@ -63,16 +63,21 @@
         <!-- 地図トグルボタン -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonMapToggle"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="52dp"
-            android:layout_height="56dp"
-            android:text="🗺"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="🗺 地図"
             android:contentDescription="地図/リスト切替"
-            android:textSize="22sp"
+            android:textSize="14sp"
+            android:textStyle="bold"
             android:textColor="#FFFFFF"
             android:minWidth="0dp"
             android:insetTop="0dp"
-            android:insetBottom="0dp" />
+            android:insetBottom="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            app:strokeColor="#FFFFFF"
+            app:cornerRadius="8dp" />
 
         <!-- メニューボタン -->
         <com.google.android.material.button.MaterialButton

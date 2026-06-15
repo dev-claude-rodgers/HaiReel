@@ -2398,7 +2398,7 @@ class DeliveryListFragment : Fragment() {
         binding.textEmpty.visibility = View.GONE
         binding.chipIncomplete.visibility = View.GONE
         binding.buttonListMenu.visibility = View.GONE
-        binding.buttonMapToggle.text = "一覧"
+        binding.buttonMapToggle.text = "配達先リストへ戻る"
         if (childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
                 .add(R.id.mapContainer, MapFragment(), "map")
@@ -2412,7 +2412,7 @@ class DeliveryListFragment : Fragment() {
         binding.recyclerView.visibility = View.VISIBLE
         binding.chipIncomplete.visibility = View.VISIBLE
         binding.buttonListMenu.visibility = View.VISIBLE
-        binding.buttonMapToggle.text = "🗺"
+        binding.buttonMapToggle.text = "🗺 地図"
         applyFilter()
     }
 
