@@ -21,7 +21,9 @@ import com.rodgers.routist.ui.DeliveryListFragment
 import com.rodgers.routist.ui.TenkoFragment
 import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.viewmodel.DeliveryViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding

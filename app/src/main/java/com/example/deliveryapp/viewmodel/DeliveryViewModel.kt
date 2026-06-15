@@ -25,14 +25,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.util.Log
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
+import javax.inject.Inject
 
-class DeliveryViewModel(
+@HiltViewModel
+class DeliveryViewModel @Inject constructor(
     app: Application,
     private val repo: DeliveryRepository
 ) : AndroidViewModel(app) {
-
-    constructor(app: Application) : this(app, DeliveryRepository(app))
 
     companion object {
         private const val TAG = "DeliveryViewModel"

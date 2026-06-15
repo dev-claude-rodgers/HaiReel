@@ -17,7 +17,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.routist.R
 import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.util.themeColor
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SettingsFragment : Fragment() {
 
     override fun onCreateView(

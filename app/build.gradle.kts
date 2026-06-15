@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt.android.plugin)
 }
 
 val localProps = Properties().apply {
@@ -96,6 +97,8 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
     implementation(libs.mlkit.text.recognition.japanese)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.biometric)

@@ -51,7 +51,9 @@ import java.time.YearMonth
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class TenkoFragment : Fragment() {
 
     private var _binding: FragmentTenkoBinding? = null

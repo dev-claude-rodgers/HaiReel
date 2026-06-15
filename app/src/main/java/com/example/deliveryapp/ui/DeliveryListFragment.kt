@@ -55,7 +55,9 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class DeliveryListFragment : Fragment() {
 
     internal var _binding: FragmentListBinding? = null

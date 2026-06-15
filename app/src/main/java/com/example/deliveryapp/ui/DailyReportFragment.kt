@@ -57,7 +57,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class DailyReportFragment : Fragment() {
 
     data class DayEntry(val date: String, val record: WorkRecord?)
