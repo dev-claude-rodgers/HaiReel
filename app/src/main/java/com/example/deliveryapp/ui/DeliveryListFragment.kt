@@ -175,10 +175,7 @@ class DeliveryListFragment : Fragment() {
             applyFilter()
         }
 
-        // 選択モードボタン
-        binding.buttonSelect.setOnClickListener {
-            if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
-        }
+        binding.buttonSelect.visibility = View.GONE
 
         // 選択削除ボタン
         binding.buttonDeleteSelected.setOnClickListener {
@@ -1700,21 +1697,18 @@ class DeliveryListFragment : Fragment() {
             setBackgroundColor(outlineVariant)
         })
 
-        // ── ルート管理
-        row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
-        row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
-        divider()
         // ── データ追加
+        row("☑️", "選択モード", "複数の配達先を選んで操作する") {
+            if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
+        }
         row("📷", "伝票からスキャン", "カメラで伝票を撮影して住所を読み取る") { launchScanActivity() }
         row("📥", "住所をインポート", "テキスト・CSV・Excelファイルから追加する") {
             inputLauncher.launch(Intent(requireContext(), InputActivity::class.java))
         }
         divider()
-        // ── 状態管理
-        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
-        row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
-        divider()
-        // ── 共有
+        // ── ルート管理
+        row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
+        row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
         row("📄", "ルートを複製", "同じ内容で新しいルートを作成する") {
             if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return@row }
             val groupId = viewModel.currentGroupId.value ?: return@row
@@ -1722,7 +1716,9 @@ class DeliveryListFragment : Fragment() {
         }
         row("📤", "ルートを共有", "LINE・SMS等で送る") { shareList() }
         divider()
-        // ── 設定
+        // ── 状態・設定
+        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
+        row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
         val areaLabel = viewModel.areaHint.value?.ifBlank { null } ?: "未設定"
         row("⚙", "配達地域", "現在: $areaLabel") { showAreaSettingDialog() }
         if (areaLabel != "未設定") {
@@ -2400,6 +2396,8 @@ class DeliveryListFragment : Fragment() {
         binding.recyclerView.visibility = View.GONE
         binding.layoutProgress.visibility = View.GONE
         binding.textEmpty.visibility = View.GONE
+        binding.chipIncomplete.visibility = View.GONE
+        binding.buttonListMenu.visibility = View.GONE
         binding.buttonMapToggle.text = "一覧"
         if (childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
@@ -2412,6 +2410,8 @@ class DeliveryListFragment : Fragment() {
         isMapVisible = false
         binding.mapContainer.visibility = View.GONE
         binding.recyclerView.visibility = View.VISIBLE
+        binding.chipIncomplete.visibility = View.VISIBLE
+        binding.buttonListMenu.visibility = View.VISIBLE
         binding.buttonMapToggle.text = "🗺"
         applyFilter()
     }
