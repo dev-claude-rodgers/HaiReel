@@ -12,19 +12,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.rodgers.routist.db.AppDatabase
-import com.rodgers.routist.db.toDelivery
-import com.rodgers.routist.db.toEntity
-import com.rodgers.routist.db.toGroup
 import com.rodgers.routist.model.Delivery
 import com.rodgers.routist.model.DeliveryGroup
 import com.rodgers.routist.model.Room
 import com.rodgers.routist.model.colorForIndex
+import com.rodgers.routist.repository.DeliveryRepository
 import com.rodgers.routist.util.AddressParser
 import com.rodgers.routist.util.GeocodingClient
 import com.rodgers.routist.util.RouteOptimizer
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,9 +53,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         updateAllDeliveries(groupId, updated)
     }
 
-    private val prefs = app.getSharedPreferences("delivery_prefs", Context.MODE_PRIVATE)
-    private val gson = Gson()
-    private val db = AppDatabase.getInstance(app)
+    private val repo = DeliveryRepository(app)
     private val geocodingJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     // グループ一覧
@@ -174,16 +167,13 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             loadAll()
             val groupId = _currentGroupId.value ?: ""
-            val legacy = prefs.getString("area_hint", null)
-            if (legacy != null && groupId.isNotBlank()) {
-                prefs.edit().putString("area_hint_$groupId", legacy).remove("area_hint").apply()
-            }
+            repo.migrateGlobalAreaHint(groupId)
             applyAreaHintForGroup(groupId)
         }
     }
 
     private fun applyAreaHintForGroup(groupId: String) {
-        val hint = if (groupId.isNotBlank()) prefs.getString("area_hint_$groupId", "") ?: "" else ""
+        val hint = repo.getAreaHint(groupId)
         _areaHint.value = hint
         GeocodingClient.areaHint = hint
         // 配達地域の中心座標を取得して位置バイアスをセット
@@ -224,11 +214,8 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         val updated = (_groups.value ?: emptyList()).filter { it.id != groupId }
         _groups.value = updated
         normalizeGroupColors()
-        prefs.edit().remove("group_$groupId").apply()
-        viewModelScope.launch(Dispatchers.IO) {
-            db.deliveryDao().deleteByGroup(groupId)
-            db.deliveryGroupDao().deleteById(groupId)
-        }
+        repo.clearGroupPrefs(groupId)
+        viewModelScope.launch(Dispatchers.IO) { repo.deleteGroup(groupId) }
         group?.let { deleteDownloadsFile(groupId, it.name) }
 
         val allMap = (_allDeliveries.value ?: emptyMap()).toMutableMap()
@@ -290,7 +277,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         // → どのオブザーバが先に発火しても「現在のリストのみ」になることを保証
         _visibleGroupIds.value = null
         _currentGroupId.value = groupId
-        prefs.edit().putString("current_group_id", groupId).apply()
+        repo.saveCurrentGroupId(groupId)
         applyAreaHintForGroup(groupId)
         val list = _allDeliveries.value?.get(groupId) ?: emptyList()
         _deliveries.value = list
@@ -305,9 +292,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
     fun importAddresses(text: String, fileUriStr: String? = null) {
         val groupId = _currentGroupId.value ?: return
         // ファイルURIを記憶（自動書き戻し用）
-        if (fileUriStr != null) {
-            prefs.edit().putString("file_uri_$groupId", fileUriStr).apply()
-        }
+        if (fileUriStr != null) repo.saveFileUri(groupId, fileUriStr)
         val entries = AddressParser.parse(text)
         if (entries.isEmpty()) return
         val list = entries.mapIndexed { i, entry ->
@@ -328,7 +313,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                     val resolver = context.contentResolver
                     val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
                     activeGroups.forEach { group ->
-                        val list = db.deliveryDao().getByGroup(group.id).map { it.toDelivery() }
+                        val list = repo.loadDeliveries(group.id)
                         if (list.isEmpty()) return@forEach
                         val safeName = group.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
                         val fileName = "Routist_$safeName.txt"
@@ -346,7 +331,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                             }
                             resolver.insert(baseUri, values)?.let { uri ->
                                 resolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use { w -> w.write(content) }
-                                prefs.edit().putString("download_file_uri_${group.id}", uri.toString()).apply()
+                                repo.saveDownloadFileUri(group.id, uri.toString())
                             }
                         }
                     }
@@ -391,12 +376,12 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val resolver = context.contentResolver
                     // 保存済みURIで直接削除（確実）
-                    val savedUri = prefs.getString("download_file_uri_$groupId", null)
+                    val savedUri = repo.getDownloadFileUri(groupId)
                     if (savedUri != null) {
                         try {
                             resolver.delete(android.net.Uri.parse(savedUri), null, null)
                         } catch (_: Exception) {}
-                        prefs.edit().remove("download_file_uri_$groupId").apply()
+                        repo.clearDownloadFileUri(groupId)
                     }
                     // フォールバック: ファイル名で検索して削除
                     val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
@@ -416,7 +401,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
 
     // インポートファイルの MediaStore ID を返す（DocumentsProvider/MediaStore 両形式に対応）
     private fun importFileMediaStoreId(groupId: String): Long? {
-        val uriStr = prefs.getString("file_uri_$groupId", null) ?: return null
+        val uriStr = repo.getFileUri(groupId) ?: return null
         val uri = android.net.Uri.parse(uriStr)
         return when (uri.authority) {
             "com.android.providers.media.documents" ->
@@ -476,7 +461,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                     fileUri?.let { uri ->
                         resolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use { w -> w.write(content) }
                         // 削除時に直接使えるようURIを保存
-                        prefs.edit().putString("download_file_uri_$groupId", uri.toString()).apply()
+                        repo.saveDownloadFileUri(groupId, uri.toString())
                     }
                 } else {
                     File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
@@ -536,7 +521,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val result = GeocodingClient.reverseGeocode(lat, lng) ?: return@launch
             val address = result.formattedAddress.ifBlank { return@launch }
-            val savedList = db.deliveryDao().getByGroup(groupId).map { it.toDelivery() }
+            val savedList = repo.loadDeliveries(groupId)
             val updated = savedList.map { d ->
                 if (d.id == newDelivery.id) d.copy(address = address) else d
             }
@@ -606,7 +591,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         val updated = (_deliveries.value ?: return).filter { it.id != id }
             .mapIndexed { i, d -> d.copy(order = i + 1) }
         commitDeliveries(groupId, updated)
-        prefs.edit().remove("file_uri_$groupId").apply()
+        repo.clearFileUri(groupId)
     }
 
     fun appendDeliveries(newItems: List<Delivery>) {
@@ -631,13 +616,13 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         val updated = (_deliveries.value ?: return).filter { it.id !in ids }
             .mapIndexed { i, d -> d.copy(order = i + 1) }
         commitDeliveries(groupId, updated)
-        prefs.edit().remove("file_uri_$groupId").apply()
+        repo.clearFileUri(groupId)
     }
 
     // リストタブ表示時: 元ファイルと差分があるアイテムだけ更新
     fun refreshFromFile() {
         val groupId = _currentGroupId.value ?: return
-        val uriStr = prefs.getString("file_uri_$groupId", null) ?: return
+        val uriStr = repo.getFileUri(groupId) ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
@@ -813,7 +798,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
     fun reorderDeliveries(newList: List<Delivery>) {
         val groupId = _currentGroupId.value ?: return
         commitDeliveries(groupId, newList.mapIndexed { i, d -> d.copy(order = i + 1) })
-        prefs.edit().remove("file_uri_$groupId").apply()
+        repo.clearFileUri(groupId)
     }
 
     fun clearCurrentGroup() {
@@ -821,7 +806,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         _deliveries.value = emptyList()
         saveGroupDeliveries(groupId, emptyList())
         updateAllDeliveries(groupId, emptyList())
-        prefs.edit().remove("file_uri_$groupId").apply()
+        repo.clearFileUri(groupId)
     }
 
     fun setAreaHint(area: String) {
@@ -829,7 +814,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         // 複数エリア指定時は最初のエリアをジオコーディングのバイアスに使用
         GeocodingClient.areaHint = area.split(Regex("[,，、]")).first().trim()
         _areaHint.value = area
-        prefs.edit().putString("area_hint_$groupId", area).apply()
+        repo.saveAreaHint(groupId, area)
         // 未ジオコーディング件の再試行＋エリア外住所の修正
         if (area.isNotBlank()) {
             startGeocoding(groupId)
@@ -1049,90 +1034,25 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun saveGroups() {
         val groups = _groups.value ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            db.deliveryGroupDao().upsertAll(groups.mapIndexed { i, g -> g.toEntity(i) })
-        }
+        viewModelScope.launch(Dispatchers.IO) { repo.saveGroups(groups) }
     }
 
     private fun saveGroupDeliveries(groupId: String, list: List<Delivery>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            db.deliveryDao().deleteByGroup(groupId)
-            if (list.isNotEmpty()) db.deliveryDao().upsertAll(list.map { it.toEntity(groupId) })
-        }
-    }
-
-    private fun loadGroupDeliveriesFromPrefs(groupId: String): List<Delivery> {
-        val json = prefs.getString("group_$groupId", null) ?: return emptyList()
-        val type = object : TypeToken<List<Delivery>>() {}.type
-        return try { gson.fromJson(json, type) ?: emptyList() } catch (_: Exception) { emptyList() }
+        viewModelScope.launch(Dispatchers.IO) { repo.saveDeliveries(groupId, list) }
     }
 
     private suspend fun loadAll() {
-        // グループ一覧: Room が空なら SharedPreferences から移行
-        val groupRoomCount = db.deliveryGroupDao().count()
-        val finalGroups: List<DeliveryGroup>
-        if (groupRoomCount == 0) {
-            // SharedPreferences → Room グループ移行
-            val prefsGroups = loadGroupsFromPrefs()
-            val migrated = prefsGroups.map { g ->
-                when (g.name) {
-                    "配達リスト", "訪問リスト" -> g.copy(name = "訪問先リスト")
-                    else -> g
-                }
-            }
-            if (migrated.isNotEmpty()) {
-                db.deliveryGroupDao().upsertAll(migrated.mapIndexed { i, g -> g.toEntity(i) })
-            }
-            // SharedPreferences → Room 配達データ移行
-            val deliveryRoomCount = db.deliveryDao().count()
-            if (deliveryRoomCount == 0) {
-                migrated.forEach { group ->
-                    val list = loadGroupDeliveriesFromPrefs(group.id)
-                    if (list.isNotEmpty()) db.deliveryDao().upsertAll(list.map { it.toEntity(group.id) })
-                }
-            }
-            finalGroups = migrated
-        } else {
-            finalGroups = db.deliveryGroupDao().getAll().map { it.toGroup() }
-        }
-
-        // Room から全配達データを読み込む
-        val allEntities = db.deliveryDao().getAll()
-        val allMap = mutableMapOf<String, List<Delivery>>()
-        finalGroups.forEach { group ->
-            allMap[group.id] = allEntities
-                .filter { it.groupId == group.id }
-                .sortedBy { it.order }
-                .map { it.toDelivery() }
-        }
-
+        val data = repo.loadInitialData()
         withContext(Dispatchers.Main) {
-            _groups.value = finalGroups
-
-            cleanupOrphanedDownloadFiles(finalGroups)
-            createMissingDownloadFiles(finalGroups)
-
-            _allDeliveries.value = allMap
-
-            val savedId = prefs.getString("current_group_id", null)
-            val targetId = if (savedId != null && finalGroups.any { it.id == savedId }) savedId
-                           else finalGroups.firstOrNull()?.id ?: ""
+            _groups.value = data.groups
+            cleanupOrphanedDownloadFiles(data.groups)
+            createMissingDownloadFiles(data.groups)
+            _allDeliveries.value = data.allDeliveries
+            val savedId = repo.getCurrentGroupId()
+            val targetId = if (savedId != null && data.groups.any { it.id == savedId }) savedId
+                           else data.groups.firstOrNull()?.id ?: ""
             _currentGroupId.value = targetId
-            _deliveries.value = allMap[targetId] ?: emptyList()
+            _deliveries.value = data.allDeliveries[targetId] ?: emptyList()
         }
-    }
-
-    private fun loadGroupsFromPrefs(): List<DeliveryGroup> {
-        val json = prefs.getString("groups", null) ?: run {
-            // 旧データ移行: "deliveries" キーがあればデフォルトグループを作成
-            val legacy = prefs.getString("deliveries", null) ?: return emptyList()
-            val defaultGroup = DeliveryGroup(name = "訪問先リスト", colorHex = colorForIndex(0))
-            val type = object : TypeToken<List<Delivery>>() {}.type
-            val legacyList: List<Delivery> = try { gson.fromJson(legacy, type) ?: emptyList() } catch (_: Exception) { emptyList() }
-            prefs.edit().putString("group_${defaultGroup.id}", gson.toJson(legacyList)).remove("deliveries").apply()
-            return listOf(defaultGroup)
-        }
-        val type = object : TypeToken<List<DeliveryGroup>>() {}.type
-        return try { gson.fromJson(json, type) ?: emptyList() } catch (_: Exception) { emptyList() }
     }
 }
