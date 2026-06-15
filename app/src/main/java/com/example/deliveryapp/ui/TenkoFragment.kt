@@ -33,7 +33,7 @@ import com.rodgers.routist.excel.TenkoExcelGenerator
 import com.rodgers.routist.model.TenkoRecord
 import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.util.BackupManager
-import com.rodgers.routist.util.LicenseManager
+
 import com.rodgers.routist.util.ReminderReceiver
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.viewmodel.TenkoViewModel
@@ -1047,7 +1047,6 @@ class TenkoFragment : Fragment() {
     private fun backupData() {
         if (!isAdded) return
         val ctx = requireContext()
-        if (!LicenseManager.isPro(ctx)) { LicenseManager.showUpgradeDialog(ctx); return }
         lifecycleScope.launch {
             try {
                 val file = BackupManager.createBackup(ctx)
