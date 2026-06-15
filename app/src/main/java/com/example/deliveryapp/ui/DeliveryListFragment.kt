@@ -51,6 +51,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -88,7 +89,7 @@ class DeliveryListFragment : Fragment() {
             try {
                 requireContext().contentResolver.openInputStream(uri)?.use { it.copyTo(dest.outputStream()) }
                 withContext(Dispatchers.Main) { viewModel.addPhoto(id, dest.absolutePath) }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { Log.w("DeliveryListFragment", "カメラ写真コピー失敗", e) }
         }
     }
 

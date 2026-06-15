@@ -24,11 +24,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.Log
 import java.io.File
 
 class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
+        private const val TAG = "DeliveryViewModel"
         private val APARTMENT_KEYWORDS = listOf(
             "マンション", "アパート", "ハイツ", "コーポ", "レジデンス", "コート",
             "荘", "ガーデン", "テラス", "ヴィラ", "ビレッジ", "タワー", "パレス",
@@ -115,7 +117,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                 context.contentResolver.openOutputStream(pending.uri, "wt")?.bufferedWriter()?.use {
                     it.write(pending.newContent)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { Log.w(TAG, "ファイル上書き失敗", e) }
         }
     }
 
@@ -336,7 +338,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { Log.w(TAG, "Downloadsファイル作成失敗", e) }
         }
     }
 
@@ -364,7 +366,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { Log.w(TAG, "不要Downloadsファイル削除失敗", e) }
         }
     }
 
@@ -395,7 +397,7 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { Log.w(TAG, "Downloadsファイル削除失敗", e) }
         }
     }
 
@@ -467,7 +469,10 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                     File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
                         .writeText(content)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "エクスポート失敗", e)
+                _errorMessage.postValue("エクスポートに失敗しました")
+            }
         }
     }
 
@@ -669,7 +674,10 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
                     updateAllDeliveries(groupId, merged)
                 }
                 startGeocoding(groupId)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "ファイル更新失敗", e)
+                _errorMessage.postValue("ファイルの読み込みに失敗しました")
+            }
         }
     }
 

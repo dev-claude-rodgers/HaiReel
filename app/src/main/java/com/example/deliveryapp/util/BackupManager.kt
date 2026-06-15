@@ -2,6 +2,7 @@
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.net.Uri
 import com.rodgers.routist.db.AppDatabase
 import com.rodgers.routist.model.WorkRecord
@@ -120,7 +121,7 @@ object BackupManager {
                         val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
                         dao.deleteAll()
                         for (i in 0 until arr.length()) {
-                            try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (_: Exception) {}
+                            try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { Log.w("BackupManager", "記録の復元失敗: item $i", e) }
                         }
                     }
                     "patterns.json" -> {
