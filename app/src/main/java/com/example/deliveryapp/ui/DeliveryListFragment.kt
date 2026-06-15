@@ -66,6 +66,8 @@ class DeliveryListFragment : Fragment() {
 
     enum class ProgressDisplay { COUNT, PERCENT, REMAINING, HIDDEN }
 
+    private var isMapVisible = false
+
     private var pendingPhotoDeliveryId: String? = null
     private var pendingPhotoFilePath: String? = null
 
@@ -203,6 +205,8 @@ class DeliveryListFragment : Fragment() {
             }
             updateSelectionUI()
         }
+
+        binding.buttonMapToggle.setOnClickListener { toggleMapView() }
 
         binding.buttonListMenu.setOnClickListener { showListActions() }
 
@@ -2384,6 +2388,32 @@ class DeliveryListFragment : Fragment() {
             .setPositiveButton(verb) { _, _ -> doImport(toAdd) }
             .setNegativeButton("キャンセル", null)
             .show()
+    }
+
+    private fun toggleMapView() {
+        if (isMapVisible) switchToListView() else showMapView()
+    }
+
+    fun showMapView() {
+        isMapVisible = true
+        binding.mapContainer.visibility = View.VISIBLE
+        binding.recyclerView.visibility = View.GONE
+        binding.layoutProgress.visibility = View.GONE
+        binding.textEmpty.visibility = View.GONE
+        binding.buttonMapToggle.text = "≡"
+        if (childFragmentManager.findFragmentByTag("map") == null) {
+            childFragmentManager.beginTransaction()
+                .add(R.id.mapContainer, MapFragment(), "map")
+                .commit()
+        }
+    }
+
+    fun switchToListView() {
+        isMapVisible = false
+        binding.mapContainer.visibility = View.GONE
+        binding.recyclerView.visibility = View.VISIBLE
+        binding.buttonMapToggle.text = "🗺"
+        applyFilter()
     }
 
     override fun onDestroyView() {

@@ -5,13 +5,13 @@
         android:icon="@drawable/ic_nav_list"
         android:title="ルート" />
     <item
-        android:id="@+id/nav_map"
-        android:icon="@drawable/ic_nav_map"
-        android:title="地図" />
+        android:id="@+id/nav_tenko"
+        android:icon="@drawable/ic_nav_tenko"
+        android:title="点呼" />
     <item
         android:id="@+id/nav_report"
         android:icon="@drawable/ic_nav_report"
-        android:title="記録" />
+        android:title="日報" />
     <item
         android:id="@+id/nav_settings"
         android:icon="@drawable/ic_nav_settings"

@@ -18,7 +18,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.rodgers.routist.databinding.ActivityMainBinding
 import com.rodgers.routist.ui.DailyReportFragment
 import com.rodgers.routist.ui.DeliveryListFragment
-import com.rodgers.routist.ui.MapFragment
 import com.rodgers.routist.ui.TenkoFragment
 import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.viewmodel.DeliveryViewModel
@@ -29,8 +28,6 @@ class MainActivity : AppCompatActivity() {
     val viewModel: DeliveryViewModel by viewModels()
     private var suppressNavSync = false
 
-    private val reportContainer = com.rodgers.routist.ui.ReportContainerFragment()
-
     private var isAuthenticated = false
     private var isPromptShowing = false
     private var backgroundedAtMs = 0L
@@ -38,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private val lockRunnable = Runnable { triggerInactivityLock() }
     private lateinit var lockOverlay: View
 
-    // タブ順序: リスト=0, 地図=1, 日報=2, 点呼=3
+    // タブ順序: ルート=0, 点呼=1, 日報=2, 設定=3
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppSettings.getDarkMode(this))
         installSplashScreen()
@@ -57,7 +54,7 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
         binding.toolbar.setOnClickListener { showGroupDropdown() }
 
-        val fragments = listOf(DeliveryListFragment(), MapFragment(), reportContainer, com.rodgers.routist.ui.SettingsFragment())
+        val fragments = listOf(DeliveryListFragment(), TenkoFragment(), DailyReportFragment(), com.rodgers.routist.ui.SettingsFragment())
         binding.viewPager.adapter = object : androidx.viewpager2.adapter.FragmentStateAdapter(this) {
             override fun getItemCount() = fragments.size
             override fun createFragment(position: Int) = fragments[position]
@@ -68,7 +65,7 @@ class MainActivity : AppCompatActivity() {
             if (!suppressNavSync) {
                 val pos = when (item.itemId) {
                     R.id.nav_list     -> 0
-                    R.id.nav_map      -> 1
+                    R.id.nav_tenko    -> 1
                     R.id.nav_report   -> 2
                     R.id.nav_settings -> 3
                     else -> return@setOnItemSelectedListener false
@@ -84,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageSelected(position: Int) {
                 val itemId = when (position) {
                     0 -> R.id.nav_list
-                    1 -> R.id.nav_map
+                    1 -> R.id.nav_tenko
                     2 -> R.id.nav_report
                     3 -> R.id.nav_settings
                     else -> return
@@ -101,16 +98,14 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.deliveries.observe(this) { _ ->
             val groupName = viewModel.currentGroup()?.name ?: "マップリスト"
-            val pos = binding.viewPager.currentItem
-            if (pos == 0 || pos == 1) {
+            if (binding.viewPager.currentItem == 0) {
                 supportActionBar?.title = "$groupName ▼"
             }
             binding.progressBar.visibility = View.GONE
         }
 
         viewModel.currentGroupId.observe(this) {
-            val pos = binding.viewPager.currentItem
-            if (pos == 0 || pos == 1) {
+            if (binding.viewPager.currentItem == 0) {
                 val groupName = viewModel.currentGroup()?.name ?: "マップリスト"
                 supportActionBar?.title = "$groupName ▼"
             }
@@ -167,23 +162,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateToolbarForTab(position: Int) {
         when (position) {
-            0, 1 -> {
+            0 -> {
                 binding.appBarLayout.visibility = View.VISIBLE
                 val groupName = viewModel.currentGroup()?.name ?: "マップリスト"
                 supportActionBar?.title = "$groupName ▼"
                 supportActionBar?.subtitle = null
             }
-            2, 3 -> {
-                // 日報・点呼は独自ヘッダーを持つためツールバー不要
+            else -> {
                 binding.appBarLayout.visibility = View.GONE
             }
         }
     }
 
     fun switchToList()   { binding.viewPager.currentItem = 0 }
-    fun switchToMap()    { binding.viewPager.currentItem = 1 }
-    fun switchToReport() { binding.viewPager.currentItem = 2; binding.root.post { reportContainer.switchToReport() } }
-    fun switchToTenko()  { binding.viewPager.currentItem = 2; binding.root.post { reportContainer.switchToTenko() } }
+    fun switchToTenko()  { binding.viewPager.currentItem = 1 }
+    fun switchToReport() { binding.viewPager.currentItem = 2 }
 
     override fun onResume() {
         super.onResume()

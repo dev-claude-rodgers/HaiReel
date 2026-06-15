@@ -1056,8 +1056,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             setOnClickListener {
                 sheet.dismiss()
                 viewModel.requestEditDelivery(delivery.id)
-                requireActivity().findViewById<androidx.viewpager2.widget.ViewPager2>(
-                    com.rodgers.routist.R.id.viewPager)?.currentItem = 0
+                (parentFragment as? DeliveryListFragment)?.switchToListView()
             }
         }
         root.addView(editBtn)

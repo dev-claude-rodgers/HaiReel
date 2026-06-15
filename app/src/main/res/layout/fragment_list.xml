@@ -60,6 +60,20 @@
             android:insetBottom="0dp"
             app:strokeColor="#FFFFFF" />
 
+        <!-- 地図トグルボタン -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonMapToggle"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="52dp"
+            android:layout_height="56dp"
+            android:text="🗺"
+            android:contentDescription="地図/リスト切替"
+            android:textSize="22sp"
+            android:textColor="#FFFFFF"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+
         <!-- メニューボタン -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonListMenu"
@@ -189,6 +203,16 @@
             app:backgroundTint="@color/colorError" />
 
     </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/mapContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
         android:id="@+id/textEmpty"
