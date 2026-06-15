@@ -2400,7 +2400,7 @@ class DeliveryListFragment : Fragment() {
         binding.recyclerView.visibility = View.GONE
         binding.layoutProgress.visibility = View.GONE
         binding.textEmpty.visibility = View.GONE
-        binding.buttonMapToggle.text = "≡"
+        binding.buttonMapToggle.text = "一覧"
         if (childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
                 .add(R.id.mapContainer, MapFragment(), "map")
