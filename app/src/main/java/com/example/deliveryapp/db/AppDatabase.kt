@@ -10,8 +10,8 @@ import com.rodgers.routist.model.TenkoRecord
 import com.rodgers.routist.model.WorkRecord
 
 @Database(
-    entities = [WorkRecord::class, TenkoRecord::class, DeliveryEntity::class],
-    version = 8,
+    entities = [WorkRecord::class, TenkoRecord::class, DeliveryEntity::class, DeliveryGroupEntity::class],
+    version = 9,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -19,6 +19,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workRecordDao(): WorkRecordDao
     abstract fun tenkoDao(): TenkoDao
     abstract fun deliveryDao(): DeliveryDao
+    abstract fun deliveryGroupDao(): DeliveryGroupDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -72,6 +73,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v8→v9: delivery_groups テーブル追加（SharedPreferences JSON → Room）
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `delivery_groups` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `color_hex` TEXT NOT NULL,
+                        `pattern_id` INTEGER NOT NULL,
+                        `sort_order` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -79,7 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "report_db"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .fallbackToDestructiveMigrationFrom(1, 2, 3)  // v1〜v3 はリリース前の開発版のみ
                 .build()
                 .also { INSTANCE = it }

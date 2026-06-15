@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import com.rodgers.routist.db.AppDatabase
 import com.rodgers.routist.db.toDelivery
 import com.rodgers.routist.db.toEntity
+import com.rodgers.routist.db.toGroup
 import com.rodgers.routist.model.Delivery
 import com.rodgers.routist.model.DeliveryGroup
 import com.rodgers.routist.model.Room
@@ -224,7 +225,10 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
         _groups.value = updated
         normalizeGroupColors()
         prefs.edit().remove("group_$groupId").apply()
-        viewModelScope.launch(Dispatchers.IO) { db.deliveryDao().deleteByGroup(groupId) }
+        viewModelScope.launch(Dispatchers.IO) {
+            db.deliveryDao().deleteByGroup(groupId)
+            db.deliveryGroupDao().deleteById(groupId)
+        }
         group?.let { deleteDownloadsFile(groupId, it.name) }
 
         val allMap = (_allDeliveries.value ?: emptyMap()).toMutableMap()
@@ -1044,7 +1048,10 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun saveGroups() {
-        prefs.edit().putString("groups", gson.toJson(_groups.value)).apply()
+        val groups = _groups.value ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            db.deliveryGroupDao().upsertAll(groups.mapIndexed { i, g -> g.toEntity(i) })
+        }
     }
 
     private fun saveGroupDeliveries(groupId: String, list: List<Delivery>) {
@@ -1061,69 +1068,46 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun loadAll() {
-        // グループ一覧を読み込む（SharedPreferences から）
-        val groupsJson = prefs.getString("groups", null)
-        val loadedGroups: List<DeliveryGroup> = if (groupsJson != null) {
-            val type = object : TypeToken<List<DeliveryGroup>>() {}.type
-            try { gson.fromJson(groupsJson, type) ?: emptyList() } catch (_: Exception) { emptyList() }
-        } else {
-            // 旧データ移行: 既存の"deliveries"があればデフォルトグループに移行
-            val legacy = prefs.getString("deliveries", null)
-            if (legacy != null) {
-                val defaultGroup = DeliveryGroup(name = "訪問先リスト", colorHex = colorForIndex(0))
-                val type = object : TypeToken<List<Delivery>>() {}.type
-                val legacyList: List<Delivery> = try { gson.fromJson(legacy, type) ?: emptyList() } catch (_: Exception) { emptyList() }
-                if (legacyList.isNotEmpty()) {
-                    db.deliveryDao().upsertAll(legacyList.map { it.toEntity(defaultGroup.id) })
+        // グループ一覧: Room が空なら SharedPreferences から移行
+        val groupRoomCount = db.deliveryGroupDao().count()
+        val finalGroups: List<DeliveryGroup>
+        if (groupRoomCount == 0) {
+            // SharedPreferences → Room グループ移行
+            val prefsGroups = loadGroupsFromPrefs()
+            val migrated = prefsGroups.map { g ->
+                when (g.name) {
+                    "配達リスト", "訪問リスト" -> g.copy(name = "訪問先リスト")
+                    else -> g
                 }
-                prefs.edit().remove("deliveries").apply()
-                listOf(defaultGroup)
-            } else {
-                emptyList()
             }
+            if (migrated.isNotEmpty()) {
+                db.deliveryGroupDao().upsertAll(migrated.mapIndexed { i, g -> g.toEntity(i) })
+            }
+            // SharedPreferences → Room 配達データ移行
+            val deliveryRoomCount = db.deliveryDao().count()
+            if (deliveryRoomCount == 0) {
+                migrated.forEach { group ->
+                    val list = loadGroupDeliveriesFromPrefs(group.id)
+                    if (list.isNotEmpty()) db.deliveryDao().upsertAll(list.map { it.toEntity(group.id) })
+                }
+            }
+            finalGroups = migrated
+        } else {
+            finalGroups = db.deliveryGroupDao().getAll().map { it.toGroup() }
         }
 
-        // 旧グループ名を移行
-        val migrated = loadedGroups.map { g ->
-            when (g.name) {
-                "配達リスト", "訪問リスト" -> g.copy(name = "訪問先リスト")
-                else -> g
-            }
-        }
-
-        // SharedPreferences → Room への初回移行
-        val roomCount = db.deliveryDao().count()
-        if (roomCount == 0) {
-            migrated.forEach { group ->
-                val list = loadGroupDeliveriesFromPrefs(group.id)
-                if (list.isNotEmpty()) db.deliveryDao().upsertAll(list.map { it.toEntity(group.id) })
-            }
-        }
-
-        // Room から全グループのデータを読み込む
+        // Room から全配達データを読み込む
         val allEntities = db.deliveryDao().getAll()
         val allMap = mutableMapOf<String, List<Delivery>>()
-        migrated.forEach { group ->
+        finalGroups.forEach { group ->
             allMap[group.id] = allEntities
                 .filter { it.groupId == group.id }
                 .sortedBy { it.order }
                 .map { it.toDelivery() }
         }
 
-        val finalGroups = migrated
-
         withContext(Dispatchers.Main) {
             _groups.value = finalGroups
-            saveGroups()
-
-            // グループ名が変わった場合、旧ファイルを削除して新名で出力
-            loadedGroups.zip(migrated).forEach { (old, new) ->
-                if (old.name != new.name) {
-                    deleteDownloadsFile(old.id, old.name)
-                    val list = allMap[new.id] ?: emptyList()
-                    if (list.isNotEmpty()) exportToDownloads(new.id, list)
-                }
-            }
 
             cleanupOrphanedDownloadFiles(finalGroups)
             createMissingDownloadFiles(finalGroups)
@@ -1136,5 +1120,19 @@ class DeliveryViewModel(app: Application) : AndroidViewModel(app) {
             _currentGroupId.value = targetId
             _deliveries.value = allMap[targetId] ?: emptyList()
         }
+    }
+
+    private fun loadGroupsFromPrefs(): List<DeliveryGroup> {
+        val json = prefs.getString("groups", null) ?: run {
+            // 旧データ移行: "deliveries" キーがあればデフォルトグループを作成
+            val legacy = prefs.getString("deliveries", null) ?: return emptyList()
+            val defaultGroup = DeliveryGroup(name = "訪問先リスト", colorHex = colorForIndex(0))
+            val type = object : TypeToken<List<Delivery>>() {}.type
+            val legacyList: List<Delivery> = try { gson.fromJson(legacy, type) ?: emptyList() } catch (_: Exception) { emptyList() }
+            prefs.edit().putString("group_${defaultGroup.id}", gson.toJson(legacyList)).remove("deliveries").apply()
+            return listOf(defaultGroup)
+        }
+        val type = object : TypeToken<List<DeliveryGroup>>() {}.type
+        return try { gson.fromJson(json, type) ?: emptyList() } catch (_: Exception) { emptyList() }
     }
 }
