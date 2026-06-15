@@ -3,7 +3,7 @@
     <item
         android:id="@+id/nav_list"
         android:icon="@drawable/ic_nav_list"
-        android:title="ルート" />
+        android:title="配達" />
     <item
         android:id="@+id/nav_tenko"
         android:icon="@drawable/ic_nav_tenko"
