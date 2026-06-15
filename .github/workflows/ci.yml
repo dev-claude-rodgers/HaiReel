@@ -38,7 +38,7 @@ jobs:
         run: printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace 2>&1 | tail -100
+        run: ./gradlew testDebugUnitTest
 
       - name: Generate JaCoCo report
         run: ./gradlew jacocoTestReport || true
