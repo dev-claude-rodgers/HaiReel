@@ -2,6 +2,7 @@ package com.rodgers.routist.repository
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rodgers.routist.db.AppDatabase
@@ -12,11 +13,15 @@ import com.rodgers.routist.model.Delivery
 import com.rodgers.routist.model.DeliveryGroup
 import com.rodgers.routist.model.colorForIndex
 
-class DeliveryRepository(app: Application) {
-
-    private val db = AppDatabase.getInstance(app)
-    private val prefs = app.getSharedPreferences("delivery_prefs", Context.MODE_PRIVATE)
-    private val gson = Gson()
+class DeliveryRepository(
+    private val db: AppDatabase,
+    private val prefs: SharedPreferences,
+    private val gson: Gson = Gson()
+) {
+    constructor(app: Application) : this(
+        AppDatabase.getInstance(app),
+        app.getSharedPreferences("delivery_prefs", Context.MODE_PRIVATE)
+    )
 
     // ---- Delivery CRUD ----
 
