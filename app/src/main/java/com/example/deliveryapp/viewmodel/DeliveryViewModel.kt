@@ -259,6 +259,8 @@ class DeliveryViewModel @Inject constructor(
     }
 
     fun deleteGroup(groupId: String) {
+        geocodingJobs[groupId]?.cancel()
+        geocodingJobs.remove(groupId)
         val group = _groups.value.find { it.id == groupId }
         val updated = _groups.value.filter { it.id != groupId }
         _groups.value = updated

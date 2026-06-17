@@ -9,10 +9,17 @@ import java.net.URLEncoder
 object GeocodingClient {
 
     private const val GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
-    var apiKey: String = ""
-    var areaHint: String = ""
+    private var apiKey: String = ""
+    private var areaHint: String = ""
     var biasLat: Double = 0.0
+        private set
     var biasLng: Double = 0.0
+        private set
+
+    fun configure(apiKey: String) { this.apiKey = apiKey }
+    fun setAreaHint(hint: String) { areaHint = hint }
+    fun setBias(lat: Double, lng: Double) { biasLat = lat; biasLng = lng }
+    fun hasBias(): Boolean = biasLat != 0.0 && biasLng != 0.0
 
     data class GeoResult(
         val lat: Double,
@@ -50,10 +57,11 @@ object GeocodingClient {
                 "&mode=driving&language=ja&key=$apiKey"
             val json = fetch(url) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
-            val leg = json.getJSONArray("routes")
-                .getJSONObject(0)
-                .getJSONArray("legs")
-                .getJSONObject(0)
+            val routesArr = json.getJSONArray("routes")
+            if (routesArr.length() == 0) return@withContext null
+            val legsArr0 = routesArr.getJSONObject(0).getJSONArray("legs")
+            if (legsArr0.length() == 0) return@withContext null
+            val leg = legsArr0.getJSONObject(0)
             RouteResult(
                 distanceMeters = leg.getJSONObject("distance").getInt("value"),
                 durationSeconds = leg.getJSONObject("duration").getInt("value")
@@ -104,7 +112,9 @@ object GeocodingClient {
             sb.append("&mode=driving&language=ja&key=$apiKey")
             val json = fetch(sb.toString()) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
-            val route = json.getJSONArray("routes").getJSONObject(0)
+            val routes = json.getJSONArray("routes")
+            if (routes.length() == 0) return@withContext null
+            val route = routes.getJSONObject(0)
             val legsArr = route.getJSONArray("legs")
             val legs = (0 until legsArr.length()).map { i ->
                 val leg = legsArr.getJSONObject(i)
@@ -144,7 +154,9 @@ object GeocodingClient {
             }
             val json = fetch(urlBuilder.toString()) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
-            val result = json.getJSONArray("results").getJSONObject(0)
+            val results = json.getJSONArray("results")
+            if (results.length() == 0) return@withContext null
+            val result = results.getJSONObject(0)
             val loc = result.getJSONObject("geometry").getJSONObject("location")
             val raw = result.optString("formatted_address", "")
             // "日本、〒150-0001 " のような先頭の国名・郵便番号を除去
@@ -166,7 +178,9 @@ object GeocodingClient {
             }
             val json = fetch(urlBuilder.toString()) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
-            val result = json.getJSONArray("results").getJSONObject(0)
+            val resultsEx = json.getJSONArray("results")
+            if (resultsEx.length() == 0) return@withContext null
+            val result = resultsEx.getJSONObject(0)
             val loc = result.getJSONObject("geometry").getJSONObject("location")
             val raw = result.optString("formatted_address", "")
             val formatted = raw
@@ -183,10 +197,56 @@ object GeocodingClient {
             val url = "$GEOCODE_URL?latlng=$lat,$lng&language=ja&key=$apiKey"
             val json = fetch(url) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
-            val result = json.getJSONArray("results").getJSONObject(0)
+            val resultsRev = json.getJSONArray("results")
+            if (resultsRev.length() == 0) return@withContext null
+            val result = resultsRev.getJSONObject(0)
             val formatted = result.optString("formatted_address", "")
             GeoResult(lat = lat, lng = lng, formattedAddress = formatted)
         } catch (e: Exception) { null }
+    }
+
+    /** 入力住所から都道府県・市区町村・地区名を抽出する（ひらがな・カタカナ・漢字すべて対応） */
+    fun extractPrefCity(address: String): List<String> {
+        val jpChar = "[\\u3040-\\u30FF\\u3400-\\u9FFF]"
+        val result = mutableListOf<String>()
+        Regex("${jpChar}{1,4}[都道府県]").find(address)?.value?.let { result.add(it) }
+        val cityMatch = Regex("${jpChar}{1,8}[市区町村]").find(address)
+        cityMatch?.value?.let { city ->
+            if (result.none { city.startsWith(it) }) result.add(city)
+            // 市区町村直後の地区・大字名も抽出（例："研究学園"、"東新井"）
+            val afterCity = address.substringAfter(city)
+            Regex("^(${jpChar}{2,8})(?=[\\d０-９丁番号\\s]|$)").find(afterCity)
+                ?.groupValues?.get(1)?.let { area -> if (area.isNotBlank()) result.add(area) }
+        }
+        return result
+    }
+
+    /** 入力住所に含まれる都道府県・市区町村がジオコード結果に含まれるか検証する */
+    fun resultMatchesInput(inputAddress: String, geocodedAddress: String): Boolean {
+        val keywords = extractPrefCity(inputAddress)
+        if (keywords.isEmpty()) return true
+        return keywords.any { kw -> geocodedAddress.contains(kw) }
+    }
+
+    /** 入力住所に対して最大5件の候補を返す（areaHintなし、バイアスなし） */
+    suspend fun geocodeCandidates(address: String): List<GeoResult> = withContext(Dispatchers.IO) {
+        try {
+            val encoded = URLEncoder.encode(address, "UTF-8")
+            val url = "$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey"
+            val json = fetch(url) ?: return@withContext emptyList()
+            if (json.getString("status") != "OK") return@withContext emptyList()
+            val results = json.getJSONArray("results")
+            (0 until minOf(5, results.length())).map { i ->
+                val r = results.getJSONObject(i)
+                val loc = r.getJSONObject("geometry").getJSONObject("location")
+                val raw = r.optString("formatted_address", "")
+                val formatted = raw
+                    .replace(Regex("^日本[、,]\\s*"), "")
+                    .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+                    .trim()
+                GeoResult(lat = loc.getDouble("lat"), lng = loc.getDouble("lng"), formattedAddress = formatted)
+            }
+        } catch (_: Exception) { emptyList() }
     }
 
     private fun fetch(url: String): JSONObject? {

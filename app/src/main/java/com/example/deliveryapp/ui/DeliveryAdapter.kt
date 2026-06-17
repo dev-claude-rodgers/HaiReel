@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
@@ -22,6 +23,7 @@ import java.util.concurrent.Executors
 class DeliveryAdapter(
     private val onTap: (Delivery) -> Unit = {},
     private val onLongPress: () -> Unit = {},
+    private val onDragStart: (RecyclerView.ViewHolder) -> Unit = {},
     private val onNoteClick: (Delivery) -> Unit = {},
     private val onPhotoClick: (Delivery, Int) -> Unit = { _, _ -> },
     private val onSelectionChanged: () -> Unit = {}
@@ -78,7 +80,7 @@ class DeliveryAdapter(
 
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
-        imageExecutor.shutdown()
+        imageExecutor.shutdownNow()
     }
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -98,6 +100,11 @@ class DeliveryAdapter(
 
         @Suppress("ClickableViewAccessibility")
         fun bind(delivery: Delivery) {
+            // TalkBack 向け: 番号・住所・完了状態を組み合わせた説明を設定
+            val label = delivery.name?.takeIf { it.isNotBlank() } ?: delivery.address
+            val status = if (delivery.isCompleted) "完了" else "未完了"
+            itemView.contentDescription = "${delivery.order}番  $label  $status"
+
             if (!delivery.name.isNullOrBlank()) {
                 tvName.visibility = View.VISIBLE
                 tvName.text = delivery.name
@@ -204,7 +211,9 @@ class DeliveryAdapter(
                     onSelectionChanged()
                 }
                 itemView.setOnClickListener { checkSelect.isChecked = !checkSelect.isChecked }
+                itemView.setOnLongClickListener(null)
                 itemView.alpha = if (delivery.id in selectedIds) 1.0f else 0.6f
+                ivDragHandle.setOnTouchListener(null)
             } else {
                 checkSelect.visibility = View.GONE
                 tvOrder.visibility = View.VISIBLE
@@ -225,7 +234,13 @@ class DeliveryAdapter(
                 }
                 itemView.alpha = 1.0f
                 itemView.setOnClickListener { onTap(delivery) }
-                itemView.setOnLongClickListener { true }
+                // 長押しで選択モード入場
+                itemView.setOnLongClickListener { onLongPress(); true }
+                // ドラッグハンドルタッチでドラッグ開始（長押し不要）
+                ivDragHandle.setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) onDragStart(this@ViewHolder)
+                    false
+                }
             }
         }
     }

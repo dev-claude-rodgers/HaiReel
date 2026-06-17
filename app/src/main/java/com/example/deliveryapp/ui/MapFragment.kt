@@ -309,13 +309,16 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         else locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
 
-    @Suppress("MissingPermission", "DEPRECATION")
     private fun enableMyLocation() {
-        googleMap?.isMyLocationEnabled = true
-        // GPS座標をViewModelに渡してジオコーディングのバイアスに使用
-        googleMap?.setOnMyLocationChangeListener { location ->
-            lastKnownLocation = location
-            viewModel.setLocationBias(location.latitude, location.longitude)
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) return
+        @Suppress("MissingPermission", "DEPRECATION")
+        googleMap?.let { map ->
+            map.isMyLocationEnabled = true
+            map.setOnMyLocationChangeListener { location ->
+                lastKnownLocation = location
+                viewModel.setLocationBias(location.latitude, location.longitude)
+            }
         }
     }
 

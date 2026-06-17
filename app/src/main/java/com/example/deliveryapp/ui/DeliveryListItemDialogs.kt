@@ -89,7 +89,7 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         val statusParts = mutableListOf<String>()
         statusParts.add(if (delivery.isCompleted) "✅ 完了済み" else "⬜ 未完了")
         if (!delivery.timeSlot.isNullOrBlank()) statusParts.add("🕐 ${delivery.timeSlot}")
-        if ((delivery.packageCount ?: 0) > 0) statusParts.add("📦 ${delivery.packageCount}個")
+        if (delivery.packageCount > 0) statusParts.add("📦 ${delivery.packageCount}個")
         headerCol.addView(TextView(ctx).apply {
             text = statusParts.joinToString("  ")
             textSize = 13f
@@ -143,7 +143,7 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
             })
             if (sub.isNotBlank()) col.addView(TextView(ctx).apply {
                 text = sub; textSize = 14f
-                setTextColor(android.graphics.Color.parseColor("#555555"))
+                setTextColor(onSurfaceVariant)
                 maxLines = 2
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -171,12 +171,12 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         }
         row("✏️", "名前・住所を編集", "配達先の名前や住所を変更する") { showEditDialog(delivery) }
         row("🕐", "時間帯・個数を設定",
-            if (!delivery.timeSlot.isNullOrBlank()) "現在: ${delivery.timeSlot}${if ((delivery.packageCount ?: 0) > 0) " · ${delivery.packageCount}個" else ""}"
+            if (!delivery.timeSlot.isNullOrBlank()) "現在: ${delivery.timeSlot}${if (delivery.packageCount > 0) " · ${delivery.packageCount}個" else ""}"
             else "配達時間帯・荷物個数を登録する") { showTimeSlotPackageDialog(delivery) }
 
         val noteTitle = if (delivery.note.isNullOrBlank()) "メモを追加" else "メモを編集"
         val noteSub   = if (delivery.note.isNullOrBlank()) "受け取り方法・備考などを記録する"
-                        else delivery.note!!.take(60).let { if (delivery.note!!.length > 60) "$it…" else it }
+                        else delivery.note.take(60).let { if (delivery.note.length > 60) "$it…" else it }
         row("📝", noteTitle, noteSub) { showNoteDialog(delivery) }
 
         val photoCount = delivery.allPhotoUris.size
@@ -222,6 +222,7 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         }
         sheet.show()
     }
+
 
 
 internal fun DeliveryListFragment.showNoteView(delivery: Delivery) {
@@ -277,11 +278,14 @@ internal fun DeliveryListFragment.showPhotosViewer(delivery: Delivery, startInde
             .setView(root)
             .setPositiveButton("追加") { _, _ -> showPhotoAddOptions(delivery.id) }
             .setNeutralButton("この写真を削除") { _, _ ->
-                File(photos[currentIndex]).delete()
-                viewModel.removePhoto(delivery.id, currentIndex)
-                val updated = viewModel.deliveries.value?.find { it.id == delivery.id }
+                val deleteIdx = currentIndex.coerceIn(0, photos.size - 1)
+                File(photos[deleteIdx]).delete()
+                viewModel.removePhoto(delivery.id, deleteIdx)
+                val updated = viewModel.deliveries.value.find { it.id == delivery.id }
                 if (updated != null && updated.allPhotoUris.isNotEmpty()) {
-                    showPhotosViewer(updated, currentIndex.coerceAtMost(updated.allPhotoUris.size - 1))
+                    val nextIdx = (deleteIdx - 1).coerceAtLeast(0)
+                        .coerceAtMost(updated.allPhotoUris.size - 1)
+                    showPhotosViewer(updated, nextIdx)
                 }
             }
             .setNegativeButton("閉じる", null)
@@ -331,41 +335,189 @@ internal fun DeliveryListFragment.launchCamera(deliveryId: String) {
     }
 
 internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
-        val ctx = requireContext()
+        val ctx  = requireContext()
+        val dp   = ctx.resources.displayMetrics.density
+        val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
+        val WRAP  = LinearLayout.LayoutParams.WRAP_CONTENT
+
+        val colorOnSurface        = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+        val colorOnSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val colorSurfaceVariant   = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
+        val ripple = android.util.TypedValue().also {
+            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
+        }.resourceId
+
+        val scroll = ScrollView(ctx)
         val layout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(64, 24, 64, 8)
+            setPadding((20 * dp).toInt(), (12 * dp).toInt(), (20 * dp).toInt(), (8 * dp).toInt())
         }
-        val nameLabel = TextView(ctx).apply { text = "名前" }
+        scroll.addView(layout)
+
+        fun label(text: String) = TextView(ctx).apply {
+            this.text = text; textSize = 13f; setTextColor(colorOnSurfaceVariant)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (2 * dp).toInt() }
+        }
+
         val nameInput = EditText(ctx).apply {
             hint = "例: ファミリーマート渋谷店"
             setText(delivery.name ?: "")
             inputType = InputType.TYPE_CLASS_TEXT
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        val addrLabel = TextView(ctx).apply {
-            text = "住所"
-            setPadding(0, 20, 0, 0)
+
+        // 候補リスト（名前入力に連動）
+        val candidateBox = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(colorSurfaceVariant)
+                setStroke((1 * dp).toInt(), colorOnSurfaceVariant.let {
+                    android.graphics.Color.argb(60,
+                        android.graphics.Color.red(it),
+                        android.graphics.Color.green(it),
+                        android.graphics.Color.blue(it))
+                })
+                cornerRadius = 6 * dp
+            }
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.topMargin = (4 * dp).toInt() }
         }
+
         val addrInput = EditText(ctx).apply {
             hint = "例: 東京都渋谷区〇〇1-2-3"
             setText(delivery.address)
             inputType = InputType.TYPE_CLASS_TEXT
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        layout.addView(nameLabel)
+
+        var watcher: android.text.TextWatcher? = null
+        fun fillFromCandidate(name: String, address: String) {
+            val w = watcher ?: return
+            nameInput.removeTextChangedListener(w)
+            nameInput.setText(name)
+            nameInput.setSelection(name.length)
+            nameInput.addTextChangedListener(w)
+            addrInput.setText(address)
+            candidateBox.visibility = View.GONE
+        }
+
+        fun rebuildCandidates(query: String) {
+            val found = viewModel.searchDeliveriesByName(query, excludeId = delivery.id)
+            if (found.isEmpty()) { candidateBox.visibility = View.GONE; return }
+            candidateBox.removeAllViews()
+            candidateBox.addView(TextView(ctx).apply {
+                text = "候補（タップで選択）"
+                textSize = 11f; setTextColor(colorOnSurfaceVariant)
+                setPadding((10 * dp).toInt(), (6 * dp).toInt(), (10 * dp).toInt(), (2 * dp).toInt())
+            })
+            found.forEach { cand ->
+                val row = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundResource(ripple)
+                    setPadding((10 * dp).toInt(), (8 * dp).toInt(), (10 * dp).toInt(), (8 * dp).toInt())
+                    layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                }
+                row.addView(TextView(ctx).apply {
+                    text = cand.name; textSize = 14f; setTextColor(colorOnSurface)
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                })
+                row.addView(TextView(ctx).apply {
+                    text = cand.displayAddress; textSize = 12f
+                    setTextColor(colorOnSurfaceVariant); maxLines = 1
+                    layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                        .also { it.topMargin = (2 * dp).toInt() }
+                })
+                row.setOnClickListener {
+                    fillFromCandidate(cand.name ?: "", cand.displayAddress)
+                }
+                candidateBox.addView(row)
+                candidateBox.addView(View(ctx).apply {
+                    setBackgroundColor(android.graphics.Color.argb(40,
+                        android.graphics.Color.red(colorOnSurfaceVariant),
+                        android.graphics.Color.green(colorOnSurfaceVariant),
+                        android.graphics.Color.blue(colorOnSurfaceVariant)))
+                    layoutParams = LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
+                        .also { it.marginStart = (10 * dp).toInt() }
+                })
+            }
+            candidateBox.visibility = View.VISIBLE
+        }
+
+        watcher = object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                rebuildCandidates(s?.toString()?.trim() ?: "")
+            }
+        }
+        nameInput.addTextChangedListener(watcher)
+
+        layout.addView(label("名前・店名"))
         layout.addView(nameInput)
-        layout.addView(addrLabel)
+        layout.addView(candidateBox)
+        layout.addView(label("住所"))
         layout.addView(addrInput)
 
-        AlertDialog.Builder(ctx)
+        val dlg = AlertDialog.Builder(ctx)
             .setTitle("名前・住所を編集")
-            .setView(layout)
-            .setPositiveButton("修正して再検索") { _, _ ->
-                val newName = nameInput.text.toString().trim()
-                val newAddress = addrInput.text.toString().trim()
-                if (newAddress.isNotBlank()) viewModel.editDelivery(delivery.id, newName, newAddress)
-            }
+            .setView(scroll)
+            .setPositiveButton("修正して再検索", null)
             .setNegativeButton("キャンセル", null)
             .show()
+
+        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val newName    = nameInput.text.toString().trim()
+            val newAddress = addrInput.text.toString().trim()
+            if (newAddress.isBlank()) return@setOnClickListener
+            dlg.dismiss()
+
+            lifecycleScope.launch {
+                // 住所の候補（最大5件）と店名候補を並行取得
+                val geoCandidates = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.rodgers.routist.util.GeocodingClient.geocodeCandidates(newAddress)
+                }
+                val placeCandidates = if (newName.isNotBlank()) {
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.rodgers.routist.util.GeocodingClient.searchPlaces(newName)
+                    }
+                } else emptyList()
+
+                // 住所・lat・lng の三つ組リスト（表示ラベル / 保存住所 / 座標）
+                val items = mutableListOf<Triple<String, Double, Double>>()
+                // 店名候補を先頭に（住所より関連度が高い）
+                placeCandidates.forEach { p ->
+                    items.add(Triple(p.address, p.lat, p.lng))
+                }
+                // 住所候補を追加（座標が重複するものは除外）
+                geoCandidates.forEach { r ->
+                    val dup = items.any {
+                        Math.abs(it.second - r.lat) < 0.001 && Math.abs(it.third - r.lng) < 0.001
+                    }
+                    if (!dup) items.add(Triple(r.formattedAddress, r.lat, r.lng))
+                }
+
+                if (items.isEmpty()) {
+                    // 候補なし → 通常のジオコーディングにフォールバック
+                    viewModel.editDelivery(delivery.id, newName, newAddress)
+                    return@launch
+                }
+
+                val labels = items.map { it.first }.toTypedArray()
+                var selectedIdx = 0
+                AlertDialog.Builder(ctx)
+                    .setTitle(if (newName.isNotBlank()) "「$newName」の場所を選んでください" else "場所を選んでください")
+                    .setSingleChoiceItems(labels, 0) { _, which -> selectedIdx = which }
+                    .setPositiveButton("この場所を使う") { _, _ ->
+                        val sel = items[selectedIdx]
+                        viewModel.applyCandidate(delivery.id, newName, sel.first, sel.second, sel.third)
+                    }
+                    .setNegativeButton("キャンセル", null)
+                    .show()
+            }
+        }
     }
 
 internal fun DeliveryListFragment.showTimeSlotPackageDialog(delivery: Delivery) {

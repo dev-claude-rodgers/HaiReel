@@ -34,6 +34,7 @@ import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.collectLatest
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -55,6 +56,7 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -123,9 +125,13 @@ class DeliveryListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // ItemTouchHelper はアダプターより先に参照が必要なため var で保持
+        var itemTouchHelper: ItemTouchHelper? = null
+
         adapter = DeliveryAdapter(
             onTap = { delivery -> showItemOptions(delivery) },
             onLongPress = { if (!adapter.isSelectMode) enterSelectMode() },
+            onDragStart = { vh -> itemTouchHelper?.startDrag(vh) },
             onNoteClick = { delivery -> showNoteView(delivery) },
             onPhotoClick = { delivery, index -> showPhotosViewer(delivery, index) },
             onSelectionChanged = { updateSelectionUI() }
@@ -137,19 +143,23 @@ class DeliveryListFragment : Fragment() {
             addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
         }
 
-        ItemTouchHelper(object : ItemTouchHelper.Callback() {
+        itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.Callback() {
+            private var orderChanged = false
+
             override fun getMovementFlags(rv: RecyclerView, vh: RecyclerView.ViewHolder) =
                 if (adapter.isSelectMode) makeMovementFlags(0, 0)
                 else makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
 
             override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
                 adapter.moveItem(vh.adapterPosition, target.adapterPosition)
+                orderChanged = true
                 return true
             }
 
             override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {}
 
-            override fun isLongPressDragEnabled() = !adapter.isSelectMode
+            // ハンドルタッチで startDrag() を呼ぶため長押しドラッグは無効
+            override fun isLongPressDragEnabled() = false
 
             override fun onSelectedChanged(vh: RecyclerView.ViewHolder?, actionState: Int) {
                 super.onSelectedChanged(vh, actionState)
@@ -157,6 +167,7 @@ class DeliveryListFragment : Fragment() {
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
                     vh?.itemView?.alpha = 0.8f
                     vh?.itemView?.elevation = 12f
+                    orderChanged = false
                 }
             }
 
@@ -165,9 +176,14 @@ class DeliveryListFragment : Fragment() {
                 adapter.isDragging = false
                 vh.itemView.alpha = 1.0f
                 vh.itemView.elevation = 0f
-                viewModel.reorderDeliveries(adapter.getCurrentList())
+                if (orderChanged) {
+                    viewModel.reorderDeliveries(adapter.getCurrentList())
+                    Snackbar.make(binding.root, "順序を保存しました", Snackbar.LENGTH_SHORT).show()
+                    orderChanged = false
+                }
             }
-        }).attachToRecyclerView(binding.recyclerView)
+        })
+        itemTouchHelper!!.attachToRecyclerView(binding.recyclerView)
 
         // フィルターチップ
         binding.chipIncomplete.typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -180,12 +196,20 @@ class DeliveryListFragment : Fragment() {
 
         binding.buttonSelect.visibility = View.GONE
 
-        // 選択削除ボタン
+        // 選択削除ボタン（Undo 付き）
         binding.buttonDeleteSelected.setOnClickListener {
-            val selected = adapter.selectedIds
+            val selected = adapter.selectedIds.toSet()
             if (selected.isEmpty()) return@setOnClickListener
-            viewModel.deleteDeliveries(selected)
+            val count = selected.size
             exitSelectMode()
+            Snackbar.make(binding.root, "${count}件を削除しました", Snackbar.LENGTH_LONG)
+                .setAction("取り消す") { /* DISMISS_EVENT_ACTION で削除をスキップ */ }
+                .addCallback(object : Snackbar.Callback() {
+                    override fun onDismissed(snackbar: Snackbar?, event: Int) {
+                        if (event != DISMISS_EVENT_ACTION && isAdded) viewModel.deleteDeliveries(selected)
+                    }
+                })
+                .show()
         }
 
         // 時間帯一括設定ボタン
@@ -197,7 +221,7 @@ class DeliveryListFragment : Fragment() {
 
         // 全選択/全解除ボタン
         binding.buttonSelectAll.setOnClickListener {
-            val list = viewModel.deliveries.value ?: return@setOnClickListener
+            val list = viewModel.deliveries.value
             if (adapter.selectedIds.size == list.size) {
                 adapter.clearSelection()
             } else {
@@ -220,13 +244,17 @@ class DeliveryListFragment : Fragment() {
             applyFilter()
         }
 
-        viewModel.deliveries.observe(viewLifecycleOwner) { applyFilter() }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.deliveries.collectLatest { applyFilter() }
+        }
 
-        viewModel.openEditForDelivery.observe(viewLifecycleOwner) { id ->
-            if (id == null) return@observe
-            viewModel.clearEditRequest()
-            val delivery = viewModel.deliveries.value?.find { it.id == id } ?: return@observe
-            showItemOptions(delivery, showNavComplete = false)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.openEditForDelivery.collectLatest { id ->
+                if (id == null) return@collectLatest
+                viewModel.clearEditRequest()
+                val delivery = viewModel.deliveries.value.find { it.id == id } ?: return@collectLatest
+                showItemOptions(delivery, showNavComplete = false)
+            }
         }
 
         fun refreshAdapterGroupColor() {
@@ -238,25 +266,19 @@ class DeliveryListFragment : Fragment() {
             }
         }
 
-        viewModel.currentGroupId.observe(viewLifecycleOwner) {
-            filterMode = FilterMode.ALL
-            binding.chipIncomplete.isChecked = false
-            binding.chipIncomplete.text = "すべて"
-            exitSelectMode()
-            applyFilter()
-            refreshAdapterGroupColor()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.currentGroupId.collectLatest {
+                filterMode = FilterMode.ALL
+                binding.chipIncomplete.isChecked = false
+                binding.chipIncomplete.text = "すべて"
+                exitSelectMode()
+                applyFilter()
+                refreshAdapterGroupColor()
+            }
         }
 
-        viewModel.groups.observe(viewLifecycleOwner) { refreshAdapterGroupColor() }
-
-        viewModel.outOfAreaCandidates.observe(viewLifecycleOwner) { items ->
-            if (items == null) return@observe
-            viewModel.clearOutOfAreaCandidates()
-            if (items.isEmpty()) {
-                Toast.makeText(requireContext(), "エリア外の住所はありません", Toast.LENGTH_SHORT).show()
-            } else {
-                showOutOfAreaCandidatesDialog(items)
-            }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.groups.collectLatest { refreshAdapterGroupColor() }
         }
 
     }
@@ -271,6 +293,13 @@ class DeliveryListFragment : Fragment() {
         binding.layoutSelectionBar.visibility = View.VISIBLE
         viewModel.setSelectMode(true)
         updateSelectionUI()
+
+        // 初回のみ: 操作ヒントを Snackbar で表示
+        val prefs = requireContext().getSharedPreferences("ui_hints", android.content.Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("select_mode_hint_shown", false)) {
+            prefs.edit().putBoolean("select_mode_hint_shown", true).apply()
+            Snackbar.make(binding.root, "長押しで複数選択・ハンドルをドラッグで並べ替えができます", Snackbar.LENGTH_LONG).show()
+        }
     }
 
     internal fun exitSelectMode() {
@@ -290,16 +319,16 @@ class DeliveryListFragment : Fragment() {
 
     internal fun updateSelectionUI() {
         val count = adapter.selectedIds.size
-        val total = viewModel.deliveries.value?.size ?: 0
-        binding.buttonDeleteSelected.text = if (count > 0) "${count}件を削除" else "削除"
+        val total = viewModel.deliveries.value.size
+        binding.buttonDeleteSelected.text = if (count > 0) "削除($count)" else "削除"
         binding.buttonDeleteSelected.isEnabled = count > 0
         binding.buttonSelectAll.text = if (count == total && total > 0) "全解除" else "全選択"
         binding.buttonSetTimeSlot.isEnabled = count > 0
-        binding.buttonSetTimeSlot.text = if (count > 0) "🕐 ${count}件に設定" else "🕐 時間帯"
+        binding.buttonSetTimeSlot.text = if (count > 0) "🕐($count)" else "🕐 時間帯"
     }
 
     internal fun applyFilter() {
-        val list = viewModel.deliveries.value ?: emptyList()
+        val list = viewModel.deliveries.value
         val filtered = when (filterMode) {
             FilterMode.ALL -> list
             FilterMode.INCOMPLETE -> list.filter { !it.isCompleted }
@@ -346,6 +375,7 @@ class DeliveryListFragment : Fragment() {
 
     internal fun showMapView() {
         isMapVisible = true
+        binding.layoutProgress.isClickable = false
         binding.mapContainer.visibility = View.VISIBLE
         binding.recyclerView.visibility = View.GONE
         binding.layoutProgress.visibility = View.GONE
@@ -362,12 +392,25 @@ class DeliveryListFragment : Fragment() {
 
     internal fun switchToListView() {
         isMapVisible = false
+        binding.layoutProgress.isClickable = true
         binding.mapContainer.visibility = View.GONE
         binding.recyclerView.visibility = View.VISIBLE
         binding.chipIncomplete.visibility = View.VISIBLE
         binding.buttonListMenu.visibility = View.VISIBLE
-        binding.buttonMapToggle.text = "🗺 地図"
+        binding.buttonMapToggle.text = getString(R.string.btn_map_toggle)
         applyFilter()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // タブ復帰時にビューが再生成された場合、地図表示状態を復元する
+        if (isMapVisible) showMapView()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // タブ切り替え・バックグラウンド移行時に選択モードを自動解除する
+        if (::adapter.isInitialized && adapter.isSelectMode) exitSelectMode()
     }
 
     override fun onDestroyView() {
