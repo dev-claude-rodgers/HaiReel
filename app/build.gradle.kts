@@ -20,14 +20,14 @@ val localProps = Properties().apply {
 
 android {
     namespace = "com.rodgers.routist"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.rodgers.routist"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 35
+        versionCode = 37
+        versionName = "1.0.1"
         testInstrumentationRunner = "com.rodgers.routist.HiltTestRunner"
 
         val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: ""
@@ -89,12 +89,18 @@ android {
         arg("room.schemaLocation", "$projectDir/schemas")
     }
 
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
+
     applicationVariants.configureEach {
         outputs.configureEach {
             val ts = LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
-                .outputFileName = "Routist_${ts}.apk"
+                .outputFileName = "RouteJin_${ts}.apk"
         }
     }
 }
@@ -142,6 +148,7 @@ dependencies {
     implementation(libs.mlkit.text.recognition.japanese)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.biometric)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
@@ -152,6 +159,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.room.testing)
     testImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.espresso.core)
