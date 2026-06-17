@@ -1,5 +1,6 @@
 ﻿package com.rodgers.routist.util
 
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -66,7 +67,7 @@ object GeocodingClient {
                 distanceMeters = leg.getJSONObject("distance").getInt("value"),
                 durationSeconds = leg.getJSONObject("duration").getInt("value")
             )
-        } catch (_: Exception) { null }
+        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
     }
 
     /** 店名または住所キーワードで場所を検索し候補を最大5件返す */
@@ -124,7 +125,7 @@ object GeocodingClient {
                 )
             }
             RouteWithLegs(legs, route.getJSONObject("overview_polyline").getString("points"))
-        } catch (_: Exception) { null }
+        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
     }
 
     /** Google エンコードポリライン文字列を (lat, lng) のリストに復号する */
@@ -165,7 +166,7 @@ object GeocodingClient {
                 .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
                 .trim()
             GeoResult(lat = loc.getDouble("lat"), lng = loc.getDouble("lng"), formattedAddress = formatted)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
     }
 
     /** areaHint を付けずにジオコーディング（エリア修正用） */
@@ -188,7 +189,7 @@ object GeocodingClient {
                 .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
                 .trim()
             GeoResult(lat = loc.getDouble("lat"), lng = loc.getDouble("lng"), formattedAddress = formatted)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
     }
 
     // 逆ジオコーディング: 座標→住所
@@ -202,7 +203,7 @@ object GeocodingClient {
             val result = resultsRev.getJSONObject(0)
             val formatted = result.optString("formatted_address", "")
             GeoResult(lat = lat, lng = lng, formattedAddress = formatted)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
     }
 
     /** 入力住所から都道府県・市区町村・地区名を抽出する（ひらがな・カタカナ・漢字すべて対応） */
