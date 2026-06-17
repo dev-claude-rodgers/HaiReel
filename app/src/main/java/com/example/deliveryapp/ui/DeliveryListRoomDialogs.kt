@@ -48,7 +48,7 @@ import kotlinx.coroutines.withContext
 internal fun DeliveryListFragment.showRoomListDialog(deliveryId: String) {
         val ctx = requireContext()
         val dp = ctx.resources.displayMetrics.density
-        val delivery = viewModel.deliveries.value?.find { it.id == deliveryId } ?: return
+        val delivery = viewModel.deliveries.value.find { it.id == deliveryId } ?: return
 
         val scroll = ScrollView(ctx)
         val container = LinearLayout(ctx).apply {
@@ -131,7 +131,7 @@ internal fun DeliveryListFragment.showRoomListDialog(deliveryId: String) {
                     }
                     setPadding((6 * dp).toInt(), (3 * dp).toInt(), (6 * dp).toInt(), (3 * dp).toInt())
                 } else {
-                    setTextColor(android.graphics.Color.parseColor("#BDBDBD"))
+                    setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
                     background = null
                     setPadding(0, 0, 0, 0)
                 }
@@ -174,7 +174,7 @@ internal fun DeliveryListFragment.showRoomListDialog(deliveryId: String) {
             // カードをタップ → メモ編集ダイアログ
             card.setOnClickListener {
                 val input = EditText(ctx).apply {
-                    setText(room.note ?: "")
+                    setText(room.note)
                     hint = "不在・担当者名・折り返し希望など"
                     inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
                     maxLines = 4
@@ -580,7 +580,7 @@ internal fun DeliveryListFragment.showRoomNoteEditDialog(deliveryId: String, roo
         val dp = ctx.resources.displayMetrics.density
         val input = EditText(ctx).apply {
             hint = "例：不在・興味あり・次回訪問"
-            setText(room.note ?: "")
+            setText(room.note)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             maxLines = 3
             setPadding((48 * dp).toInt(), (16 * dp).toInt(), (48 * dp).toInt(), (16 * dp).toInt())

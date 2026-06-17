@@ -36,6 +36,8 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,6 +53,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private var routeLine: Polyline? = null
     internal var showRouteLines = true
     internal var lastKnownLocation: android.location.Location? = null
+    private var pendingPinLocation: LatLng? = null
 
     internal data class NearbyPlace(val name: String, val address: String, val lat: Double, val lng: Double)
 
@@ -61,7 +64,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     // Handler.post を使い、同一フレーム内の複数発火をまとめて1回だけ描画する。
     private val mapHandler = Handler(Looper.getMainLooper())
     private val mapRefreshRunner = Runnable {
-        viewModel.allDeliveries.value?.let { updateAllMarkers(it) }
+        updateAllMarkers(viewModel.allDeliveries.value)
     }
 
     private fun scheduleMapRefresh() {
@@ -121,6 +124,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 .setMessage("この場所をルートに追加します。")
                 .setPositiveButton("追加") { _, _ ->
                     viewModel.addPinFromLocation(latLng.latitude, latLng.longitude)
+                    // addPinFromLocation は同期的に allDeliveries を更新するため
+                    // コルーチン経由を待たずに直接描画してピンを確実に表示する
+                    pendingPinLocation = LatLng(latLng.latitude, latLng.longitude)
+                    updateAllMarkers(viewModel.allDeliveries.value)
                 }
                 .setNegativeButton("キャンセル", null)
                 .show()
@@ -148,9 +155,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
             // 配達マーカー
             val clicked = markers.entries.find { it.value == marker }
-                ?.let { entry -> viewModel.allDeliveries.value?.values?.flatten()?.find { it.id == entry.key } }
+                ?.let { entry -> viewModel.allDeliveries.value.values.flatten().find { it.id == entry.key } }
             if (clicked != null) {
-                val nearby = (viewModel.allDeliveries.value?.values?.flatten() ?: emptyList())
+                val nearby = viewModel.allDeliveries.value.values.flatten()
                     .filter { it.hasLocation &&
                         Math.abs(it.lat - clicked.lat) < 0.0002 &&
                         Math.abs(it.lng - clicked.lng) < 0.0002 }
@@ -161,38 +168,49 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             true
         }
 
-        viewModel.allDeliveries.observe(viewLifecycleOwner) {
-            scheduleMapRefresh()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.allDeliveries.collectLatest { scheduleMapRefresh() }
         }
 
-        viewModel.groups.observe(viewLifecycleOwner) {
-            updateGroupsButtonLabel()
-            scheduleMapRefresh()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.groups.collectLatest {
+                updateGroupsButtonLabel()
+                scheduleMapRefresh()
+            }
         }
 
-        viewModel.currentGroupId.observe(viewLifecycleOwner) {
+        viewLifecycleOwner.lifecycleScope.launch {
             // リスト切替時は visibleGroupIds を必ずリセットしてから再描画を予約する
-            viewModel.setVisibleGroups(null)
-            scheduleMapRefresh()
+            viewModel.currentGroupId.collectLatest {
+                viewModel.setVisibleGroups(null)
+                scheduleMapRefresh()
+            }
         }
 
-        viewModel.mapFilter.observe(viewLifecycleOwner) {
-            scheduleMapRefresh()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.mapFilter.collectLatest { scheduleMapRefresh() }
         }
 
-        viewModel.pinAddedFromMap.observe(viewLifecycleOwner) {
-            scheduleMapRefresh()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.pinAddedFromMap.collect { pin ->
+                pendingPinLocation = LatLng(pin.lat, pin.lng)
+                scheduleMapRefresh()
+            }
         }
 
-        viewModel.visibleGroupIds.observe(viewLifecycleOwner) {
-            updateGroupsButtonLabel()
-            scheduleMapRefresh()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.visibleGroupIds.collectLatest {
+                updateGroupsButtonLabel()
+                scheduleMapRefresh()
+            }
         }
 
         // ジオコーディング完了時に地図を更新してカメラをピンに合わせる
-        viewModel.geocodingProgress.observe(viewLifecycleOwner) { progress ->
-            if (!progress.isRunning && progress.total > 0) {
-                scheduleMapRefresh()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.geocodingProgress.collectLatest { progress ->
+                if (progress != null && !progress.isRunning && progress.total > 0) {
+                    scheduleMapRefresh()
+                }
             }
         }
     }
@@ -203,7 +221,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         markers.clear()
         routeLine = null
 
-        val groups = viewModel.groups.value ?: return
+        val groups = viewModel.groups.value
         val filter = viewModel.mapFilter.value
         val currentGroupId = viewModel.currentGroupId.value
         // visibleGroups に currentGroupId が含まれていない場合はリスト切替後の古い値なので null 扱い
@@ -213,11 +231,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         var hasAny = false
         val slotTemplates = com.rodgers.routist.util.AppSettings.getTimeSlotTemplatesWithColor(requireContext())
 
-        groups.forEach { group ->
+        groups.forEach outer@{ group ->
             val shouldShow = if (visibleGroups != null) group.id in visibleGroups
                              else group.id == currentGroupId
-            if (!shouldShow) return@forEach
-            val list = allMap[group.id] ?: return@forEach
+            if (!shouldShow) return@outer
+            val list = allMap[group.id] ?: return@outer
             val geocoded = list.filter { it.hasLocation }
             val color = try { android.graphics.Color.parseColor(group.colorHex) } catch (_: Exception) { android.graphics.Color.parseColor("#F44336") }
 
@@ -268,7 +286,14 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
-        if (hasAny) {
+        binding.emptyMapView.visibility = if (hasAny) View.GONE else View.VISIBLE
+
+        val pinLoc = pendingPinLocation
+        if (pinLoc != null) {
+            pendingPinLocation = null
+            try { map.animateCamera(CameraUpdateFactory.newLatLngZoom(pinLoc, 16f)) }
+            catch (_: Exception) {}
+        } else if (hasAny) {
             try { map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 80)) }
             catch (_: Exception) {}
         }

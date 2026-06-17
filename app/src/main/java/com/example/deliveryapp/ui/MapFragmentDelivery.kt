@@ -139,21 +139,21 @@ import kotlinx.coroutines.withContext
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                     .also { it.marginStart = (14 * dp).toInt() }
             }
-            val displayName = if (!delivery.name.isNullOrBlank()) delivery.name!! else delivery.address
+            val displayName = delivery.displayTitle
             col.addView(TextView(ctx).apply {
                 text = displayName; textSize = 16f
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
                 setTextColor(if (delivery.isCompleted)
-                    android.graphics.Color.parseColor("#9E9E9E") else onSurfaceColor)
+                    onSurfaceVariant else onSurfaceColor)
             })
             val subParts = mutableListOf<String>()
             if (!delivery.timeSlot.isNullOrBlank()) subParts.add("🕐 ${delivery.timeSlot}")
-            if ((delivery.packageCount ?: 0) > 0) subParts.add("📦 ${delivery.packageCount}個")
-            if (!delivery.note.isNullOrBlank()) subParts.add("📝 ${delivery.note!!.take(20)}")
+            if (delivery.packageCount > 0) subParts.add("📦 ${delivery.packageCount}個")
+            if (!delivery.note.isNullOrBlank()) subParts.add("📝 ${delivery.note.take(20)}")
             if (subParts.isNotEmpty()) col.addView(TextView(ctx).apply {
                 text = subParts.joinToString("  ")
                 textSize = 13f
-                setTextColor(android.graphics.Color.parseColor("#555555"))
+                setTextColor(onSurfaceVariant)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                     .also { it.topMargin = (2 * dp).toInt() }
@@ -210,7 +210,7 @@ import kotlinx.coroutines.withContext
         })
         navCol.addView(TextView(ctx).apply {
             text = "最初の未完了配達先にナビを起動する"; textSize = 14f
-            setTextColor(android.graphics.Color.parseColor("#555555"))
+            setTextColor(onSurfaceVariant)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 .also { it.topMargin = (2 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
@@ -275,7 +275,7 @@ import kotlinx.coroutines.withContext
         }
 
         // 番号 + タイトル
-        val titleText = if (!delivery.name.isNullOrBlank()) delivery.name!! else delivery.address
+        val titleText = delivery.displayTitle
         infoCol.addView(TextView(ctx).apply {
             text = "${delivery.order}.  $titleText"
             textSize = 19f
@@ -454,7 +454,6 @@ import kotlinx.coroutines.withContext
 
         sheet.setContentView(root)
         sheet.setOnShowListener {
-            val bs = sheet.findViewById<android.view.View>(com.google.android.material.R.id.design_bottom_sheet)
             sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_COLLAPSED
             sheet.behavior.skipCollapsed = false
             sheet.behavior.isDraggable = true

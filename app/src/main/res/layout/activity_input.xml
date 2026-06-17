@@ -51,7 +51,7 @@
             android:padding="14dp"
             android:textSize="16sp"
             android:textColor="#FFFFFF"
-            android:textColorHint="#888888"
+            android:textColorHint="#BBBBBB"
             android:hint="配達先の住所やお店の名前を 1行ずつ入力してください&#10;例）東京都渋谷区渋谷1-1-1&#10;スターバックス渋谷店" />
 
     </com.google.android.material.card.MaterialCardView>
@@ -84,8 +84,8 @@
                 android:layout_marginEnd="6dp"
                 android:textColor="#CCCCCC"
                 android:textSize="14sp"
-                app:strokeColor="#555555"
-                android:text="貼り付け"
+                app:strokeColor="#777777"
+                android:text="@string/btn_paste"
                 android:contentDescription="クリップボードから貼り付け" />
 
             <com.google.android.material.button.MaterialButton
@@ -96,7 +96,7 @@
                 android:layout_weight="1"
                 android:textColor="#CCCCCC"
                 android:textSize="14sp"
-                app:strokeColor="#555555"
+                app:strokeColor="#777777"
                 android:text="ファイル"
                 android:contentDescription="ファイルから住所を読み込む" />
 
@@ -109,7 +109,7 @@
             android:textSize="15sp"
             android:textStyle="bold"
             app:backgroundTint="#1E88E5"
-            android:text="ルートに追加"
+            android:text="@string/btn_add_to_route"
             android:contentDescription="入力した住所をルートに追加" />
     </LinearLayout>
 

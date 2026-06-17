@@ -1,36 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ヒント帯 -->
-    <color name="colorHintBg">#2A2A2A</color>
-    <color name="colorHintText">#BBBBBB</color>
-    <!-- 配達リスト -->
-    <color name="colorTimeSlot">#4FC3F7</color>
-    <color name="colorAccentOrange">#FF8A65</color>
-    <!-- メモ背景 -->
-    <color name="colorNoteBg">#2D2500</color>
-    <color name="colorNoteBorder">#7A6400</color>
-    <!-- 日報 -->
-    <color name="colorReportPrimary">#64B5F6</color>
-    <color name="colorReportPrimaryBg">#0D2A47</color>
-    <color name="colorReportSummaryBg">#0A1929</color>
-    <color name="colorReportSummaryText">#90CAF9</color>
-    <color name="colorReportSecondaryText">#90A4AE</color>
-    <!-- 日付テキスト -->
-    <color name="colorSaturdayText">#64B5F6</color>
-    <color name="colorSundayText">#EF5350</color>
-    <color name="colorWeekdayText">#BDBDBD</color>
-    <!-- 行背景 -->
-    <color name="colorDayBg">#1A1A1A</color>
-    <color name="colorTodayBg">#2D2500</color>
-    <!-- アクションボタン -->
-    <color name="colorActionGreen">#81C784</color>
-    <color name="colorActionRed">#EF5350</color>
-    <!-- SOS -->
-    <color name="colorSosDanger">#EF5350</color>
-    <!-- 点呼 -->
-    <color name="colorSuccess">#81C784</color>
     <!-- 背景 -->
     <color name="colorBackground">#121212</color>
+    <!-- ヒント帯 -->
+    <color name="colorHintBg">#1E1E1E</color>
+    <color name="colorHintText">#BBBBBB</color>
+    <!-- メモ背景 -->
+    <color name="colorNoteBg">#1E1A0A</color>
+    <color name="colorNoteBorder">#6D5E20</color>
+    <!-- 日報 -->
+    <color name="colorReportPrimary">#EEEEEE</color>
+    <color name="colorReportPrimaryBg">#1A1A1A</color>
+    <color name="colorReportSummaryBg">#252525</color>
+    <color name="colorReportSummaryText">#EEEEEE</color>
+    <color name="colorReportSecondaryText">#AAAAAA</color>
     <!-- ボトムナビゲーション -->
-    <color name="colorNavUnselected">#757575</color>
+    <color name="colorNavUnselected">#CCCCCC</color>
+    <!-- 日付テキスト -->
+    <color name="colorWeekdayText">#E0E0E0</color>
+    <!-- 行背景 -->
+    <color name="colorDayBg">#1A1A1A</color>
+    <color name="colorTodayBg">#2A2A2A</color>
 </resources>

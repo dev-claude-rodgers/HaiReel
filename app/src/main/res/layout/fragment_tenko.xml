@@ -69,6 +69,52 @@
 
     </LinearLayout>
 
+    <!-- 記録あり時の長押しヒント -->
+    <TextView
+        android:id="@+id/tvLongPressHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="便を長押しすると記録を削除できます"
+        android:textSize="11sp"
+        android:textColor="#AAAAAA"
+        android:gravity="center"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:background="#111111"
+        android:visibility="gone" />
+
+    <!-- 未記録ヒントバナー（当月に記録が1件もない時のみ表示） -->
+    <LinearLayout
+        android:id="@+id/emptyMonthBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="20dp"
+        android:background="#1E2A1E"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📋 今月の点呼記録はまだありません"
+            android:textSize="14sp"
+            android:textColor="#88CC88"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="日付をタップして乗務前・乗務後の点呼を記録できます"
+            android:textSize="12sp"
+            android:textColor="#668866"
+            android:gravity="center" />
+
+    </LinearLayout>
+
     <!-- 全日付リスト -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerTenko"
