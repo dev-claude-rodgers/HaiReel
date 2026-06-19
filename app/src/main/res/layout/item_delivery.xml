@@ -16,13 +16,15 @@
         android:id="@+id/checkSelect"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:contentDescription="配達先を選択"
         android:visibility="gone" />
 
     <!-- 番号 -->
     <TextView
         android:id="@+id/tvOrder"
-        android:layout_width="36dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:minWidth="36dp"
         android:textSize="18sp"
         android:textStyle="bold"
         android:gravity="center"

@@ -22,6 +22,8 @@ import com.rodgers.routist.model.Room
 import com.rodgers.routist.model.colorForIndex
 import com.rodgers.routist.repository.DeliveryRepository
 import com.rodgers.routist.util.AddressParser
+import com.rodgers.routist.util.AppSettings
+import com.rodgers.routist.util.GeocodingApi
 import com.rodgers.routist.util.GeocodingClient
 import com.rodgers.routist.util.GeocodingManager
 import com.rodgers.routist.util.RouteOptimizer
@@ -38,7 +40,8 @@ import javax.inject.Inject
 class DeliveryViewModel @Inject constructor(
     app: Application,
     private val repo: DeliveryRepository,
-    private val geocodingManager: GeocodingManager
+    private val geocodingManager: GeocodingManager,
+    private val geocodingApi: GeocodingApi
 ) : AndroidViewModel(app) {
 
     companion object {
@@ -137,14 +140,6 @@ class DeliveryViewModel @Inject constructor(
     private val _pinAddedFromMap = MutableSharedFlow<PinLocation>(extraBufferCapacity = 1)
     val pinAddedFromMap: SharedFlow<PinLocation> = _pinAddedFromMap.asSharedFlow()
 
-    data class OutOfAreaItem(
-        val delivery: Delivery,
-        val candidates: List<GeocodingClient.GeoResult>
-    )
-    private val _outOfAreaCandidates = MutableStateFlow<List<OutOfAreaItem>?>(null)
-    val outOfAreaCandidates: StateFlow<List<OutOfAreaItem>?> = _outOfAreaCandidates.asStateFlow()
-    fun clearOutOfAreaCandidates() { _outOfAreaCandidates.value = null }
-
     private val _openEditForDelivery = MutableStateFlow<String?>(null)
     val openEditForDelivery: StateFlow<String?> = _openEditForDelivery.asStateFlow()
     fun requestEditDelivery(id: String) { _openEditForDelivery.value = id }
@@ -182,13 +177,6 @@ class DeliveryViewModel @Inject constructor(
         )
     }
 
-    // 明示的なエクスポート（≡メニューから呼び出す）
-    fun exportCurrentListToDownloads() {
-        val groupId = _currentGroupId.value
-        val list = _deliveries.value
-        exportToDownloads(groupId, list)
-    }
-
     private val _mapFilter = MutableStateFlow<Set<String>?>(null)
     val mapFilter: StateFlow<Set<String>?> = _mapFilter.asStateFlow()
     fun setMapFilter(ids: Set<String>?) { _mapFilter.value = ids }
@@ -213,10 +201,13 @@ class DeliveryViewModel @Inject constructor(
         saveGroups()
     }
 
-    data class GeocodingProgress(val current: Int, val total: Int, val isRunning: Boolean)
+    data class GeocodingProgress(val current: Int, val total: Int, val isRunning: Boolean, val successCount: Int = 0)
 
     init {
-        GeocodingClient.configure(com.rodgers.routist.BuildConfig.MAPS_API_KEY)
+        val userKey = AppSettings.getUserApiKey(getApplication())
+        val effectiveKey = if (userKey.isNotBlank()) userKey
+                           else com.rodgers.routist.BuildConfig.GEOCODING_API_KEY
+        geocodingApi.configure(effectiveKey)
         viewModelScope.launch {
             loadAll()
             val groupId = _currentGroupId.value
@@ -228,16 +219,16 @@ class DeliveryViewModel @Inject constructor(
     private fun applyAreaHintForGroup(groupId: String) {
         val hint = repo.getAreaHint(groupId)
         _areaHint.value = hint
-        GeocodingClient.setAreaHint(hint)
+        geocodingApi.setAreaHint(hint)
         // 配達地域の中心座標を取得して位置バイアスをセット
         if (hint.isNotBlank()) {
             val keyword = hint.split(Regex("[,，、]")).first().trim()
             viewModelScope.launch {
-                val geo = GeocodingClient.geocodeExact(keyword)
-                if (geo != null) GeocodingClient.setBias(geo.lat, geo.lng)
+                val geo = geocodingApi.geocodeExact(keyword)
+                if (geo != null) geocodingApi.setBias(geo.lat, geo.lng)
             }
         } else {
-            GeocodingClient.setBias(0.0, 0.0)
+            geocodingApi.setBias(0.0, 0.0)
         }
     }
 
@@ -325,6 +316,7 @@ class DeliveryViewModel @Inject constructor(
     fun switchGroup(groupId: String) {
         if (_currentGroupId.value == groupId) return
         geocodingJobs[_currentGroupId.value]?.cancel()
+        _geocodingProgress.value = null
         // currentGroupId を変える前に visibleGroupIds をリセットしておく
         // → どのオブザーバが先に発火しても「現在のリストのみ」になることを保証
         _visibleGroupIds.value = null
@@ -579,7 +571,7 @@ class DeliveryViewModel @Inject constructor(
 
         // 住所を非同期で取得して更新（DBではなくメモリ上の最新状態を参照）
         viewModelScope.launch {
-            val result = GeocodingClient.reverseGeocode(lat, lng) ?: return@launch
+            val result = geocodingApi.reverseGeocode(lat, lng) ?: return@launch
             val address = result.formattedAddress.ifBlank { return@launch }
             val currentList = _allDeliveries.value[groupId] ?: return@launch
             val updated = currentList.map { d ->
@@ -596,30 +588,34 @@ class DeliveryViewModel @Inject constructor(
             var result = geocodingManager.geocodeWithFallback(newAddress, newAddress)
             // 位置バイアス未設定の場合は補完
             val aHint = _areaHint.value
-            if (aHint.isNotBlank() && !GeocodingClient.hasBias()) {
+            if (aHint.isNotBlank() && !geocodingApi.hasBias()) {
                 val keyword = aHint.split(Regex("[,，、]")).first().trim()
-                val areaGeo = GeocodingClient.geocodeExact(keyword)
-                if (areaGeo != null) GeocodingClient.setBias(areaGeo.lat, areaGeo.lng)
+                val areaGeo = geocodingApi.geocodeExact(keyword)
+                if (areaGeo != null) geocodingApi.setBias(areaGeo.lat, areaGeo.lng)
             }
             // エリア外ヒット時は配達地域キーワード＋ローカル部分で再試行
             if (result != null && aHint.isNotBlank() && !isInArea(result.formattedAddress)) {
                 val localPart = extractLocalPart(newAddress)
                 val keywords = aHint.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
                 for (keyword in keywords) {
-                    val fixed = GeocodingClient.geocodeExact("$keyword $localPart")
+                    val fixed = geocodingApi.geocodeExact("$keyword $localPart")
                     if (fixed != null && isInArea(fixed.formattedAddress)) { result = fixed; break }
                     delay(100)
                 }
                 // geocodeExact で解決しなかった場合は Places API（位置バイアスあり）で再試行
                 if (!isInArea(result?.formattedAddress ?: "")) {
-                    val fixedPlace = GeocodingClient.searchPlaces(localPart).firstOrNull()?.let {
+                    val fixedPlace = geocodingApi.searchPlaces(localPart).firstOrNull()?.let {
                         GeocodingClient.GeoResult(it.lat, it.lng, it.address)
                     }
                     if (fixedPlace != null && isInArea(fixedPlace.formattedAddress)) result = fixedPlace
                 }
             }
             if (result == null) {
-                _errorMessage.value = "住所を検索できませんでした。\nネットワーク接続を確認してください。"
+                _errorMessage.value = if (geocodingApi.isRequestDenied) {
+                    "APIキーが使用できません。\nGoogle Cloud Console で Geocoding API の課金設定を確認してください。"
+                } else {
+                    "住所を検索できませんでした。\nネットワーク接続を確認してください。"
+                }
             }
             val officialName = result?.formattedAddress?.ifBlank { newAddress } ?: newAddress
             val updated = _deliveries.value.map { d ->
@@ -669,63 +665,6 @@ class DeliveryViewModel @Inject constructor(
             .mapIndexed { i, d -> d.copy(order = i + 1) }
         commitDeliveries(groupId, updated)
         repo.clearFileUri(groupId)
-    }
-
-    // リストタブ表示時: 元ファイルと差分があるアイテムだけ更新
-    fun refreshFromFile() {
-        val groupId = _currentGroupId.value
-        val uriStr = repo.getFileUri(groupId) ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                val uri = android.net.Uri.parse(uriStr)
-                val text = context.contentResolver.openInputStream(uri)
-                    ?.bufferedReader()?.readText() ?: return@launch
-                val fileEntries = AddressParser.parse(text)
-                if (fileEntries.isEmpty()) return@launch
-
-                val current = withContext(Dispatchers.Main) {
-                    _deliveries.value.toList()
-                }
-
-                var hasChanges = fileEntries.size != current.size
-                val merged = fileEntries.mapIndexed { i, entry ->
-                    val newName = entry.name.ifBlank { null }
-                    val existing = current.getOrNull(i)
-                    // 同一判定: syncToFile済みファイル（name+address一致）または元ファイル（住所がname相当）
-                    val isSame = existing != null && (
-                        (existing.name == newName && existing.address == entry.address) ||
-                        (newName == null && existing.name == entry.address)
-                    )
-                    if (isSame) {
-                        existing!!.copy(order = i + 1)
-                    } else {
-                        hasChanges = true
-                        val addrSame = existing?.address == entry.address
-                        (existing ?: Delivery(order = i + 1, name = newName, address = entry.address)).copy(
-                            order = i + 1,
-                            name = newName,
-                            address = entry.address,
-                            lat = if (addrSame) existing?.lat ?: 0.0 else 0.0,
-                            lng = if (addrSame) existing?.lng ?: 0.0 else 0.0,
-                            isGeocoded = addrSame && (existing?.isGeocoded ?: false)
-                        )
-                    }
-                }
-
-                if (!hasChanges) return@launch
-
-                withContext(Dispatchers.Main) {
-                    _deliveries.value = merged
-                    saveGroupDeliveries(groupId, merged)
-                    updateAllDeliveries(groupId, merged)
-                }
-                startGeocoding(groupId)
-            } catch (e: Exception) {
-                Log.w(TAG, "ファイル更新失敗", e)
-                _errorMessage.value = "ファイルの読み込みに失敗しました"
-            }
-        }
     }
 
     fun addRoom(deliveryId: String, roomNumber: String) {
@@ -867,7 +806,7 @@ class DeliveryViewModel @Inject constructor(
     fun setAreaHint(area: String) {
         val groupId = _currentGroupId.value
         // 複数エリア指定時は最初のエリアをジオコーディングのバイアスに使用
-        GeocodingClient.setAreaHint(area.split(Regex("[,，、]")).first().trim())
+        geocodingApi.setAreaHint(area.split(Regex("[,，、]")).first().trim())
         _areaHint.value = area
         repo.saveAreaHint(groupId, area)
         // 未ジオコーディング件の再試行＋エリア外住所の修正
@@ -876,67 +815,8 @@ class DeliveryViewModel @Inject constructor(
         }
     }
 
-    /** エリア外住所の候補を検索してダイアログ用に公開する */
-    fun fetchOutOfAreaCandidates() {
-        val hint = _areaHint.value
-        if (hint.isBlank()) return
-        val deliveries = _deliveries.value
-        val outOfArea = deliveries.filter { it.isGeocoded && !isInArea(it.address) }
-        if (outOfArea.isEmpty()) {
-            _outOfAreaCandidates.value = emptyList()
-            return
-        }
-        viewModelScope.launch {
-            val initHint = _areaHint.value
-            if (initHint.isNotBlank() && !GeocodingClient.hasBias()) {
-                val keyword = initHint.split(Regex("[,，、]")).first().trim()
-                val areaGeo = GeocodingClient.geocodeExact(keyword)
-                if (areaGeo != null) GeocodingClient.setBias(areaGeo.lat, areaGeo.lng)
-            }
-            val items = outOfArea.map { delivery ->
-                val candidates = mutableListOf<GeocodingClient.GeoResult>()
-                val keywords = hint.split(Regex("[,，、]")).map { it.trim() }.filter { it.isNotBlank() }
-                val localPart = extractLocalPart(delivery.address)
-                // 店名で Places API 検索
-                if (!delivery.name.isNullOrBlank()) {
-                    GeocodingClient.searchPlaces(delivery.name).forEach { p ->
-                        if (isInArea(p.address)) candidates.add(GeocodingClient.GeoResult(p.lat, p.lng, p.address))
-                    }
-                    delay(100)
-                }
-                // エリアキーワード + ローカル部分で geocodeExact
-                for (keyword in keywords) {
-                    if (candidates.size >= 5) break
-                    val r = GeocodingClient.geocodeExact("$keyword $localPart")
-                    if (r != null && isInArea(r.formattedAddress) && candidates.none { it.formattedAddress == r.formattedAddress }) candidates.add(r)
-                    delay(100)
-                }
-                // ローカル部分単体で Places API 検索
-                if (candidates.size < 5) {
-                    GeocodingClient.searchPlaces(localPart).forEach { p ->
-                        if (isInArea(p.address) && candidates.none { it.formattedAddress == p.address }) {
-                            candidates.add(GeocodingClient.GeoResult(p.lat, p.lng, p.address))
-                        }
-                    }
-                }
-                OutOfAreaItem(delivery, candidates.take(5))
-            }
-            _outOfAreaCandidates.value = items
-        }
-    }
-
-    /** エリア外修正ダイアログで選択した候補を配達先に適用する */
-    fun applyOutOfAreaFix(deliveryId: String, result: GeocodingClient.GeoResult) {
-        val groupId = _currentGroupId.value
-        val list = _deliveries.value.toMutableList()
-        val idx = list.indexOfFirst { it.id == deliveryId }
-        if (idx < 0) return
-        list[idx] = list[idx].copy(address = result.formattedAddress, lat = result.lat, lng = result.lng, isGeocoded = true)
-        commitDeliveries(groupId, list)
-    }
-
     fun setLocationBias(lat: Double, lng: Double) {
-        GeocodingClient.setBias(lat, lng)
+        geocodingApi.setBias(lat, lng)
     }
 
     // ---- 内部処理 ----
@@ -967,6 +847,7 @@ class DeliveryViewModel @Inject constructor(
 
     private fun startGeocoding(groupId: String) {
         geocodingJobs[groupId]?.cancel()
+        _geocodingProgress.value = null
         val originalList = _deliveries.value.toList()
         if (originalList.isEmpty()) return
 
@@ -985,7 +866,11 @@ class DeliveryViewModel @Inject constructor(
                         val current = _deliveries.value
                         val updated = current.map { d ->
                             if (d.id == result.deliveryId) d.copy(
-                                name = if (d.name.isNullOrBlank()) d.address else d.name,
+                                name = when {
+                                    !d.name.isNullOrBlank() -> d.name
+                                    result.suggestedName != null -> result.suggestedName
+                                    else -> null
+                                },
                                 address = result.officialAddress,
                                 lat = result.lat,
                                 lng = result.lng,
@@ -1007,7 +892,8 @@ class DeliveryViewModel @Inject constructor(
                 val finalList = _deliveries.value
                 exportToDownloads(groupId, finalList)
                 _deliveries.value = finalList
-                _geocodingProgress.value = GeocodingProgress(originalList.size, originalList.size, false)
+                val successCount = originalList.size - failedCount
+                _geocodingProgress.value = GeocodingProgress(originalList.size, originalList.size, false, successCount)
             }
         }
         geocodingJobs[groupId] = job

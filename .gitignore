@@ -19,6 +19,7 @@ captures/
 routist-release.keystore
 *.keystore
 *.jks
+google-services.json
 
 # Logs
 *.log

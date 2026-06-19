@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RouteJin プライバシーポリシー</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 24px 16px; color: #222; line-height: 1.8; }
+    h1 { font-size: 1.4em; border-bottom: 2px solid #333; padding-bottom: 8px; }
+    h2 { font-size: 1.1em; margin-top: 2em; }
+    p, li { font-size: 0.95em; }
+    ul { padding-left: 1.5em; }
+    a { color: #1565C0; }
+    footer { margin-top: 3em; font-size: 0.85em; color: #666; }
+  </style>
+</head>
+<body>
+
+<h1>RouteJin プライバシーポリシー</h1>
+<p>本プライバシーポリシーは、RODGERS（以下「当方」）が提供するAndroidアプリケーション「RouteJin」（以下「本アプリ」）における個人情報の取り扱いについて説明します。</p>
+
+<h2>1. 収集する情報</h2>
+<p>本アプリが収集・利用する情報は以下のとおりです。</p>
+<ul>
+  <li><strong>位置情報：</strong>配達先の地図表示・現在地表示のために、デバイスのGPS情報を利用します。位置情報は外部サーバーには送信されません。</li>
+  <li><strong>カメラ：</strong>伝票スキャン機能のために、カメラを使用します。撮影した画像は端末内でのみ処理され、外部には送信されません。</li>
+  <li><strong>入力データ：</strong>運転者名・配達先住所・日報データ・点呼記録など、ユーザーが入力した業務情報を端末内に保存します。</li>
+</ul>
+
+<h2>2. 情報の利用目的</h2>
+<ul>
+  <li>配達先住所のジオコーディング（Google Geocoding API を使用）</li>
+  <li>地図上への配達先表示（Google Maps SDK を使用）</li>
+  <li>業務報告書・点呼記録簿のExcelファイル出力</li>
+  <li>アプリの不具合検出・品質改善（Firebase Crashlytics を使用）</li>
+</ul>
+
+<h2>3. 第三者への情報提供</h2>
+<p>当方は、以下の場合を除き、ユーザーの個人情報を第三者に提供しません。</p>
+<ul>
+  <li>ユーザーの同意がある場合</li>
+  <li>法令に基づく場合</li>
+</ul>
+<p>本アプリは以下の外部サービスを利用しています。各サービスのプライバシーポリシーもご確認ください。</p>
+<ul>
+  <li><a href="https://policies.google.com/privacy" target="_blank">Google Maps Platform（Google LLC）</a></li>
+  <li><a href="https://firebase.google.com/support/privacy" target="_blank">Firebase Crashlytics（Google LLC）</a></li>
+</ul>
+
+<h2>4. データの保存場所</h2>
+<p>本アプリが収集・生成するデータ（日報・点呼記録・配達先情報）は、すべてユーザーのデバイス内に保存されます。当方のサーバーには送信・保存されません。</p>
+<p>バックアップパスワードは、Androidの暗号化SharedPreferences（AES256-GCM）を使用して端末内に暗号化保存されます。</p>
+
+<h2>5. 権限について</h2>
+<ul>
+  <li><strong>ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION：</strong>現在地の地図表示に使用します。</li>
+  <li><strong>CAMERA：</strong>伝票スキャン機能に使用します。</li>
+  <li><strong>WRITE_EXTERNAL_STORAGE / READ_EXTERNAL_STORAGE：</strong>Excelファイルのダウンロードフォルダへのエクスポートおよびバックアップに使用します。</li>
+  <li><strong>INTERNET：</strong>Google Maps・ジオコーディング・Crashlyticsへのアクセスに使用します。</li>
+  <li><strong>RECEIVE_BOOT_COMPLETED / POST_NOTIFICATIONS：</strong>点呼リマインダー通知に使用します。</li>
+</ul>
+
+<h2>6. 未成年者のプライバシー</h2>
+<p>本アプリは業務用途を想定しており、18歳未満の方を対象としていません。</p>
+
+<h2>7. プライバシーポリシーの変更</h2>
+<p>本ポリシーは予告なく変更される場合があります。変更後は本ページに掲載します。</p>
+
+<h2>8. お問い合わせ</h2>
+<p>本ポリシーに関するお問い合わせは下記までご連絡ください。</p>
+<p>開発者：imai kenichi（RODGERS）<br>
+メールアドレス：<a href="mailto:proxyroutine777@gmail.com">proxyroutine777@gmail.com</a></p>
+
+<footer>
+  <p>最終更新日：2026年6月17日</p>
+</footer>
+
+</body>
+</html>

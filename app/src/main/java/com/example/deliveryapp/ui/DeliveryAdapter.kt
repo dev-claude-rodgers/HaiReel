@@ -108,7 +108,13 @@ class DeliveryAdapter(
             if (!delivery.name.isNullOrBlank()) {
                 tvName.visibility = View.VISIBLE
                 tvName.text = delivery.name
-                tvAddress.visibility = View.GONE
+                // ジオコーディング後は住所が店名と異なるので両方表示する
+                if (delivery.address.isNotBlank() && delivery.address != delivery.name) {
+                    tvAddress.visibility = View.VISIBLE
+                    tvAddress.text = delivery.address
+                } else {
+                    tvAddress.visibility = View.GONE
+                }
             } else {
                 tvName.visibility = View.GONE
                 tvAddress.visibility = View.VISIBLE
@@ -212,7 +218,19 @@ class DeliveryAdapter(
                 }
                 itemView.setOnClickListener { checkSelect.isChecked = !checkSelect.isChecked }
                 itemView.setOnLongClickListener(null)
-                itemView.alpha = if (delivery.id in selectedIds) 1.0f else 0.6f
+                val ctx = itemView.context
+                val isSelected = delivery.id in selectedIds
+                val baseBg = androidx.core.content.ContextCompat.getColor(ctx, R.color.colorDayBg)
+                val selectedBg = android.graphics.Color.argb(
+                    110,
+                    android.graphics.Color.red(groupColor),
+                    android.graphics.Color.green(groupColor),
+                    android.graphics.Color.blue(groupColor)
+                )
+                itemView.setBackgroundColor(if (isSelected) selectedBg else baseBg)
+                itemView.alpha = if (isSelected) 1.0f else 0.5f
+                tvName.setTextColor(androidx.core.content.ContextCompat.getColor(ctx, R.color.colorWeekdayText))
+                tvAddress.setTextColor(androidx.core.content.ContextCompat.getColor(ctx, R.color.colorWeekdayText))
                 ivDragHandle.setOnTouchListener(null)
             } else {
                 checkSelect.visibility = View.GONE

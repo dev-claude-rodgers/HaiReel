@@ -69,7 +69,7 @@ object BackupManager {
         val activeId = PatternStorage.getActiveId(context)
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPANESE).format(Date())
-        val zipFile = File(context.cacheDir, "Routist_backup_$timestamp.zip")
+        val zipFile = File(context.cacheDir, "RouteJin_backup_$timestamp.zip")
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.utf8Entry("version.txt", FORMAT_VERSION)
@@ -89,7 +89,7 @@ object BackupManager {
         val pw = AppSettings.getBackupPassword(context)
         if (pw.isBlank()) return zipFile
 
-        val encFile = File(context.cacheDir, "Routist_backup_${timestamp}.rbe")
+        val encFile = File(context.cacheDir, "RouteJin_backup_${timestamp}.rbe")
         encFile.writeBytes(encryptBytes(zipFile.readBytes(), pw))
         zipFile.delete()
         return encFile
@@ -207,6 +207,7 @@ object BackupManager {
                 put("showDelivery",  p.showDelivery)
                 put("showPackage",   p.showPackage)
                 put("showDistance",  p.showDistance)
+                put("showFuel",      p.showFuel)
                 put("showArea",      p.showArea)
                 put("showRemarks",   p.showRemarks)
             })
@@ -238,6 +239,7 @@ object BackupManager {
                 showDelivery  = j.optBoolean("showDelivery", true),
                 showPackage   = j.optBoolean("showPackage", true),
                 showDistance  = j.optBoolean("showDistance", true),
+                showFuel      = j.optBoolean("showFuel", true),
                 showArea      = j.optBoolean("showArea", true),
                 showRemarks   = j.optBoolean("showRemarks", true)
             )

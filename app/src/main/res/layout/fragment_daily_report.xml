@@ -141,7 +141,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFF" />
 
@@ -150,10 +150,21 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:gravity="end"
-                android:textSize="14sp"
+                android:gravity="center"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFF" />
+
+            <TextView
+                android:id="@+id/tvSummaryBalance"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 
@@ -164,7 +175,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
-        android:text="この月の日報はありません"
+        android:text="@string/msg_no_report"
         android:textColor="#AAAAAA"
         android:visibility="gone" />
 

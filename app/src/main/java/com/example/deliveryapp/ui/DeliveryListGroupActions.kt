@@ -134,7 +134,7 @@ internal fun DeliveryListFragment.showListActions() {
             })
             if (sub.isNotBlank()) col.addView(TextView(ctx).apply {
                 text = sub; textSize = 14f
-                setTextColor(android.graphics.Color.parseColor("#555555"))
+                setTextColor(onSurfaceVariant)
                 maxLines = 2
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -152,7 +152,7 @@ internal fun DeliveryListFragment.showListActions() {
         })
 
         // ── データ追加
-        row("☑️", "選択モード", "複数の配達先を選んで操作する") {
+        row("☑️", "選択モード", "複数の${AppSettings.termDest(requireContext())}を選んで操作する") {
             if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
         }
         row("📷", "伝票からスキャン", "カメラで伝票を撮影して住所を読み取る") { launchScanActivity() }
@@ -164,7 +164,7 @@ internal fun DeliveryListFragment.showListActions() {
         row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
         row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
         row("📄", "ルートを複製", "同じ内容で新しいルートを作成する") {
-            val groupId = viewModel.currentGroupId.value ?: return@row
+            val groupId = viewModel.currentGroupId.value
             viewModel.copyGroup(groupId)
         }
         row("📤", "ルートを共有", "LINE・SMS等で送る") { shareList() }
@@ -172,14 +172,6 @@ internal fun DeliveryListFragment.showListActions() {
         // ── 状態・設定
         row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
         row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
-        val areaLabel = viewModel.areaHint.value?.ifBlank { null } ?: "未設定"
-        row("⚙", "配達地域", "現在: $areaLabel") { showAreaSettingDialog() }
-        if (areaLabel != "未設定") {
-            row("🔧", "エリア外住所を修正", "配達地域と照合してエリア外の住所を修正する") {
-                viewModel.fetchOutOfAreaCandidates()
-                sheet.dismiss()
-            }
-        }
         divider()
         // ── 危険操作
         row("🗑", "このルートを削除", "削除後は元に戻せません", redColor) { confirmDeleteGroup() }
@@ -275,9 +267,9 @@ internal fun DeliveryListFragment.showLinkPatternDialog(parentSheet: com.google.
     }
 
 internal fun DeliveryListFragment.confirmResetCompleted() {
-        val done = viewModel.deliveries.value?.count { it.isCompleted } ?: 0
+        val done = viewModel.deliveries.value.count { it.isCompleted }
         if (done == 0) {
-            android.widget.Toast.makeText(requireContext(), "完了済みの件数がありません", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(requireContext(), "完了済みの${AppSettings.termDest(requireContext())}がありません", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         AlertDialog.Builder(requireContext())
@@ -289,7 +281,7 @@ internal fun DeliveryListFragment.confirmResetCompleted() {
     }
 
 internal fun DeliveryListFragment.confirmMarkAllCompleted() {
-        val remaining = viewModel.deliveries.value?.count { !it.isCompleted } ?: 0
+        val remaining = viewModel.deliveries.value.count { !it.isCompleted }
         if (remaining == 0) {
             android.widget.Toast.makeText(requireContext(), "全件すでに完了しています", android.widget.Toast.LENGTH_SHORT).show()
             return
@@ -303,7 +295,7 @@ internal fun DeliveryListFragment.confirmMarkAllCompleted() {
     }
 
 internal fun DeliveryListFragment.showProgressDialog() {
-        val list = viewModel.deliveries.value ?: emptyList()
+        val list = viewModel.deliveries.value
         val total = list.size
         if (total == 0) {
             android.widget.Toast.makeText(requireContext(), "リストが空です", android.widget.Toast.LENGTH_SHORT).show()
@@ -312,7 +304,7 @@ internal fun DeliveryListFragment.showProgressDialog() {
         val done = list.count { it.isCompleted }
         val remaining = total - done
         val percent = done * 100 / total
-        val groupName = viewModel.currentGroup()?.name ?: "配達リスト"
+        val groupName = viewModel.currentGroup()?.name ?: AppSettings.termList(requireContext())
         AlertDialog.Builder(requireContext())
             .setTitle("📈  $groupName")
             .setMessage("完了　　$done 件\n残り　　$remaining 件\n合計　　$total 件\n\n進捗　　$percent%")
@@ -332,19 +324,19 @@ internal fun DeliveryListFragment.confirmDeleteGroup() {
 
 internal fun DeliveryListFragment.shareList() {
         val deliveries = viewModel.deliveries.value
-        if (deliveries.isNullOrEmpty()) {
+        if (deliveries.isEmpty()) {
             android.widget.Toast.makeText(requireContext(), "リストが空です", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
-        val groupName = viewModel.groups.value?.find { it.id == viewModel.currentGroupId.value }?.name ?: "配達リスト"
+        val groupName = viewModel.groups.value.find { it.id == viewModel.currentGroupId.value }?.name ?: AppSettings.termList(requireContext())
         val lines = buildString {
             append("$groupName（${deliveries.size}件）\n")
             deliveries.forEachIndexed { i, d ->
                 val label = if (!d.name.isNullOrBlank()) "${d.name}（${d.address}）" else d.address
                 val extras = buildList {
-                    if (!d.timeSlot.isNullOrBlank()) add(d.timeSlot!!)
+                    if (!d.timeSlot.isNullOrBlank()) add(d.timeSlot.orEmpty())
                     if (d.packageCount > 0) add("${d.packageCount}個")
-                    if (!d.note.isNullOrBlank()) add(d.note!!)
+                    if (!d.note.isNullOrBlank()) add(d.note.orEmpty())
                 }.joinToString(" / ")
                 append("${i + 1}. $label")
                 if (extras.isNotBlank()) append("  [$extras]")

@@ -51,9 +51,7 @@ jobs:
         run: ./gradlew jacocoTestReport || true
 
       - name: Check coverage gate (60%)
-        # テストカバレッジが 60% 未満のときワーニングを出すが、現段階は continue-on-error で
-        # 徐々にカバレッジを高めていくことを推奨（将来 continue-on-error: false に変更する）
-        continue-on-error: true
+        continue-on-error: false
         run: |
           REPORT=app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
           if [ ! -f "$REPORT" ]; then

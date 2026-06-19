@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/nav_list"
-        android:icon="@drawable/ic_nav_list"
-        android:title="配達" />
-    <item
         android:id="@+id/nav_tenko"
         android:icon="@drawable/ic_nav_tenko"
         android:title="点呼" />
     <item
+        android:id="@+id/nav_list"
+        android:icon="@drawable/ic_nav_list"
+        android:title="配達" />
+    <item
         android:id="@+id/nav_report"
         android:icon="@drawable/ic_nav_report"
-        android:title="日報" />
+        android:title="報告" />
     <item
         android:id="@+id/nav_settings"
         android:icon="@drawable/ic_nav_settings"

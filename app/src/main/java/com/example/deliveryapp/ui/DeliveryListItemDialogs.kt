@@ -165,11 +165,12 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
             row("🧭", "ナビ開始", "Google マップでルート案内を起動する") { openNavigation(delivery) }
             val toggleEmoji = if (delivery.isCompleted) "↩️" else "✅"
             val toggleTitle = if (delivery.isCompleted) "未完了に戻す" else "完了にする"
-            val toggleSub   = if (delivery.isCompleted) "未配達として再度リストに戻す" else "この配達先を完了済みにする"
+            val t = AppSettings.termDest(requireContext())
+            val toggleSub   = if (delivery.isCompleted) "未${AppSettings.termDone(requireContext())}として再度リストに戻す" else "この${t}を完了済みにする"
             row(toggleEmoji, toggleTitle, toggleSub) { viewModel.toggleCompleted(delivery.id) }
             divider()
         }
-        row("✏️", "名前・住所を編集", "配達先の名前や住所を変更する") { showEditDialog(delivery) }
+        row("✏️", "名前・住所を編集", "${AppSettings.termDest(requireContext())}の名前や住所を変更する") { showEditDialog(delivery) }
         row("🕐", "時間帯・個数を設定",
             if (!delivery.timeSlot.isNullOrBlank()) "現在: ${delivery.timeSlot}${if (delivery.packageCount > 0) " · ${delivery.packageCount}個" else ""}"
             else "配達時間帯・荷物個数を登録する") { showTimeSlotPackageDialog(delivery) }
@@ -388,7 +389,10 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
 
         val addrInput = EditText(ctx).apply {
             hint = "例: 東京都渋谷区〇〇1-2-3"
-            setText(delivery.address)
+            // 店名として取り込まれた場合（name == address）は住所欄を空欄にする
+            val displayAddr = if (!delivery.name.isNullOrBlank() && delivery.address == delivery.name) ""
+                              else delivery.address
+            setText(displayAddr)
             inputType = InputType.TYPE_CLASS_TEXT
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
@@ -455,10 +459,58 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         }
         nameInput.addTextChangedListener(watcher)
 
+        // 郵便番号入力欄
+        val zipRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.topMargin = (12*dp).toInt() }
+        }
+        val zipInput = EditText(ctx).apply {
+            hint = "〒 郵便番号（7桁）"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(7))
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+        }
+        val zipBtn = android.widget.Button(ctx).apply {
+            text = "検索"
+            layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+                .also { it.marginStart = (8*dp).toInt() }
+        }
+        zipRow.addView(zipInput)
+        zipRow.addView(zipBtn)
+
+        zipBtn.setOnClickListener {
+            val zip = zipInput.text.toString().trim()
+            if (zip.length != 7) {
+                android.widget.Toast.makeText(ctx, "7桁で入力してください", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            lifecycleScope.launch {
+                val result = com.rodgers.routist.util.ZipCodeHelper.lookup(zip)
+                if (result == null) {
+                    android.widget.Toast.makeText(ctx, "住所が見つかりませんでした", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    addrInput.setText(result.address)
+                    addrInput.setSelection(result.address.length)
+                    zipInput.setText("")
+                }
+            }
+        }
+        // 7桁入力で自動検索
+        zipInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if ((s?.length ?: 0) == 7) zipBtn.performClick()
+            }
+        })
+
         layout.addView(label("名前・店名"))
         layout.addView(nameInput)
         layout.addView(candidateBox)
         layout.addView(label("住所"))
+        layout.addView(zipRow)
         layout.addView(addrInput)
 
         val dlg = AlertDialog.Builder(ctx)
@@ -471,14 +523,18 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val newName    = nameInput.text.toString().trim()
             val newAddress = addrInput.text.toString().trim()
-            if (newAddress.isBlank()) return@setOnClickListener
+            // 住所も店名も両方空なら何もしない
+            if (newAddress.isBlank() && newName.isBlank()) return@setOnClickListener
             dlg.dismiss()
 
             lifecycleScope.launch {
-                // 住所の候補（最大5件）と店名候補を並行取得
-                val geoCandidates = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    com.rodgers.routist.util.GeocodingClient.geocodeCandidates(newAddress)
-                }
+                // 住所があればジオコーディング候補を取得、なければ空
+                val geoCandidates = if (newAddress.isNotBlank()) {
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.rodgers.routist.util.GeocodingClient.geocodeCandidates(newAddress)
+                    }
+                } else emptyList()
+                // 店名があればPlaces候補を取得
                 val placeCandidates = if (newName.isNotBlank()) {
                     withContext(kotlinx.coroutines.Dispatchers.IO) {
                         com.rodgers.routist.util.GeocodingClient.searchPlaces(newName)
@@ -500,8 +556,14 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
                 }
 
                 if (items.isEmpty()) {
-                    // 候補なし → 通常のジオコーディングにフォールバック
-                    viewModel.editDelivery(delivery.id, newName, newAddress)
+                    if (newAddress.isBlank()) {
+                        android.widget.Toast.makeText(ctx,
+                            "「$newName」の場所が見つかりませんでした。住所も入力してみてください。",
+                            android.widget.Toast.LENGTH_LONG).show()
+                    } else {
+                        // 候補なし → 通常のジオコーディングにフォールバック
+                        viewModel.editDelivery(delivery.id, newName, newAddress)
+                    }
                     return@launch
                 }
 

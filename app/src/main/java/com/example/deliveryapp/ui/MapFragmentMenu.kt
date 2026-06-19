@@ -111,7 +111,7 @@ import kotlinx.coroutines.withContext
             })
             if (sub.isNotBlank()) col.addView(TextView(ctx).apply {
                 text = sub; textSize = 14f
-                setTextColor(android.graphics.Color.parseColor("#555555"))
+                setTextColor(onSurfaceVariant)
                 maxLines = 2
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -129,10 +129,18 @@ import kotlinx.coroutines.withContext
         })
 
         row("🗺", "ルート最適化", "現在地から最短順に並び替える") {
+            val geocodedCount = viewModel.deliveries.value.count { it.hasLocation }
+            if (geocodedCount < 2) {
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("ルート最適化できません")
+                    .setMessage("住所が地図に配置されている件数が2件未満です。\nジオコーディングが完了してから実行してください。")
+                    .setPositiveButton("OK", null).show()
+                return@row
+            }
             val loc = lastKnownLocation
             MaterialAlertDialogBuilder(ctx)
                 .setTitle("ルート最適化")
-                .setMessage("ルートを現在地から最短経路で再配置します。")
+                .setMessage("地図に配置済みの${geocodedCount}件を現在地から最短経路で並び替えます。")
                 .setPositiveButton("最適化する") { _, _ ->
                     viewModel.optimizeRoute(loc?.latitude ?: 35.6895, loc?.longitude ?: 139.6917)
                 }
@@ -142,7 +150,7 @@ import kotlinx.coroutines.withContext
         val routeSub   = if (showRouteLines) "現在 ON → タップで非表示" else "現在 OFF → タップで表示"
         row(routeEmoji, "経路線の表示切替", routeSub) {
             showRouteLines = !showRouteLines
-            viewModel.allDeliveries.value?.let { updateAllMarkers(it) }
+            updateAllMarkers(viewModel.allDeliveries.value)
         }
         row("👁", "他のルートも表示", "複数ルートを地図に重ねて表示する") { showGroupVisibilityDialog() }
         divider()
@@ -250,7 +258,7 @@ import kotlinx.coroutines.withContext
 
 
     internal fun MapFragment.showGroupVisibilityDialog() {
-        val groups = viewModel.groups.value ?: return
+        val groups = viewModel.groups.value
         val currentGroupId = viewModel.currentGroupId.value
         val otherGroups = groups.filter { it.id != currentGroupId }
         if (otherGroups.isEmpty()) return

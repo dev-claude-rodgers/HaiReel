@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Routist" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.RouteJin" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
         <item name="colorOnPrimary">@color/white</item>
     </style>
 
-    <style name="Theme.Routist.Splash" parent="Theme.SplashScreen">
+    <style name="Theme.RouteJin.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#111111</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-        <item name="postSplashScreenTheme">@style/Theme.Routist</item>
+        <item name="postSplashScreenTheme">@style/Theme.RouteJin</item>
     </style>
 
     <style name="BottomNavText">

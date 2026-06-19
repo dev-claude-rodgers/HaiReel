@@ -9,7 +9,7 @@
 4. 以下を実行する:
 
 ```powershell
-Set-Location "C:\Users\rodge\Desktop\Routist"
+Set-Location "C:\Users\rodge\Desktop\RouteJin"
 $env:PATH = "C:\Tools\gh\bin;$env:PATH"
 git add -A
 git commit -m "<自動生成したコミットメッセージ>"
@@ -17,4 +17,4 @@ git push
 ```
 
 引数 `$ARGUMENTS` が指定された場合はそれをコミットメッセージとして使用する。
-プッシュ完了後、GitHub URL（https://github.com/proxyroutine777-coder/Routist）を表示する。
+プッシュ完了後、GitHub URL（https://github.com/proxyroutine777-coder/RouteJin）を表示する。

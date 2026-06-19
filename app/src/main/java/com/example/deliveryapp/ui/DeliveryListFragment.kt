@@ -43,6 +43,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.rodgers.routist.R
 import com.rodgers.routist.databinding.FragmentListBinding
 import com.rodgers.routist.ui.MapFragment
+import com.rodgers.routist.util.AppSettings
+import com.rodgers.routist.util.GeofenceManager
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.util.TimeSlotColor
 import com.rodgers.routist.model.Delivery
@@ -245,7 +247,13 @@ class DeliveryListFragment : Fragment() {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.deliveries.collectLatest { applyFilter() }
+            viewModel.deliveries.collectLatest { deliveries ->
+                applyFilter()
+                val ctx = context ?: return@collectLatest
+                if (!AppSettings.isDriverMode(ctx) && AppSettings.isGeofenceEnabled(ctx)) {
+                    GeofenceManager.sync(ctx, deliveries)
+                }
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -382,7 +390,7 @@ class DeliveryListFragment : Fragment() {
         binding.textEmpty.visibility = View.GONE
         binding.chipIncomplete.visibility = View.GONE
         binding.buttonListMenu.visibility = View.GONE
-        binding.buttonMapToggle.text = "配達先リストへ戻る"
+        binding.buttonMapToggle.text = "${AppSettings.termDest(requireContext())}リストへ戻る"
         if (childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
                 .add(R.id.mapContainer, MapFragment(), "map")

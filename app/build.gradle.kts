@@ -33,6 +33,8 @@ android {
         val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: ""
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
+        val geocodingApiKey = localProps.getProperty("GEOCODING_API_KEY") ?: ""
+        buildConfigField("String", "GEOCODING_API_KEY", "\"$geocodingApiKey\"")
     }
 
     signingConfigs {
@@ -139,6 +141,7 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.maps.sdk)
     implementation(libs.maps.utils)
+    implementation(libs.play.services.location)
     implementation(libs.coroutines.android)
     implementation(libs.gson)
     implementation(libs.room.ktx)

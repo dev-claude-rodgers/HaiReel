@@ -102,7 +102,10 @@ import kotlinx.coroutines.withContext
     private suspend fun MapFragment.fetchNearbyPlaces(lat: Double, lng: Double, type: String, keyword: String): List<MapFragment.NearbyPlace> =
         withContext(Dispatchers.IO) {
             try {
-                val apiKey = com.rodgers.routist.BuildConfig.MAPS_API_KEY
+                val appCtx = context ?: return@withContext emptyList()
+                val userKey = com.rodgers.routist.util.AppSettings.getUserApiKey(appCtx)
+                val apiKey = if (userKey.isNotBlank()) userKey
+                             else com.rodgers.routist.BuildConfig.MAPS_API_KEY
                 val sb = StringBuilder("https://maps.googleapis.com/maps/api/place/nearbysearch/json")
                 sb.append("?location=$lat,$lng&radius=1500&language=ja&key=$apiKey")
                 if (type.isNotEmpty()) sb.append("&type=$type")

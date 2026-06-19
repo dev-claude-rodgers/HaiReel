@@ -44,12 +44,12 @@ class ReportContainerFragment : Fragment() {
             override fun getItemCount() = 2
             override fun createFragment(position: Int): Fragment = when (position) {
                 0    -> DailyReportFragment()
-                else -> TenkoFragment()
+                else -> DashboardFragment()
             }
         }
 
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = if (position == 0) "日報" else "点呼"
+            tab.text = if (position == 0) "日報" else "収支"
         }.attach()
 
         root.addView(tabLayout)
@@ -63,6 +63,6 @@ class ReportContainerFragment : Fragment() {
         _viewPager = null
     }
 
-    fun switchToTenko()  { _viewPager?.setCurrentItem(1, true) }
-    fun switchToReport() { _viewPager?.setCurrentItem(0, true) }
+    fun switchToDashboard() { _viewPager?.setCurrentItem(1, true) }
+    fun switchToReport()    { _viewPager?.setCurrentItem(0, true) }
 }

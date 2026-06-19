@@ -12,8 +12,12 @@ data class ReportPattern(
     val showDelivery: Boolean = true,
     val showPackage: Boolean = true,
     val showDistance: Boolean = true,
+    val showFuel: Boolean = true,
     val showArea: Boolean = true,
-    val showRemarks: Boolean = true
+    val showRemarks: Boolean = true,
+    // 0=個建て  1=車建て（日当）  2=時間制  3=なし
+    val paymentType: Int = 3,
+    val unitPrice: Int = 0
 ) {
     companion object {
         fun default(id: Int = 0) = ReportPattern(id = id)

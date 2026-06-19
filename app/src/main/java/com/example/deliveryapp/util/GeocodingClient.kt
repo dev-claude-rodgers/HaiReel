@@ -7,30 +7,28 @@ import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
 
-object GeocodingClient {
+object GeocodingClient : GeocodingApi {
 
     private const val GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
     private var apiKey: String = ""
     private var areaHint: String = ""
-    var biasLat: Double = 0.0
+    override var biasLat: Double = 0.0
         private set
-    var biasLng: Double = 0.0
+    override var biasLng: Double = 0.0
         private set
 
-    fun configure(apiKey: String) { this.apiKey = apiKey }
-    fun setAreaHint(hint: String) { areaHint = hint }
-    fun setBias(lat: Double, lng: Double) { biasLat = lat; biasLng = lng }
-    fun hasBias(): Boolean = biasLat != 0.0 && biasLng != 0.0
+    override var isRequestDenied: Boolean = false
+        private set
+
+    override fun configure(apiKey: String) { this.apiKey = apiKey; isRequestDenied = false }
+    override fun setAreaHint(hint: String) { areaHint = hint }
+    override fun setBias(lat: Double, lng: Double) { biasLat = lat; biasLng = lng }
+    override fun hasBias(): Boolean = biasLat != 0.0 && biasLng != 0.0
 
     data class GeoResult(
         val lat: Double,
         val lng: Double,
         val formattedAddress: String = ""
-    )
-
-    data class RouteResult(
-        val distanceMeters: Int,
-        val durationSeconds: Int
     )
 
     data class PlaceInfo(
@@ -40,38 +38,8 @@ object GeocodingClient {
         val lng: Double
     )
 
-    data class LegInfo(val distanceMeters: Int, val durationSeconds: Int)
-
-    data class RouteWithLegs(
-        val legs: List<LegInfo>,
-        val encodedPolyline: String
-    )
-
-    suspend fun getRoute(
-        fromLat: Double, fromLng: Double,
-        toLat: Double,   toLng: Double
-    ): RouteResult? = withContext(Dispatchers.IO) {
-        try {
-            val url = "https://maps.googleapis.com/maps/api/directions/json" +
-                "?origin=$fromLat,$fromLng" +
-                "&destination=$toLat,$toLng" +
-                "&mode=driving&language=ja&key=$apiKey"
-            val json = fetch(url) ?: return@withContext null
-            if (json.getString("status") != "OK") return@withContext null
-            val routesArr = json.getJSONArray("routes")
-            if (routesArr.length() == 0) return@withContext null
-            val legsArr0 = routesArr.getJSONObject(0).getJSONArray("legs")
-            if (legsArr0.length() == 0) return@withContext null
-            val leg = legsArr0.getJSONObject(0)
-            RouteResult(
-                distanceMeters = leg.getJSONObject("distance").getInt("value"),
-                durationSeconds = leg.getJSONObject("duration").getInt("value")
-            )
-        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
-    }
-
     /** 店名または住所キーワードで場所を検索し候補を最大5件返す */
-    suspend fun searchPlaces(query: String): List<PlaceInfo> = withContext(Dispatchers.IO) {
+    override suspend fun searchPlaces(query: String): List<PlaceInfo> = withContext(Dispatchers.IO) {
         try {
             val q = if (areaHint.isNotBlank()) "$areaHint $query" else query
             val encoded = URLEncoder.encode(q, "UTF-8")
@@ -96,55 +64,7 @@ object GeocodingClient {
         }
     }
 
-    /** 出発地 → 経由地（複数）→ 目的地 のルートと各区間距離を取得する */
-    suspend fun getRouteWithWaypoints(
-        fromLat: Double, fromLng: Double,
-        toLat: Double,   toLng: Double,
-        waypoints: List<Pair<Double, Double>> = emptyList()
-    ): RouteWithLegs? = withContext(Dispatchers.IO) {
-        try {
-            val sb = StringBuilder("https://maps.googleapis.com/maps/api/directions/json")
-            sb.append("?origin=$fromLat,$fromLng")
-            sb.append("&destination=$toLat,$toLng")
-            if (waypoints.isNotEmpty()) {
-                sb.append("&waypoints=")
-                sb.append(waypoints.joinToString("|") { "${it.first},${it.second}" })
-            }
-            sb.append("&mode=driving&language=ja&key=$apiKey")
-            val json = fetch(sb.toString()) ?: return@withContext null
-            if (json.getString("status") != "OK") return@withContext null
-            val routes = json.getJSONArray("routes")
-            if (routes.length() == 0) return@withContext null
-            val route = routes.getJSONObject(0)
-            val legsArr = route.getJSONArray("legs")
-            val legs = (0 until legsArr.length()).map { i ->
-                val leg = legsArr.getJSONObject(i)
-                LegInfo(
-                    leg.getJSONObject("distance").getInt("value"),
-                    leg.getJSONObject("duration").getInt("value")
-                )
-            }
-            RouteWithLegs(legs, route.getJSONObject("overview_polyline").getString("points"))
-        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
-    }
-
-    /** Google エンコードポリライン文字列を (lat, lng) のリストに復号する */
-    fun decodePolylinePoints(encoded: String): List<Pair<Double, Double>> {
-        val result = mutableListOf<Pair<Double, Double>>()
-        var i = 0; var lat = 0; var lng = 0
-        while (i < encoded.length) {
-            var b: Int; var shift = 0; var r = 0
-            do { b = encoded[i++].code - 63; r = r or ((b and 0x1f) shl shift); shift += 5 } while (b >= 0x20)
-            lat += if (r and 1 != 0) (r shr 1).inv() else r shr 1
-            shift = 0; r = 0
-            do { b = encoded[i++].code - 63; r = r or ((b and 0x1f) shl shift); shift += 5 } while (b >= 0x20)
-            lng += if (r and 1 != 0) (r shr 1).inv() else r shr 1
-            result.add(Pair(lat / 1e5, lng / 1e5))
-        }
-        return result
-    }
-
-    suspend fun geocode(address: String): GeoResult? = withContext(Dispatchers.IO) {
+    override suspend fun geocode(address: String): GeoResult? = withContext(Dispatchers.IO) {
         try {
             // areaHintは常に先頭に付けて県外ヒットを防ぐ
             val query = if (areaHint.isNotBlank()) "$areaHint $address" else address
@@ -154,7 +74,9 @@ object GeocodingClient {
                 urlBuilder.append("&bounds=${biasLat - 0.2},${biasLng - 0.2}|${biasLat + 0.2},${biasLng + 0.2}")
             }
             val json = fetch(urlBuilder.toString()) ?: return@withContext null
-            if (json.getString("status") != "OK") return@withContext null
+            val status = json.getString("status")
+            if (status == "REQUEST_DENIED") { isRequestDenied = true; return@withContext null }
+            if (status != "OK") return@withContext null
             val results = json.getJSONArray("results")
             if (results.length() == 0) return@withContext null
             val result = results.getJSONObject(0)
@@ -166,11 +88,13 @@ object GeocodingClient {
                 .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
                 .trim()
             GeoResult(lat = loc.getDouble("lat"), lng = loc.getDouble("lng"), formattedAddress = formatted)
-        } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
+        } catch (e: Exception) {
+            FirebaseCrashlytics.getInstance().recordException(e); null
+        }
     }
 
     /** areaHint を付けずにジオコーディング（エリア修正用） */
-    suspend fun geocodeExact(address: String): GeoResult? = withContext(Dispatchers.IO) {
+    override suspend fun geocodeExact(address: String): GeoResult? = withContext(Dispatchers.IO) {
         try {
             val encoded = URLEncoder.encode(address, "UTF-8")
             val urlBuilder = StringBuilder("$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey")
@@ -193,7 +117,7 @@ object GeocodingClient {
     }
 
     // 逆ジオコーディング: 座標→住所
-    suspend fun reverseGeocode(lat: Double, lng: Double): GeoResult? = withContext(Dispatchers.IO) {
+    override suspend fun reverseGeocode(lat: Double, lng: Double): GeoResult? = withContext(Dispatchers.IO) {
         try {
             val url = "$GEOCODE_URL?latlng=$lat,$lng&language=ja&key=$apiKey"
             val json = fetch(url) ?: return@withContext null
@@ -207,7 +131,7 @@ object GeocodingClient {
     }
 
     /** 入力住所から都道府県・市区町村・地区名を抽出する（ひらがな・カタカナ・漢字すべて対応） */
-    fun extractPrefCity(address: String): List<String> {
+    override fun extractPrefCity(address: String): List<String> {
         val jpChar = "[\\u3040-\\u30FF\\u3400-\\u9FFF]"
         val result = mutableListOf<String>()
         Regex("${jpChar}{1,4}[都道府県]").find(address)?.value?.let { result.add(it) }
@@ -223,14 +147,14 @@ object GeocodingClient {
     }
 
     /** 入力住所に含まれる都道府県・市区町村がジオコード結果に含まれるか検証する */
-    fun resultMatchesInput(inputAddress: String, geocodedAddress: String): Boolean {
+    override fun resultMatchesInput(inputAddress: String, geocodedAddress: String): Boolean {
         val keywords = extractPrefCity(inputAddress)
         if (keywords.isEmpty()) return true
         return keywords.any { kw -> geocodedAddress.contains(kw) }
     }
 
     /** 入力住所に対して最大5件の候補を返す（areaHintなし、バイアスなし） */
-    suspend fun geocodeCandidates(address: String): List<GeoResult> = withContext(Dispatchers.IO) {
+    override suspend fun geocodeCandidates(address: String): List<GeoResult> = withContext(Dispatchers.IO) {
         try {
             val encoded = URLEncoder.encode(address, "UTF-8")
             val url = "$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey"
@@ -250,6 +174,19 @@ object GeocodingClient {
         } catch (_: Exception) { emptyList() }
     }
 
+    /** 座標から半径30m以内の施設名を返す（住所→店名の推測） */
+    override suspend fun searchNearbyName(lat: Double, lng: Double): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json" +
+                "?location=$lat,$lng&radius=30&language=ja&key=$apiKey"
+            val json = fetch(url) ?: return@withContext null
+            if (json.getString("status") != "OK") return@withContext null
+            val results = json.optJSONArray("results") ?: return@withContext null
+            if (results.length() == 0) return@withContext null
+            results.getJSONObject(0).optString("name").ifBlank { null }
+        } catch (_: Exception) { null }
+    }
+
     private fun fetch(url: String): JSONObject? {
         val connection = URL(url).openConnection() as java.net.HttpURLConnection
         return try {
@@ -262,6 +199,4 @@ object GeocodingClient {
         }
     }
 
-    private fun looksLikeAddress(text: String): Boolean =
-        text.contains(Regex("[都道府県市区町村]")) && text.contains(Regex("[0-9０-９丁目番地号]"))
 }

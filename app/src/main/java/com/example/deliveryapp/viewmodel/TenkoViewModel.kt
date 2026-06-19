@@ -7,6 +7,7 @@ import com.rodgers.routist.db.TenkoDao
 import com.rodgers.routist.model.TenkoRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -56,7 +58,7 @@ class TenkoViewModel @Inject constructor(
     }
 
     fun saveBefore(
-        date: String, @Suppress("UNUSED_PARAMETER") existing: TenkoRecord?,
+        date: String, existing: TenkoRecord?,
         method: String, time: String,
         health: Boolean, fatigue: Boolean,
         alcohol: Double, inspection: Boolean,
@@ -64,8 +66,7 @@ class TenkoViewModel @Inject constructor(
         vehicleNumber: String = ""
     ) = viewModelScope.launch {
         val aid = _assignmentId.value
-        val current = dao.getByDate(date, aid)
-        val record = current?.copy(
+        val record = existing?.copy(
             beforeMethod = method, beforeTime = time,
             beforeHealth = health, beforeFatigue = fatigue,
             beforeAlcohol = alcohol, beforeInspection = inspection,
@@ -81,19 +82,18 @@ class TenkoViewModel @Inject constructor(
             beforeChecker = checker.ifBlank { null },
             vehicleNumber = vehicleNumber.ifBlank { null }
         )
-        if (current != null) dao.update(record) else dao.insert(record)
+        if (existing != null) dao.update(record) else dao.insert(record)
     }
 
     fun saveAfter(
-        date: String, @Suppress("UNUSED_PARAMETER") existing: TenkoRecord?,
+        date: String, existing: TenkoRecord?,
         method: String, time: String,
         health: Boolean, fatigue: Boolean,
         alcohol: Double, accident: Boolean, vehicle: Boolean,
         instruction: String, checker: String, note: String = ""
     ) = viewModelScope.launch {
         val aid = _assignmentId.value
-        val current = dao.getByDate(date, aid)
-        val record = current?.copy(
+        val record = existing?.copy(
             afterMethod = method, afterTime = time,
             afterHealth = health, afterFatigue = fatigue,
             afterAlcohol = alcohol, afterAccident = accident,
@@ -111,12 +111,26 @@ class TenkoViewModel @Inject constructor(
             afterChecker = checker.ifBlank { null },
             note = note.ifBlank { null }
         )
-        if (current != null) dao.update(record) else dao.insert(record)
+        if (existing != null) dao.update(record) else dao.insert(record)
     }
 
     fun delete(record: TenkoRecord) = viewModelScope.launch { dao.delete(record) }
 
+    fun restore(record: TenkoRecord) = viewModelScope.launch { dao.insert(record) }
+
+    fun restoreAll(records: List<TenkoRecord>) = viewModelScope.launch {
+        records.forEach { dao.insert(it) }
+    }
+
     fun deleteMonth(yearMonth: String) = viewModelScope.launch { dao.deleteByMonth(yearMonth) }
+
+    fun deleteMonthWithUndo(yearMonth: String, onDeleted: (List<TenkoRecord>) -> Unit) {
+        viewModelScope.launch {
+            val records = dao.getAllByMonth(yearMonth)
+            dao.deleteByMonth(yearMonth)
+            withContext(Dispatchers.Main) { onDeleted(records) }
+        }
+    }
 
     suspend fun recordsForMonth(yearMonth: String): List<TenkoRecord> =
         dao.getByMonth(yearMonth, _assignmentId.value)

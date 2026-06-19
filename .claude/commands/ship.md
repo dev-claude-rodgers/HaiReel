@@ -2,7 +2,7 @@
 build_and_install.ps1 を使用する（R8 難読化・コード圧縮有効）。
 
 ```powershell
-Set-Location "C:\Users\rodge\Desktop\Routist"
+Set-Location "C:\Users\rodge\Desktop\RouteJin"
 .\build_and_install.ps1
 ```
 

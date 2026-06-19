@@ -21,8 +21,8 @@ class ExcelGenerator(private val context: Context) {
 
     private data class SheetOutput(
         val xml: String,
-        val sigStampRow: Int,
-        val leftStart: Int, val leftEnd: Int,
+        val sig1Row: Int,
+        val sig2Row: Int,
         val rightStart: Int, val rightEnd: Int
     )
 
@@ -32,7 +32,8 @@ class ExcelGenerator(private val context: Context) {
         pattern: ReportPattern,
         driverSig: File? = null,
         clientSig: File? = null,
-        assignmentName: String = ""
+        assignmentName: String = "",
+        portrait: Boolean = false
     ): File {
         val ym    = java.time.YearMonth.parse(yearMonth)
         val year  = ym.year
@@ -76,6 +77,12 @@ class ExcelGenerator(private val context: Context) {
                 add(ColDef("走行(km)",
                     { if (it != null) "%.1f".format(it.distanceKm) else "" },
                     "%.1f".format(totalDist)))
+            if (pattern.showFuel) {
+                val totalFuel = records.sumOf { it.fuelCost }
+                add(ColDef("燃料費(円)",
+                    { if ((it?.fuelCost ?: 0) > 0) "%,d".format(it!!.fuelCost) else "" },
+                    if (totalFuel > 0) "%,d".format(totalFuel) else ""))
+            }
             if (pattern.showArea)
                 add(ColDef("エリア",   { it?.area ?: "" }))
             if (pattern.showRemarks)
@@ -83,7 +90,7 @@ class ExcelGenerator(private val context: Context) {
         }
 
         val hasSig = driverSig != null || clientSig != null
-        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig)
+        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig, portrait)
 
         var relCount = 0
         val driverRelId = driverSig?.let { ++relCount }
@@ -125,11 +132,11 @@ class ExcelGenerator(private val context: Context) {
     private fun String.esc() =
         replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    private fun colLetter(idx: Int): String =
+    internal fun colLetter(idx: Int): String =
         if (idx < 26) ('A' + idx).toString()
         else ('A' + idx / 26 - 1).toString() + ('A' + idx % 26).toString()
 
-    private fun displayLen(s: String): Int {
+    internal fun displayLen(s: String): Int {
         var n = 0
         for (c in s) {
             val code = c.code
@@ -138,10 +145,10 @@ class ExcelGenerator(private val context: Context) {
         return n
     }
 
-    private fun calcWidth(header: String, values: List<String>): Double {
+    internal fun calcWidth(header: String, values: List<String>): Double {
         var max = displayLen(header)
         for (v in values) { val l = displayLen(v); if (l > max) max = l }
-        return maxOf(5.0, (max + 2).toDouble())
+        return maxOf(8.0, (max + 4).toDouble())
     }
 
     private fun sc(col: String, row: Int, v: String, s: Int = 0): String {
@@ -156,7 +163,8 @@ class ExcelGenerator(private val context: Context) {
         year: Int, month: Int,
         pattern: ReportPattern,
         workingDays: Int,
-        hasSig: Boolean = false
+        hasSig: Boolean = false,
+        portrait: Boolean = false
     ): SheetOutput {
         val sb = StringBuilder()
         val numCols    = columns.size + 1
@@ -273,32 +281,39 @@ class ExcelGenerator(private val context: Context) {
 
         sb.append("""<row r="${sumRow + 1}" ht="6" customHeight="1"/>""")
 
-        val sigLabelRow   = sumRow + 2
-        val sigStampRow   = sigLabelRow + 1
-        // 全列を2等分して左右に割り当て（列Aからlastまで隙間なし）
+        // 右端に縦2段で確認印欄を配置
         val halfCols      = maxOf(1, numCols / 2)
-        val leftStartIdx  = 0
-        val leftEndIdx    = halfCols - 1
         val rightStartIdx = halfCols
         val rightEndIdx   = numCols - 1
 
-        merges.add("${colLetter(leftStartIdx)}${sigLabelRow}:${colLetter(leftEndIdx)}${sigLabelRow}")
-        merges.add("${colLetter(leftStartIdx)}${sigStampRow}:${colLetter(leftEndIdx)}${sigStampRow}")
-        merges.add("${colLetter(rightStartIdx)}${sigLabelRow}:${colLetter(rightEndIdx)}${sigLabelRow}")
-        merges.add("${colLetter(rightStartIdx)}${sigStampRow}:${colLetter(rightEndIdx)}${sigStampRow}")
+        val sig1LabelRow = sumRow + 2
+        val sig1StampRow = sig1LabelRow + 1
+        val sig2LabelRow = sig1StampRow + 1
+        val sig2StampRow = sig2LabelRow + 1
 
-        sb.append("""<row r="$sigLabelRow" ht="16" customHeight="1">""")
-        for (ci in leftStartIdx..leftEndIdx)
-            sb.append(sc(colLetter(ci), sigLabelRow, if (ci == leftStartIdx) "作業者確認印" else "", s = 10))
+        merges.add("${colLetter(rightStartIdx)}${sig1LabelRow}:${colLetter(rightEndIdx)}${sig1LabelRow}")
+        merges.add("${colLetter(rightStartIdx)}${sig1StampRow}:${colLetter(rightEndIdx)}${sig1StampRow}")
+        merges.add("${colLetter(rightStartIdx)}${sig2LabelRow}:${colLetter(rightEndIdx)}${sig2LabelRow}")
+        merges.add("${colLetter(rightStartIdx)}${sig2StampRow}:${colLetter(rightEndIdx)}${sig2StampRow}")
+
+        sb.append("""<row r="$sig1LabelRow" ht="20" customHeight="1">""")
         for (ci in rightStartIdx..rightEndIdx)
-            sb.append(sc(colLetter(ci), sigLabelRow, if (ci == rightStartIdx) "取引先確認印" else "", s = 10))
+            sb.append(sc(colLetter(ci), sig1LabelRow, if (ci == rightStartIdx) "作業者確認印" else "", s = 11))
         sb.append("</row>")
 
-        sb.append("""<row r="$sigStampRow" ht="80" customHeight="1">""")
-        for (ci in leftStartIdx..leftEndIdx)
-            sb.append(sc(colLetter(ci), sigStampRow, "", s = 5))
+        sb.append("""<row r="$sig1StampRow" ht="36" customHeight="1">""")
         for (ci in rightStartIdx..rightEndIdx)
-            sb.append(sc(colLetter(ci), sigStampRow, "", s = 5))
+            sb.append(sc(colLetter(ci), sig1StampRow, "", s = 9))
+        sb.append("</row>")
+
+        sb.append("""<row r="$sig2LabelRow" ht="20" customHeight="1">""")
+        for (ci in rightStartIdx..rightEndIdx)
+            sb.append(sc(colLetter(ci), sig2LabelRow, if (ci == rightStartIdx) "取引先確認印" else "", s = 11))
+        sb.append("</row>")
+
+        sb.append("""<row r="$sig2StampRow" ht="36" customHeight="1">""")
+        for (ci in rightStartIdx..rightEndIdx)
+            sb.append(sc(colLetter(ci), sig2StampRow, "", s = 9))
         sb.append("</row>")
 
         sb.append("</sheetData>")
@@ -310,7 +325,7 @@ class ExcelGenerator(private val context: Context) {
         }
 
         sb.append("""<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>""")
-        sb.append("""<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>""")
+        sb.append("""<pageSetup paperSize="9" orientation="${if (portrait) "portrait" else "landscape"}" fitToWidth="1" fitToHeight="0"/>""")
 
         if (hasSig) {
             sb.append("""<drawing r:id="rId3"/>""")
@@ -318,12 +333,11 @@ class ExcelGenerator(private val context: Context) {
 
         sb.append("</worksheet>")
         return SheetOutput(
-            xml          = sb.toString(),
-            sigStampRow  = sigStampRow,
-            leftStart    = leftStartIdx,
-            leftEnd      = leftEndIdx,
-            rightStart   = rightStartIdx,
-            rightEnd     = rightEndIdx
+            xml        = sb.toString(),
+            sig1Row    = sig1StampRow,
+            sig2Row    = sig2StampRow,
+            rightStart = rightStartIdx,
+            rightEnd   = rightEndIdx
         )
     }
 
@@ -333,13 +347,13 @@ class ExcelGenerator(private val context: Context) {
         sb.append("""<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""")
         driverRelId?.let {
             sb.append(picAnchor(it,
-                pos.leftStart,  pos.leftEnd + 1,
-                pos.sigStampRow - 1, pos.sigStampRow))
+                pos.rightStart, pos.rightEnd + 1,
+                pos.sig1Row - 1, pos.sig1Row))
         }
         clientRelId?.let {
             sb.append(picAnchor(it,
                 pos.rightStart, pos.rightEnd + 1,
-                pos.sigStampRow - 1, pos.sigStampRow))
+                pos.sig2Row - 1, pos.sig2Row))
         }
         sb.append("</xdr:wsDr>")
         return sb.toString()
@@ -440,7 +454,7 @@ class ExcelGenerator(private val context: Context) {
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="11">
+  <cellXfs count="12">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="4" fillId="6" borderId="1" xfId="0"
         applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
@@ -478,6 +492,10 @@ class ExcelGenerator(private val context: Context) {
     <xf numFmtId="0" fontId="1" fillId="7" borderId="1" xfId="0"
         applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"
+        applyFont="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="center"/>
     </xf>
   </cellXfs>
 </styleSheet>"""

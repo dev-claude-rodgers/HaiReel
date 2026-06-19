@@ -32,8 +32,11 @@ object PatternStorage {
             showDelivery  = sp.getBoolean("${id}_col_deliv", true),
             showPackage   = sp.getBoolean("${id}_col_pkg",   true),
             showDistance  = sp.getBoolean("${id}_col_dist",  true),
+            showFuel      = sp.getBoolean("${id}_col_fuel",  true),
             showArea      = sp.getBoolean("${id}_col_area",  true),
-            showRemarks   = sp.getBoolean("${id}_col_rem",   true)
+            showRemarks   = sp.getBoolean("${id}_col_rem",   true),
+            paymentType   = sp.getInt(   "${id}_pay_type",   3),
+            unitPrice     = sp.getInt(   "${id}_unit_price", 0)
         )
     }
 
@@ -53,8 +56,11 @@ object PatternStorage {
             putBoolean("${pattern.id}_col_deliv",  pattern.showDelivery)
             putBoolean("${pattern.id}_col_pkg",    pattern.showPackage)
             putBoolean("${pattern.id}_col_dist",   pattern.showDistance)
+            putBoolean("${pattern.id}_col_fuel",   pattern.showFuel)
             putBoolean("${pattern.id}_col_area",   pattern.showArea)
             putBoolean("${pattern.id}_col_rem",    pattern.showRemarks)
+            putInt    ("${pattern.id}_pay_type",   pattern.paymentType)
+            putInt    ("${pattern.id}_unit_price", pattern.unitPrice)
         }.apply()
     }
 
@@ -63,7 +69,8 @@ object PatternStorage {
         putIds(ctx, ids)
         p(ctx).edit().apply {
             listOf("title","client","driver","closing","deliv_lbl","pkg_lbl",
-                   "col_time","col_deliv","col_pkg","col_dist","col_area","col_rem")
+                   "col_time","col_deliv","col_pkg","col_dist","col_area","col_rem",
+                   "pay_type","unit_price")
                 .forEach { remove("${id}_$it") }
         }.apply()
         if (getActiveId(ctx) == id) setActiveId(ctx, ids.firstOrNull() ?: -1)

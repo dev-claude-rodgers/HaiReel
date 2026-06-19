@@ -102,6 +102,39 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="6dp">
+
+            <EditText
+                android:id="@+id/editZipCode"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="#2A2A2A"
+                android:padding="12dp"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#888888"
+                android:textSize="15sp"
+                android:hint="〒 郵便番号 (例: 1500001)"
+                android:inputType="number"
+                android:maxLength="7"
+                android:imeOptions="actionSearch" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonZipSearch"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:textColor="#64B5F6"
+                android:textSize="14sp"
+                app:strokeColor="#64B5F6"
+                android:text="住所を検索" />
+        </LinearLayout>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonImport"
             android:layout_width="match_parent"

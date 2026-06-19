@@ -1,10 +1,23 @@
 ﻿package com.rodgers.routist.util
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
 object AppSettings {
     private const val PREFS = "kado_settings"
+    private const val ENCRYPTED_PREFS = "kado_secure"
     private fun p(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun ep(ctx: Context): android.content.SharedPreferences {
+        val master = MasterKey.Builder(ctx)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return EncryptedSharedPreferences.create(
+            ctx, ENCRYPTED_PREFS, master,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     fun getDriverName(ctx: Context): String = p(ctx).getString("driver_name", "") ?: ""
     fun setDriverName(ctx: Context, v: String) = p(ctx).edit().putString("driver_name", v).apply()
@@ -198,9 +211,41 @@ object AppSettings {
     fun getTenkoRightDisplay(ctx: Context): String = p(ctx).getString("tenko_right_display", "alcohol") ?: "alcohol"
     fun setTenkoRightDisplay(ctx: Context, v: String) = p(ctx).edit().putString("tenko_right_display", v).apply()
 
+    // 削除取り消し時間（秒）
+    fun getUndoSeconds(ctx: Context): Int = p(ctx).getInt("undo_seconds", 5)
+    fun setUndoSeconds(ctx: Context, v: Int) = p(ctx).edit().putInt("undo_seconds", v).apply()
+
     // ダークモード (-1=システム, 1=ライト, 2=ダーク)
     fun getDarkMode(ctx: Context): Int = p(ctx).getInt("dark_mode", -1)
     fun setDarkMode(ctx: Context, v: Int) = p(ctx).edit().putInt("dark_mode", v).apply()
+
+    // 利用モード (true=ドライバー向け, false=一般利用)
+    fun isDriverMode(ctx: Context): Boolean = p(ctx).getBoolean("driver_mode", true)
+    fun setDriverMode(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("driver_mode", v).commit() }
+    fun isAppModeSet(ctx: Context): Boolean = p(ctx).contains("driver_mode")
+
+    // モード別用語ヘルパー
+    fun termDest(ctx: Context): String  = if (isDriverMode(ctx)) "配達先" else "目的地"
+    fun termList(ctx: Context): String  = if (isDriverMode(ctx)) "配達リスト" else "目的地リスト"
+    fun termDone(ctx: Context): String  = if (isDriverMode(ctx)) "配達" else "訪問"
+    fun termAdd(ctx: Context): String   = if (isDriverMode(ctx)) "配達先を追加" else "目的地を追加"
+
+    // ユーザー独自のGoogle APIキー（EncryptedSharedPreferencesに保存）
+    fun getUserApiKey(ctx: Context): String = ep(ctx).getString("user_api_key", "") ?: ""
+    fun setUserApiKey(ctx: Context, key: String) { ep(ctx).edit().putString("user_api_key", key).commit() }
+    fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
+
+    // 走行距離追跡（点呼連動）
+    fun isLocationTrackingEnabled(ctx: Context): Boolean = p(ctx).getBoolean("location_tracking_enabled", true)
+    fun setLocationTrackingEnabled(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("location_tracking_enabled", v).commit() }
+
+    // 到着通知（ジオフェンス）
+    fun isGeofenceEnabled(ctx: Context): Boolean = p(ctx).getBoolean("geofence_enabled", false)
+    fun setGeofenceEnabled(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("geofence_enabled", v).commit() }
+
+    // 毎回起動時にモード選択を表示するか
+    fun isShowModeOnLaunch(ctx: Context): Boolean = p(ctx).getBoolean("show_mode_on_launch", true)
+    fun setShowModeOnLaunch(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("show_mode_on_launch", v).commit() }
 
     // セキュリティ
     fun isAppLockEnabled(ctx: Context): Boolean = p(ctx).getBoolean("app_lock_enabled", false)
@@ -209,6 +254,15 @@ object AppSettings {
     fun getLockTimeoutMinutes(ctx: Context): Int = p(ctx).getInt("lock_timeout_min", 30)
     fun setLockTimeoutMinutes(ctx: Context, v: Int) = p(ctx).edit().putInt("lock_timeout_min", v).apply()
 
-    fun getBackupPassword(ctx: Context): String = p(ctx).getString("backup_password", "") ?: ""
-    fun setBackupPassword(ctx: Context, v: String) = p(ctx).edit().putString("backup_password", v).apply()
+    fun getBackupPassword(ctx: Context): String {
+        // 初回移行: 平文に旧値があれば暗号化版に移してから削除
+        val plain = p(ctx)
+        val legacy = plain.getString("backup_password", null)
+        if (legacy != null) {
+            ep(ctx).edit().putString("backup_password", legacy).apply()
+            plain.edit().remove("backup_password").apply()
+        }
+        return ep(ctx).getString("backup_password", "") ?: ""
+    }
+    fun setBackupPassword(ctx: Context, v: String) = ep(ctx).edit().putString("backup_password", v).apply()
 }

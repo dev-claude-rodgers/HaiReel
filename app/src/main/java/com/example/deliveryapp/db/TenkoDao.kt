@@ -1,15 +1,11 @@
 package com.rodgers.routist.db
 
-import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.rodgers.routist.model.TenkoRecord
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TenkoDao {
-    @Query("SELECT * FROM tenko_records ORDER BY date DESC")
-    fun getAll(): LiveData<List<TenkoRecord>>
-
     @Query("""
         SELECT * FROM tenko_records
         WHERE date LIKE :monthPrefix || '%'

@@ -3,7 +3,7 @@
 ```powershell
 $adb  = "C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 $name = if ("$ARGUMENTS" -ne "") { "$ARGUMENTS" } else { "ss_$(Get-Date -Format 'yyyyMMdd_HHmmss')" }
-$dest = "C:\Users\rodge\Desktop\Routist\test_screenshots\${name}.png"
+$dest = "C:\Users\rodge\Desktop\RouteJin\test_screenshots\${name}.png"
 & $adb shell screencap -p /sdcard/screen.png
 & $adb pull /sdcard/screen.png $dest
 & $adb shell rm /sdcard/screen.png

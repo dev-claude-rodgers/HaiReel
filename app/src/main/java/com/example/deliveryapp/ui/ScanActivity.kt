@@ -137,6 +137,7 @@ class ScanActivity : AppCompatActivity() {
         )
         recognizer.process(image)
             .addOnSuccessListener { result ->
+                recognizer.close()
                 val address = extractAddress(result.text)
                 val name    = extractName(result.text)
                 etName.setText(name)
@@ -155,6 +156,7 @@ class ScanActivity : AppCompatActivity() {
                 }
             }
             .addOnFailureListener {
+                recognizer.close()
                 tvStatus.text = "文字認識に失敗しました。もう一度撮影してください。"
             }
     }

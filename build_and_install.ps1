@@ -3,7 +3,7 @@
 $env:JAVA_HOME  = "C:\Users\rodge\.jdks\jbr-17.0.14"
 $env:PATH       = "$env:JAVA_HOME\bin;C:\Tools\gh\bin;$env:PATH"
 $adb            = "C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-$projectDir     = "C:\Users\rodge\Desktop\Routist"
+$projectDir     = "C:\Users\rodge\Desktop\RouteJin"
 $releasesDir    = "$projectDir\releases"
 
 Set-Location $projectDir
@@ -17,7 +17,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 2. Get APK
-$apk = Get-ChildItem "app\build\outputs\apk\release\Routist_*.apk" |
+$apk = Get-ChildItem "app\build\outputs\apk\release\RouteJin_*.apk" |
        Sort-Object LastWriteTime -Descending |
        Select-Object -First 1
 Write-Host "APK: $($apk.Name)" -ForegroundColor Green
@@ -30,7 +30,7 @@ Copy-Item $apk.FullName -Destination $releasesDir -Force
 Write-Host "Backup OK: releases\$($apk.Name)" -ForegroundColor Green
 
 # 古いバックアップを削除（最新1件のみ残す）
-Get-ChildItem "$releasesDir\Routist_*.apk" |
+Get-ChildItem "$releasesDir\RouteJin_*.apk" |
     Sort-Object LastWriteTime -Descending |
     Select-Object -Skip 1 |
     Remove-Item -Force

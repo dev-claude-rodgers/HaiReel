@@ -3,8 +3,11 @@ package com.rodgers.routist.di
 import android.content.Context
 import android.content.SharedPreferences
 import com.rodgers.routist.db.AppDatabase
+import com.rodgers.routist.db.GeocodingCacheDao
 import com.rodgers.routist.db.TenkoDao
 import com.rodgers.routist.db.WorkRecordDao
+import com.rodgers.routist.util.GeocodingApi
+import com.rodgers.routist.util.GeocodingClient
 import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
@@ -38,4 +41,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideWorkRecordDao(db: AppDatabase): WorkRecordDao = db.workRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideGeocodingCacheDao(db: AppDatabase): GeocodingCacheDao = db.geocodingCacheDao()
+
+    @Provides
+    @Singleton
+    fun provideGeocodingApi(): GeocodingApi = GeocodingClient
 }

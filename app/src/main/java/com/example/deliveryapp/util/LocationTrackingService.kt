@@ -71,7 +71,7 @@ class LocationTrackingService : Service() {
             lastLocation = location
         }
 
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     }
 
@@ -110,7 +110,7 @@ class LocationTrackingService : Service() {
     }
 
     private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("Routist 走行距離追跡中")
+        .setContentTitle("RouteJin 走行距離追跡中")
         .setContentText("本日の走行距離: ${"%.1f".format(accumulatedKm)} km")
         .setSmallIcon(android.R.drawable.ic_menu_mylocation)
         .setOngoing(true)

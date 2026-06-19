@@ -1,4 +1,4 @@
-﻿# Routist - CLAUDE.md
+﻿# RouteJin - CLAUDE.md
 
 ## プロジェクト概要
 
@@ -6,14 +6,14 @@
 配達ルート管理・日報作成・点呼記録・複数案件対応を一体化。
 
 - パッケージ名: `com.rodgers.routist`
-- APK名: Routist_yyyyMMdd_HHmmss.apk
+- APK名: RouteJin_yyyyMMdd_HHmmss.apk
 - minSdk: 26 / targetSdk: 34 / Kotlin + ViewBinding + Room
 
 ## 環境
 
-- プロジェクトパス: `C:\Users\rodge\Desktop\Routist`
+- プロジェクトパス: `C:\Users\rodge\Desktop\RouteJin`
 - JDK: `C:\Users\rodge\.jdks\jbr-17.0.14`
-- GitHub: https://github.com/proxyroutine777-coder/Routist (private)
+- GitHub: https://github.com/proxyroutine777-coder/RouteJin (private)
 - GitHub CLI: `C:\Tools\gh\bin\gh.exe`（使用前に `$env:PATH = "C:\Tools\gh\bin;$env:PATH"`）
 - ADB: `C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - キーストア: `C:\Users\rodge\routist-release.keystore`（パスは local.properties 参照）
@@ -28,9 +28,9 @@
 
 ```powershell
 # デバッグ（開発中）
-Set-Location "C:\Users\rodge\Desktop\Routist"
+Set-Location "C:\Users\rodge\Desktop\RouteJin"
 .\gradlew.bat assembleDebug
-# → app\build\outputs\apk\debug\Routist_yyyyMMdd_HHmmss.apk
+# → app\build\outputs\apk\debug\RouteJin_yyyyMMdd_HHmmss.apk
 
 # リリース（配布・Play Store）
 .\build_and_install.ps1
@@ -113,7 +113,7 @@ MainActivity
 
 - Room DB: WorkRecord・TenkoRecord
 - SharedPreferences: グループ・配達リスト・設定値
-- Downloads: `Routist_グループ名.txt` を自動出力
+- Downloads: `RouteJin_グループ名.txt` を自動出力
 - 写真: `filesDir/camera_photos/`
 
 ## ADB 操作

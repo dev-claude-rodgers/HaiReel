@@ -30,7 +30,7 @@ class TenkoExcelGenerator(private val context: Context) {
         val i = ss.indexOf(v); return if (i >= 0) i else { ss.add(v); ss.size - 1 }
     }
 
-    fun generate(records: List<TenkoRecord>, yearMonth: String): File {
+    fun generate(records: List<TenkoRecord>, yearMonth: String, portrait: Boolean = false): File {
         ss.clear()
         val ym    = java.time.YearMonth.parse(yearMonth)
         val year  = ym.year
@@ -49,6 +49,7 @@ class TenkoExcelGenerator(private val context: Context) {
         val sb = StringBuilder()
         sb.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""")
         sb.append("""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">""")
+        sb.append("""<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>""")
         sb.append("""<sheetViews><sheetView workbookViewId="0" tabSelected="1" zoomScale="80"/></sheetViews>""")
         sb.append("""<sheetFormatPr defaultRowHeight="18"/>""")
 
@@ -130,18 +131,15 @@ class TenkoExcelGenerator(private val context: Context) {
             val dStr = "${month}/${day}（${dow}）"
 
             // ── 値変換 ──
-            val alcB   = if (rec?.beforeAlcohol != null) "有" else ""
-            val drunkB = when { rec?.beforeAlcohol == null -> ""; rec.beforeAlcohol!! <= 0.0 -> "無"; else -> "有" }
-            val condB  = when { rec?.beforeHealth == null && rec?.beforeFatigue == null -> ""
-                rec?.beforeHealth == false || rec?.beforeFatigue == true -> "要確認"; else -> "異常なし" }
-            val inspB  = when (rec?.beforeInspection) { true -> "○"; false -> "×"; else -> "" }
+            val alcB   = toAlcPresence(rec?.beforeAlcohol)
+            val drunkB = toDrunk(rec?.beforeAlcohol)
+            val condB  = toCondition(rec?.beforeHealth, rec?.beforeFatigue)
+            val inspB  = toInspection(rec?.beforeInspection)
 
-            val alcA   = if (rec?.afterAlcohol != null) "有" else ""
-            val drunkA = when { rec?.afterAlcohol == null -> ""; rec.afterAlcohol!! <= 0.0 -> "無"; else -> "有" }
-            val condA  = when { rec?.afterHealth == null && rec?.afterFatigue == null -> ""
-                rec?.afterHealth == false || rec?.afterFatigue == true -> "要確認"; else -> "異常なし" }
-            val runS   = when { rec?.afterAccident == null && rec?.afterVehicle == null -> ""
-                rec?.afterAccident == true || rec?.afterVehicle == false -> "要確認"; else -> "異常なし" }
+            val alcA   = toAlcPresence(rec?.afterAlcohol)
+            val drunkA = toDrunk(rec?.afterAlcohol)
+            val condA  = toCondition(rec?.afterHealth, rec?.afterFatigue)
+            val runS   = toRunStatus(rec?.afterAccident, rec?.afterVehicle)
 
             val bVals = listOf(rec?.beforeTime ?: "", rec?.beforeMethod ?: "", rec?.beforeChecker ?: "",
                 alcB, drunkB, condB, inspB, rec?.beforeInstruction ?: "")
@@ -150,7 +148,12 @@ class TenkoExcelGenerator(private val context: Context) {
             val noteVal = rec?.note ?: ""
 
             val maxLen = listOf(bVals[7], aVals[7], noteVal).maxOf { it.length }
-            val ht = if (maxLen > 20) 34.0 else 18.0
+            val ht = when {
+                maxLen > 60 -> 72.0
+                maxLen > 40 -> 52.0
+                maxLen > 20 -> 34.0
+                else -> 18.0
+            }
 
             sb.append("""<row r="$er" ht="$ht" customHeight="1">""")
             sb.append(cs(er, 1, dStr, S_DATE_CELL))                // A: 日付 (L/R=med)
@@ -183,6 +186,8 @@ class TenkoExcelGenerator(private val context: Context) {
             merges.forEach { sb.append("""<mergeCell ref="$it"/>""") }
             sb.append("</mergeCells>")
         }
+        sb.append("""<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>""")
+        sb.append("""<pageSetup paperSize="9" orientation="${if (portrait) "portrait" else "landscape"}" fitToWidth="1" fitToHeight="0"/>""")
         sb.append("</worksheet>")
 
         // Shared strings
@@ -233,6 +238,20 @@ class TenkoExcelGenerator(private val context: Context) {
         private const val S_AFT_SUB_FIRST = 18  // J4: 業務後先頭小ヘッダー (L=med)
         private const val S_DATA_NRM_J   = 19  // J列データ奇数行 (L=med)
         private const val S_DATA_ALT_J   = 20  // J列データ偶数行 (L=med)
+
+        internal fun toAlcPresence(alcohol: Double?): String = if (alcohol != null) "有" else ""
+        internal fun toDrunk(alcohol: Double?): String = alcohol?.let { if (it <= 0.0) "無" else "有" } ?: ""
+        internal fun toCondition(health: Boolean?, fatigue: Boolean?): String = when {
+            health == null && fatigue == null -> ""
+            health == false || fatigue == true -> "要確認"
+            else -> "異常なし"
+        }
+        internal fun toRunStatus(accident: Boolean?, vehicle: Boolean?): String = when {
+            accident == null && vehicle == null -> ""
+            accident == true || vehicle == false -> "要確認"
+            else -> "異常なし"
+        }
+        internal fun toInspection(v: Boolean?): String = when (v) { true -> "○"; false -> "×"; else -> "" }
 
         private fun bdr(l: String="", r: String="", t: String="", b: String=""): String {
             fun s(tag: String, style: String) =

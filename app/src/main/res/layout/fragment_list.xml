@@ -66,7 +66,7 @@
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
-            android:text="🗺 地図"
+            android:text="@string/btn_map_toggle"
             android:contentDescription="地図/リスト切替"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -172,8 +172,9 @@
             android:textColor="#FFFFFF"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:singleLine="true"
             app:strokeColor="#FFFFFF"
-            android:text="全選択"
+            android:text="@string/btn_select_all"
             android:contentDescription="全件選択" />
 
         <com.google.android.material.button.MaterialButton
@@ -188,6 +189,7 @@
             android:textColor="#FFFFFF"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:singleLine="true"
             app:strokeColor="#FFFFFF"
             android:text="🕐 時間帯"
             android:contentDescription="時間帯を設定"
@@ -202,6 +204,7 @@
             android:textStyle="bold"
             android:insetTop="0dp"
             android:insetBottom="0dp"
+            android:singleLine="true"
             android:text="削除"
             android:contentDescription="選択した配達先を削除"
             android:enabled="false"

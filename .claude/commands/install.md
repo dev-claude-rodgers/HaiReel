@@ -2,7 +2,7 @@
 
 ```powershell
 $adb = "C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-$apk = Get-ChildItem "C:\Users\rodge\Desktop\Routist\app\build\outputs\apk\debug\*.apk" |
+$apk = Get-ChildItem "C:\Users\rodge\Desktop\RouteJin\app\build\outputs\apk\debug\*.apk" |
        Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $apk) { Write-Host "APK が見つかりません。先に /build を実行してください。"; exit 1 }
 Write-Host "インストール中: $($apk.Name)"

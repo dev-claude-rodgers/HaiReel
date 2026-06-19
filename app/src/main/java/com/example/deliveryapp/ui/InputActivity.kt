@@ -15,7 +15,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.rodgers.routist.databinding.ActivityInputBinding
+import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.util.UrlExtractor
+import com.rodgers.routist.util.ZipCodeHelper
 import com.rodgers.routist.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.launch
 import org.xmlpull.v1.XmlPullParser
@@ -236,7 +238,7 @@ class InputActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "配達先を追加"
+        supportActionBar?.title = AppSettings.termAdd(this)
 
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
             val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
@@ -246,6 +248,9 @@ class InputActivity : AppCompatActivity() {
                 binding.editTextAddresses.setText(sharedText)
             }
         }
+
+        binding.buttonZipSearch.setOnClickListener { searchZipCode() }
+        binding.editZipCode.setOnEditorActionListener { _, _, _ -> searchZipCode(); true }
 
         binding.buttonImport.setOnClickListener {
             val text = binding.editTextAddresses.text.toString().trim()
@@ -277,6 +282,27 @@ class InputActivity : AppCompatActivity() {
                 "application/octet-stream",
                 "*/*"
             ))
+        }
+    }
+
+    private fun searchZipCode() {
+        val zip = binding.editZipCode.text.toString().trim()
+        if (zip.length != 7) {
+            Toast.makeText(this, "郵便番号を7桁で入力してください（ハイフンなし）", Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch {
+            val result = ZipCodeHelper.lookup(zip)
+            if (result == null) {
+                Toast.makeText(this@InputActivity, "「$zip」の住所が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val existing = binding.editTextAddresses.text.toString().trim()
+            val newText = if (existing.isBlank()) result.address else "$existing\n${result.address}"
+            binding.editTextAddresses.setText(newText)
+            binding.editTextAddresses.setSelection(newText.length)
+            binding.editZipCode.setText("")
+            Toast.makeText(this@InputActivity, "「${result.address}」を追加しました", Toast.LENGTH_SHORT).show()
         }
     }
 

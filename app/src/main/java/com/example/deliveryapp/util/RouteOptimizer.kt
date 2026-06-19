@@ -1,4 +1,4 @@
-﻿package com.rodgers.routist.util
+package com.rodgers.routist.util
 
 import com.rodgers.routist.model.Delivery
 import kotlin.math.*
