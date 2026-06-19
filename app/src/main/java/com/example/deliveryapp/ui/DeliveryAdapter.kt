@@ -61,7 +61,7 @@ class DeliveryAdapter(
 
     fun getCurrentList(): List<Delivery> = items.toList()
 
-    fun clearSelection() { selectedIds.clear() }
+    fun clearSelection() { selectedIds.clear(); notifyDataSetChanged() }
 
     fun selectAll(ids: Set<String>) {
         selectedIds.clear()
