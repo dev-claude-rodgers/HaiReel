@@ -15,26 +15,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- 配達先がないときに地図上に重ねて表示 -->
-    <TextView
-        android:id="@+id/emptyMapView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="配達先がありません\nメニュー → 住所をインポートから追加できます"
-        android:textSize="14sp"
-        android:textAlignment="center"
-        android:gravity="center"
-        android:padding="16dp"
-        android:background="#CC000000"
-        android:textColor="#FFFFFF"
-        android:lineSpacingMultiplier="1.4"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintVertical_bias="0.35" />
-
     <!-- メニューボタン（左上） -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/buttonMenu"

@@ -286,12 +286,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
-        binding.emptyMapView.visibility = if (hasAny) View.GONE else View.VISIBLE
-        if (!hasAny) {
-            val term = com.rodgers.routist.util.AppSettings.termDest(requireContext())
-            binding.emptyMapView.text = "${term}がありません\nメニュー → 住所をインポートから追加できます"
-        }
-
         val pinLoc = pendingPinLocation
         if (pinLoc != null) {
             pendingPinLocation = null
