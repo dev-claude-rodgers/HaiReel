@@ -459,58 +459,10 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         }
         nameInput.addTextChangedListener(watcher)
 
-        // 郵便番号入力欄
-        val zipRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.topMargin = (12*dp).toInt() }
-        }
-        val zipInput = EditText(ctx).apply {
-            hint = "〒 郵便番号（7桁）"
-            inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(android.text.InputFilter.LengthFilter(7))
-            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
-        }
-        val zipBtn = android.widget.Button(ctx).apply {
-            text = "検索"
-            layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
-                .also { it.marginStart = (8*dp).toInt() }
-        }
-        zipRow.addView(zipInput)
-        zipRow.addView(zipBtn)
-
-        zipBtn.setOnClickListener {
-            val zip = zipInput.text.toString().trim()
-            if (zip.length != 7) {
-                android.widget.Toast.makeText(ctx, "7桁で入力してください", android.widget.Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            lifecycleScope.launch {
-                val result = com.rodgers.routist.util.ZipCodeHelper.lookup(zip)
-                if (result == null) {
-                    android.widget.Toast.makeText(ctx, "住所が見つかりませんでした", android.widget.Toast.LENGTH_SHORT).show()
-                } else {
-                    addrInput.setText(result.address)
-                    addrInput.setSelection(result.address.length)
-                    zipInput.setText("")
-                }
-            }
-        }
-        // 7桁入力で自動検索
-        zipInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                if ((s?.length ?: 0) == 7) zipBtn.performClick()
-            }
-        })
-
         layout.addView(label("名前・店名"))
         layout.addView(nameInput)
         layout.addView(candidateBox)
         layout.addView(label("住所"))
-        layout.addView(zipRow)
         layout.addView(addrInput)
 
         val dlg = AlertDialog.Builder(ctx)
