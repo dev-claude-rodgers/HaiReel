@@ -89,6 +89,7 @@ class SettingsFragment : Fragment() {
         binding.rowBackupRestore.setOnClickListener {
             restoreFilePicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
         }
+        binding.rowHelp.setOnClickListener { showHelpDialog() }
         binding.rowAbout.setOnClickListener {
             (activity as? com.rodgers.routist.MainActivity)?.showAboutDialog()
         }
@@ -160,21 +161,35 @@ class SettingsFragment : Fragment() {
         }
 
         root.addView(android.widget.TextView(ctx).apply {
-            text = "住所検索・地図機能にGoogle APIキーが必要です。\n月額\$200相当まで無料のため、個人利用は無料枠内で収まります。"
+            text = "住所検索・地図機能を使うには「APIキー」が必要です。\n取得は無料で、個人利用では料金はほぼかかりません。"
             textSize = 14f; setTextColor(onSurface)
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.bottomMargin = (16*dp).toInt() }
+                .also { it.bottomMargin = (12*dp).toInt() }
+        })
+
+        root.addView(android.widget.TextView(ctx).apply {
+            text = "① 下のボタンを押してブラウザを開く"
+            textSize = 14f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(onSurface)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (4*dp).toInt() }
+        })
+        root.addView(android.widget.TextView(ctx).apply {
+            text = "Googleアカウントでログインし、画面の指示に従ってAPIキーを作成してください。\n（初回のみ：プロジェクト作成 → API有効化 → キー発行の順に進みます）"
+            textSize = 12f; setTextColor(onSurfaceVar)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (8*dp).toInt() }
         })
 
         root.addView(android.widget.Button(ctx).apply {
-            text = "① Google CloudでAPIキーを取得する →"
+            text = "Google CloudでAPIキーを取得する →"
             isAllCaps = false; textSize = 14f
             setTextColor(android.graphics.Color.WHITE)
             background = android.graphics.drawable.GradientDrawable().apply {
                 setColor(primary); cornerRadius = 8*dp
             }
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.bottomMargin = (6*dp).toInt() }
+                .also { it.bottomMargin = (20*dp).toInt() }
             setOnClickListener {
                 try {
                     startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
@@ -186,15 +201,7 @@ class SettingsFragment : Fragment() {
         })
 
         root.addView(android.widget.TextView(ctx).apply {
-            text = "初回はプロジェクト作成後、以下の3つのAPIを有効化してからキーを発行してください。\n" +
-                   "Maps SDK for Android・Geocoding API・Places API"
-            textSize = 12f; setTextColor(onSurfaceVar)
-            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.bottomMargin = (20*dp).toInt() }
-        })
-
-        root.addView(android.widget.TextView(ctx).apply {
-            text = "② 取得したAPIキーを貼り付ける"
+            text = "② 表示されたAPIキー（「AIza...」で始まる文字列）をコピーして下に貼り付ける"
             textSize = 14f; typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(onSurface)
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
@@ -513,6 +520,79 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(ctx, "バックアップに失敗しました", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun showHelpDialog() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val dp  = ctx.resources.displayMetrics.density
+        val onSurface    = com.google.android.material.color.MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK)
+        val onSurfaceVar = com.google.android.material.color.MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorOnSurfaceVariant, android.graphics.Color.DKGRAY)
+        val primary      = com.google.android.material.color.MaterialColors.getColor(ctx, com.google.android.material.R.attr.colorPrimary, android.graphics.Color.BLUE)
+        val MATCH = android.widget.LinearLayout.LayoutParams.MATCH_PARENT
+        val WRAP  = android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+
+        val root = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((20*dp).toInt(), (12*dp).toInt(), (20*dp).toInt(), (16*dp).toInt())
+        }
+
+        fun section(title: String) {
+            root.addView(android.widget.TextView(ctx).apply {
+                text = title; textSize = 15f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setTextColor(primary)
+                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                    .also { it.topMargin = (16*dp).toInt(); it.bottomMargin = (6*dp).toInt() }
+            })
+        }
+
+        fun item(text: String) {
+            root.addView(android.widget.TextView(ctx).apply {
+                this.text = text; textSize = 14f; setTextColor(onSurface)
+                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                    .also { it.bottomMargin = (6*dp).toInt() }
+            })
+        }
+
+        fun note(text: String) {
+            root.addView(android.widget.TextView(ctx).apply {
+                this.text = text; textSize = 12f; setTextColor(onSurfaceVar)
+                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                    .also { it.bottomMargin = (4*dp).toInt() }
+            })
+        }
+
+        section("📦 基本的な使い方")
+        item("① メニュー →「住所をインポート」でCSV・テキストを読み込む")
+        item("② 住所が取得できたら「ルート最適化」で順番を自動整列")
+        item("③ 配達が完了したら各行をタップして完了マークをつける")
+        item("④ 乗務終了後に日報を記録して収入・走行距離を入力する")
+
+        section("🔑 Google APIキーについて")
+        item("住所検索・地図機能にGoogle APIキーが必要です。")
+        item("設定 →「Google APIキー設定」から登録できます。")
+        note("月額\$200相当まで無料枠があり、個人利用は通常無料枠内に収まります。")
+        note("料金はGoogle側で発生します。利用前に必ず料金体系をご確認ください。")
+
+        section("❓ よくある質問")
+        item("Q. 住所が地図に表示されない")
+        note("→ APIキーが設定されているか確認してください。設定 →「Google APIキー設定」→「動作確認する」で確認できます。")
+        item("Q. ルート最適化ができない")
+        note("→ 住所が1件以上登録されている必要があります。また住所のジオコーディング（緑色の丸マーク）が完了しているか確認してください。")
+        item("Q. 年収入がダッシュボードに表示されない")
+        note("→ 日報の「収入（円）」欄に金額を入力して保存してください。")
+        item("Q. データが消えた")
+        note("→ 設定 →「バックアップを作成」で定期的にバックアップを取ってください。")
+        item("Q. 利用モードを間違えた")
+        note("→ 設定 →「利用モードを切り替え」でドライバー向け/一般利用を変更できます。")
+
+        val scroll = android.widget.ScrollView(ctx).apply { addView(root) }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("❓ 使い方・ヘルプ")
+            .setView(scroll)
+            .setPositiveButton("閉じる", null)
+            .show()
     }
 
     private fun showPrivacyPolicyDialog() {

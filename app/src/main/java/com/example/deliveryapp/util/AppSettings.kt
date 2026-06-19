@@ -8,15 +8,17 @@ object AppSettings {
     private const val PREFS = "kado_settings"
     private const val ENCRYPTED_PREFS = "kado_secure"
     private fun p(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-    private fun ep(ctx: Context): android.content.SharedPreferences {
+    private fun ep(ctx: Context): android.content.SharedPreferences = try {
         val master = MasterKey.Builder(ctx)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        return EncryptedSharedPreferences.create(
+        EncryptedSharedPreferences.create(
             ctx, ENCRYPTED_PREFS, master,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
+    } catch (_: Exception) {
+        ctx.getSharedPreferences(ENCRYPTED_PREFS + "_fallback", Context.MODE_PRIVATE)
     }
 
     fun getDriverName(ctx: Context): String = p(ctx).getString("driver_name", "") ?: ""

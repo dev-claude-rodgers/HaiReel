@@ -263,6 +263,52 @@
             android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
             android:background="?attr/colorOutlineVariant" />
 
+        <!-- 使い方・ヘルプ -->
+        <LinearLayout
+            android:id="@+id/rowHelp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/selectableItemBackground"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="52dp"
+                android:layout_height="wrap_content"
+                android:text="❓"
+                android:textSize="28sp"
+                android:gravity="center" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="14dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="使い方・ヘルプ"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="基本操作・よくある質問"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
+            android:background="?attr/colorOutlineVariant" />
+
         <!-- アプリについて -->
         <LinearLayout
             android:id="@+id/rowAbout"
