@@ -147,201 +147,87 @@ class SettingsFragment : Fragment() {
 
     private fun showApiKeyWizard() {
         val ctx = requireContext()
-        showWizardStep(ctx, step = 1)
-    }
-
-    private fun showWizardStep(ctx: android.content.Context, step: Int) {
         val dp   = ctx.resources.displayMetrics.density
         val MATCH = android.widget.LinearLayout.LayoutParams.MATCH_PARENT
         val WRAP  = android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        val primary      = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
         val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val primary      = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
 
-        val totalSteps = 3
+        val root = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((24*dp).toInt(), (16*dp).toInt(), (24*dp).toInt(), (8*dp).toInt())
+        }
 
-        fun makeProgressBar(currentStep: Int): android.widget.LinearLayout {
-            return android.widget.LinearLayout(ctx).apply {
-                orientation = android.widget.LinearLayout.HORIZONTAL
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (6*dp).toInt())
-                    .also { it.bottomMargin = (16*dp).toInt() }
-                repeat(totalSteps) { i ->
-                    addView(android.view.View(ctx).apply {
-                        setBackgroundColor(if (i < currentStep) primary else android.graphics.Color.argb(60,
-                            android.graphics.Color.red(onSurfaceVar),
-                            android.graphics.Color.green(onSurfaceVar),
-                            android.graphics.Color.blue(onSurfaceVar)))
-                        layoutParams = android.widget.LinearLayout.LayoutParams(0, MATCH, 1f)
-                            .also { if (i > 0) it.marginStart = (3*dp).toInt() }
-                    })
+        root.addView(android.widget.TextView(ctx).apply {
+            text = "住所検索・地図機能にGoogle APIキーが必要です。\n月額\$200相当まで無料のため、個人利用は無料枠内で収まります。"
+            textSize = 14f; setTextColor(onSurface)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (16*dp).toInt() }
+        })
+
+        root.addView(android.widget.Button(ctx).apply {
+            text = "① Google CloudでAPIキーを取得する →"
+            isAllCaps = false; textSize = 14f
+            setTextColor(android.graphics.Color.WHITE)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(primary); cornerRadius = 8*dp
+            }
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (6*dp).toInt() }
+            setOnClickListener {
+                try {
+                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https://console.cloud.google.com/apis/credentials")))
+                } catch (_: Exception) {
+                    Toast.makeText(ctx, "ブラウザを開けませんでした", Toast.LENGTH_SHORT).show()
                 }
             }
+        })
+
+        root.addView(android.widget.TextView(ctx).apply {
+            text = "初回はプロジェクト作成後、以下の3つのAPIを有効化してからキーを発行してください。\n" +
+                   "Maps SDK for Android・Geocoding API・Places API"
+            textSize = 12f; setTextColor(onSurfaceVar)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (20*dp).toInt() }
+        })
+
+        root.addView(android.widget.TextView(ctx).apply {
+            text = "② 取得したAPIキーを貼り付ける"
+            textSize = 14f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(onSurface)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (8*dp).toInt() }
+        })
+
+        val inputField = android.widget.EditText(ctx).apply {
+            hint = "AIza...（コピーしたキーを貼り付け）"
+            setText(AppSettings.getUserApiKey(ctx))
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
         }
-
-        fun makeButton(label: String, onClick: () -> Unit): android.widget.Button {
-            return android.widget.Button(ctx).apply {
-                text = label; isAllCaps = false
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(primary); cornerRadius = 8 * dp
-                }
-                setTextColor(android.graphics.Color.WHITE); textSize = 14f
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.topMargin = (8*dp).toInt() }
-                setOnClickListener { onClick() }
-            }
-        }
-
-        fun stepView(title: String, body: String,
-                     actionLabel: String? = null, onAction: (() -> Unit)? = null,
-                     actionLabel2: String? = null, onAction2: (() -> Unit)? = null): android.view.View {
-            val root = android.widget.LinearLayout(ctx).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
-                setPadding((24*dp).toInt(), (8*dp).toInt(), (24*dp).toInt(), (8*dp).toInt())
-            }
-            root.addView(makeProgressBar(step))
-            root.addView(android.widget.TextView(ctx).apply {
-                text = "STEP $step / $totalSteps  $title"
-                textSize = 16f; typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setTextColor(primary)
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.bottomMargin = (10*dp).toInt() }
-            })
-            root.addView(android.widget.TextView(ctx).apply {
-                text = body; textSize = 14f; setTextColor(onSurface)
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.bottomMargin = (14*dp).toInt() }
-            })
-            if (actionLabel != null && onAction != null) root.addView(makeButton(actionLabel, onAction))
-            if (actionLabel2 != null && onAction2 != null) root.addView(makeButton(actionLabel2, onAction2))
-            return android.widget.ScrollView(ctx).apply { addView(root) }
-        }
-
-        fun openUrl(url: String) {
-            try {
-                startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse(url)))
-            } catch (_: Exception) {
-                Toast.makeText(ctx, "ブラウザを開けませんでした", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        fun copyText(text: String, label: String) {
-            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                    as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
-            Toast.makeText(ctx, "「$text」をコピーしました", Toast.LENGTH_SHORT).show()
-        }
-
-        val dialogView: android.view.View
-        val dlgTitle: String
-        val posLabel: String
-        val negLabel: String?
-
-        when (step) {
-            1 -> {
-                dlgTitle = "🔑 APIキーのセットアップ"
-                posLabel = "次へ →"
-                negLabel = "キャンセル"
-                dialogView = stepView(
-                    "プロジェクトを作成する",
-                    "住所検索・地図機能にGoogle APIキーが必要です。\n" +
-                    "月\$200相当まで無料。個人利用は無料枠内で収まります。\n\n" +
-                    "① Google Cloud Consoleをブラウザで開く\n" +
-                    "② Googleアカウントでログイン\n" +
-                    "③「プロジェクトを選択」→「新しいプロジェクト」\n" +
-                    "④ 名前（例: RouteJin）を入力して「作成」",
-                    "Google Cloud Consoleを開く"
-                ) { openUrl("https://console.cloud.google.com") }
-            }
-            2 -> {
-                dlgTitle = "APIキーの発行"
-                posLabel = "次へ →"
-                negLabel = "← 戻る"
-                dialogView = stepView(
-                    "キーを発行・制限を設定する",
-                    "「APIとサービス」→「認証情報」→「認証情報を作成」→「APIキー」\n\n" +
-                    "キーが表示されたら「キーを制限」をタップして\n[APIの制限] で以下にチェックして保存してください。\n\n" +
-                    "✅ Maps SDK for Android\n" +
-                    "✅ Geocoding API\n" +
-                    "✅ Places API\n\n" +
-                    "保存後、APIキー（AIza...）をコピーしておいてください。",
-                    "認証情報ページを開く"
-                ) { openUrl("https://console.cloud.google.com/apis/credentials") }
-            }
-            3 -> {
-                val inputField = android.widget.EditText(ctx).apply {
-                    hint = "AIza...（コピーしたAPIキーを貼り付け）"
-                    setText(AppSettings.getUserApiKey(ctx))
-                    inputType = android.text.InputType.TYPE_CLASS_TEXT
-                }
-                val inner = android.widget.LinearLayout(ctx).apply {
-                    orientation = android.widget.LinearLayout.VERTICAL
-                    setPadding((24*dp).toInt(), (8*dp).toInt(), (24*dp).toInt(), (8*dp).toInt())
-                }
-                inner.addView(makeProgressBar(totalSteps))
-                inner.addView(android.widget.TextView(ctx).apply {
-                    text = "STEP 3 / 3  APIキーを入力"
-                    textSize = 16f; typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    setTextColor(primary)
-                    layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                        .also { it.bottomMargin = (10*dp).toInt() }
-                })
-                inner.addView(android.widget.TextView(ctx).apply {
-                    text = "コピーしたAPIキー（AIza...）を下に貼り付けて「保存して完了」をタップします。"
-                    textSize = 14f; setTextColor(onSurface)
-                    layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                        .also { it.bottomMargin = (12*dp).toInt() }
-                })
-                inner.addView(inputField)
-                inner.addView(android.widget.TextView(ctx).apply {
-                    text = "設定済みの場合は現在のキーが表示されています。\n削除するには空欄にして保存してください。"
-                    textSize = 12f; setTextColor(onSurfaceVar)
-                    layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                        .also { it.topMargin = (8*dp).toInt() }
-                })
-
-                val dlg = MaterialAlertDialogBuilder(ctx)
-                    .setTitle("APIキーを入力")
-                    .setView(inner)
-                    .setPositiveButton("✅ 保存して完了", null)
-                    .setNegativeButton("← 戻る", null)
-                    .create()
-                dlg.show()
-                dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                    val key = inputField.text.toString().trim()
-                    AppSettings.setUserApiKey(ctx, key)
-                    com.rodgers.routist.util.GeocodingClient.configure(
-                        key.ifBlank { com.rodgers.routist.BuildConfig.GEOCODING_API_KEY }
-                    )
-                    binding.tvApiKeyStatus.text = if (key.isNotBlank())
-                        "設定済み（自分のAPIキーを使用中）"
-                    else "未設定（ビルド埋め込みキーを使用中）"
-                    dlg.dismiss()
-                    if (key.isNotBlank()) {
-                        testApiKey(ctx)
-                    } else {
-                        Toast.makeText(ctx, "APIキーを削除しました", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE)
-                    .setOnClickListener { dlg.dismiss(); showWizardStep(ctx, step - 1) }
-                return
-            }
-            else -> return
-        }
+        root.addView(inputField)
 
         val dlg = MaterialAlertDialogBuilder(ctx)
-            .setTitle(dlgTitle)
-            .setView(dialogView)
-            .setPositiveButton(posLabel, null)
-            .setNegativeButton(negLabel, null)
+            .setTitle("🔑 Google APIキー設定")
+            .setView(android.widget.ScrollView(ctx).apply { addView(root) })
+            .setPositiveButton("✅ 保存する", null)
+            .setNegativeButton("キャンセル", null)
             .create()
         dlg.show()
-        dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
-            .setOnClickListener { dlg.dismiss(); showWizardStep(ctx, step + 1) }
-        dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+        dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val key = inputField.text.toString().trim()
+            AppSettings.setUserApiKey(ctx, key)
+            com.rodgers.routist.util.GeocodingClient.configure(
+                key.ifBlank { com.rodgers.routist.BuildConfig.GEOCODING_API_KEY }
+            )
+            binding.tvApiKeyStatus.text = if (key.isNotBlank())
+                "設定済み（自分のAPIキーを使用中）"
+            else "未設定（ビルド埋め込みキーを使用中）"
             dlg.dismiss()
-            if (step > 1) showWizardStep(ctx, step - 1)
+            if (key.isNotBlank()) testApiKey(ctx)
+            else Toast.makeText(ctx, "APIキーを削除しました", Toast.LENGTH_SHORT).show()
         }
     }
 
