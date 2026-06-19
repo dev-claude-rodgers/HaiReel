@@ -596,6 +596,33 @@ class DailyReportFragment : Fragment() {
         startMeterIn.addTextChangedListener(meterWatcher)
         endMeterIn.addTextChangedListener(meterWatcher)
 
+        // ── 収入
+        val autoIncome = calcIncome(pattern, record.deliveryCount, 0)
+        root.addView(label("収入（円）"))
+        val incomeRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+        val incomeIn = EditText(ctx).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
+            setText(if (record.income > 0) record.income.toString()
+                    else if (autoIncome > 0) autoIncome.toString() else "")
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+        }
+        val incomeCalcBtn = android.widget.Button(ctx).apply {
+            text = "💴 自動計算"; isAllCaps = false; textSize = 12f
+            setTextColor(ContextCompat.getColor(ctx, R.color.colorReportPrimary)); background = null
+            setOnClickListener {
+                val dc = delivCntIn.text.toString().toIntOrNull() ?: 0
+                val wm = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
+                val calc = calcIncome(pattern, dc, wm)
+                if (calc > 0) incomeIn.setText(calc.toString())
+                else Toast.makeText(ctx, "帳票パターンで単価を設定してください", Toast.LENGTH_SHORT).show()
+            }
+        }
+        incomeRow.addView(incomeIn); incomeRow.addView(incomeCalcBtn)
+        root.addView(incomeRow)
+
         // ── 燃料費（走行距離のすぐ下）
         val fuelPrice = com.rodgers.routist.util.AppSettings.getFuelPricePerLiter(ctx)
         val fuelEff   = com.rodgers.routist.util.AppSettings.getFuelEfficiencyKmPerL(ctx)
@@ -668,7 +695,7 @@ class DailyReportFragment : Fragment() {
                 area          = areaIn.text.toString().trim(),
                 alcCheck      = alcValues[alcIdx],
                 remarks       = remarksIn.text.toString().trim(),
-                income        = calcIncome(pattern, delivCount, workMins),
+                income        = incomeIn.text.toString().toIntOrNull() ?: calcIncome(pattern, delivCount, workMins),
                 fuelCost      = fuelIn.text.toString().toIntOrNull() ?: 0,
                 assignmentId  = reportViewModel.assignmentId.value
             ))
