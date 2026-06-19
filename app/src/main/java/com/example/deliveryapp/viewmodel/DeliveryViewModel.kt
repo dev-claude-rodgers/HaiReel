@@ -204,7 +204,7 @@ class DeliveryViewModel @Inject constructor(
     data class GeocodingProgress(val current: Int, val total: Int, val isRunning: Boolean, val successCount: Int = 0)
 
     init {
-        val userKey = AppSettings.getUserApiKey(getApplication())
+        val userKey = try { AppSettings.getUserApiKey(getApplication()) } catch (_: Exception) { "" }
         val effectiveKey = if (userKey.isNotBlank()) userKey
                            else com.rodgers.routist.BuildConfig.GEOCODING_API_KEY
         geocodingApi.configure(effectiveKey)

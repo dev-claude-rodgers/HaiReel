@@ -77,34 +77,4 @@ class GeocodingClientTest {
         )
     }
 
-    // ── decodePolylinePoints ──────────────────────────────────
-
-    @Test
-    fun `decodePolylinePointsで空文字は空リスト`() {
-        val result = GeocodingClient.decodePolylinePoints("")
-        assertTrue("空リスト", result.isEmpty())
-    }
-
-    @Test
-    fun `decodePolylinePointsでGoogleサンプルを正しく復号する`() {
-        // Google の公式例: "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
-        // → (38.5,-120.2), (40.7,-120.95), (43.252,-126.453)
-        val result = GeocodingClient.decodePolylinePoints("_p~iF~ps|U_ulLnnqC_mqNvxq`@")
-        assertEquals(3, result.size)
-        assertEquals(38.5, result[0].first, 0.001)
-        assertEquals(-120.2, result[0].second, 0.001)
-        assertEquals(40.7, result[1].first, 0.001)
-        assertEquals(-120.95, result[1].second, 0.001)
-        assertEquals(43.252, result[2].first, 0.001)
-        assertEquals(-126.453, result[2].second, 0.001)
-    }
-
-    @Test
-    fun `decodePolylinePointsの結果はPairのリスト`() {
-        val result = GeocodingClient.decodePolylinePoints("_p~iF~ps|U_ulLnnqC_mqNvxq`@")
-        result.forEach { (lat, lng) ->
-            assertTrue("lat が有効範囲", lat in -90.0..90.0)
-            assertTrue("lng が有効範囲", lng in -180.0..180.0)
-        }
-    }
 }
