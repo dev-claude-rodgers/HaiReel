@@ -207,14 +207,9 @@ object PdfGenerator {
             canvas.drawText(text, MARGIN + colW * i, rowY1, p)
         }
 
-        // 情報行2: 事業者 / 案件
+        // 情報行2: 事業者
         val rowY2 = MARGIN + 52f
-        val items2 = mutableListOf<String>()
-        if (company.isNotBlank())    items2.add("事業者：$company")
-        if (assignment.isNotBlank()) items2.add("案件：$assignment")
-        items2.forEachIndexed { i, text ->
-            canvas.drawText(text, MARGIN + colW * i, rowY2, p)
-        }
+        if (company.isNotBlank()) canvas.drawText("事業者：$company", MARGIN, rowY2, p)
 
         // 下区切り線
         p.style = Paint.Style.STROKE
