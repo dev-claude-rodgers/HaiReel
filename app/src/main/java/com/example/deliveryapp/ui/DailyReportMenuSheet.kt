@@ -36,7 +36,8 @@ internal fun DailyReportFragment.showReportMenu() {
     divider()
     row("📈", "案件別サマリー", "表示月の案件ごとの稼働・収入を一覧表示") { showAssignmentSummarySheet() }
     divider()
-    row("📄", "帳票設定", "取引先・締め日・報酬タイプ・出力列") { showPatternListDialog() }
+    val currentPatternName = currentPattern().title
+    row("📄", "帳票を切り替え", "現在: $currentPatternName") { showPatternListDialog() }
     row("🖊️", "作業者署名", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
     row("🤝", "取引先署名", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
     divider()

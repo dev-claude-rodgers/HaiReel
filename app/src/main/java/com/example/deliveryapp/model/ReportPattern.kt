@@ -13,6 +13,8 @@ data class ReportPattern(
     val showPackage: Boolean = true,
     val showDistance: Boolean = true,
     val showFuel: Boolean = true,
+    val showMeter: Boolean = false,
+    val showIncome: Boolean = false,
     val showArea: Boolean = true,
     val showRemarks: Boolean = true,
     // 0=個建て  1=車建て（日当）  2=時間制  3=なし

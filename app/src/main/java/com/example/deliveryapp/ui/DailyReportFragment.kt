@@ -256,7 +256,7 @@ class DailyReportFragment : Fragment() {
         }
     }
 
-    private fun currentPattern(): com.rodgers.routist.model.ReportPattern {
+    internal fun currentPattern(): com.rodgers.routist.model.ReportPattern {
         val ctx = requireContext()
         val gid = reportViewModel.assignmentId.value
         val group = deliveryViewModel.groups.value.find { it.id == gid }

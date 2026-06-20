@@ -241,11 +241,13 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     val chkTime     = chk("時刻（開始・終了・稼働時間）", base.showTime)
     val chkDelivery = chk("配達件数",  base.showDelivery)
     val chkPackage  = chk("個数",      base.showPackage)
-    val chkDistance = chk("走行距離",  base.showDistance)
-    val chkFuel     = chk("燃料費",    base.showFuel)
-    val chkArea     = chk("エリア",    base.showArea)
-    val chkRemarks  = chk("備考",      base.showRemarks)
-    listOf(chkTime, chkDelivery, chkPackage, chkDistance, chkFuel, chkArea, chkRemarks).forEach { root.addView(it) }
+    val chkDistance = chk("走行距離",         base.showDistance)
+    val chkFuel     = chk("燃料費",           base.showFuel)
+    val chkMeter    = chk("開始/終了メーター", base.showMeter)
+    val chkIncome   = chk("収入",             base.showIncome)
+    val chkArea     = chk("エリア",           base.showArea)
+    val chkRemarks  = chk("備考",             base.showRemarks)
+    listOf(chkTime, chkDelivery, chkPackage, chkDistance, chkFuel, chkMeter, chkIncome, chkArea, chkRemarks).forEach { root.addView(it) }
 
     root.addView(TextView(ctx).apply {
         text = "報酬タイプ"; textSize = 13f
@@ -297,6 +299,8 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
                 showPackage   = chkPackage.isChecked,
                 showDistance  = chkDistance.isChecked,
                 showFuel      = chkFuel.isChecked,
+                showMeter     = chkMeter.isChecked,
+                showIncome    = chkIncome.isChecked,
                 showArea      = chkArea.isChecked,
                 showRemarks   = chkRemarks.isChecked,
                 paymentType   = selectedPayType,

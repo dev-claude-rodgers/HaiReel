@@ -69,8 +69,16 @@ class ExcelGenerator(private val context: Context) {
             if (pattern.showDelivery)
                 add(ColDef(pattern.deliveryLabel,
                     { it?.deliveryCount?.toString() ?: "" }, totalDeliv.toString()))
-            add(ColDef("開始メーター", { if (it != null && it.startMeter > 0) it.startMeter.toString() else "" }))
-            add(ColDef("終了メーター", { if (it != null && it.endMeter > 0) it.endMeter.toString() else "" }))
+            if (pattern.showMeter) {
+                add(ColDef("開始メーター", { if (it != null && it.startMeter > 0) it.startMeter.toString() else "" }))
+                add(ColDef("終了メーター", { if (it != null && it.endMeter > 0) it.endMeter.toString() else "" }))
+            }
+            if (pattern.showIncome) {
+                val totalIncome = records.sumOf { it.income }
+                add(ColDef("収入(円)",
+                    { if ((it?.income ?: 0) > 0) "%,d".format(it!!.income) else "" },
+                    if (totalIncome > 0) "%,d".format(totalIncome) else ""))
+            }
             if (pattern.showPackage)
                 add(ColDef(pattern.packageLabel,
                     { it?.packageCount?.toString() ?: "" }, totalPkg.toString()))
@@ -270,13 +278,13 @@ class ExcelGenerator(private val context: Context) {
         }
 
         val sumRow = allDays.size + 6
-        merges.add("A${sumRow}:C${sumRow}")
+        val mergeEnd = minOf(numCols - 1, 2)
+        if (mergeEnd >= 1) merges.add("A${sumRow}:${colLetter(mergeEnd)}${sumRow}")
         sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
         sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))
-        sb.append(sc("B", sumRow, "", s = 2))
-        sb.append(sc("C", sumRow, "", s = 2))
+        for (ci in 1..mergeEnd) sb.append(sc(colLetter(ci), sumRow, "", s = 2))
         columns.forEachIndexed { ci, col ->
-            if (ci >= 2) sb.append(sc(colLetter(ci + 1), sumRow, col.totalValue, s = 2))
+            if (ci > mergeEnd - 1) sb.append(sc(colLetter(ci + 1), sumRow, col.totalValue, s = 2))
         }
         sb.append("</row>")
 

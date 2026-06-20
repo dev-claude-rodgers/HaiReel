@@ -31,9 +31,11 @@ object PatternStorage {
             showTime      = sp.getBoolean("${id}_col_time",  true),
             showDelivery  = sp.getBoolean("${id}_col_deliv", true),
             showPackage   = sp.getBoolean("${id}_col_pkg",   true),
-            showDistance  = sp.getBoolean("${id}_col_dist",  true),
-            showFuel      = sp.getBoolean("${id}_col_fuel",  true),
-            showArea      = sp.getBoolean("${id}_col_area",  true),
+            showDistance  = sp.getBoolean("${id}_col_dist",   true),
+            showFuel      = sp.getBoolean("${id}_col_fuel",   true),
+            showMeter     = sp.getBoolean("${id}_col_meter",  false),
+            showIncome    = sp.getBoolean("${id}_col_income", false),
+            showArea      = sp.getBoolean("${id}_col_area",   true),
             showRemarks   = sp.getBoolean("${id}_col_rem",   true),
             paymentType   = sp.getInt(   "${id}_pay_type",   3),
             unitPrice     = sp.getInt(   "${id}_unit_price", 0)
@@ -57,6 +59,8 @@ object PatternStorage {
             putBoolean("${pattern.id}_col_pkg",    pattern.showPackage)
             putBoolean("${pattern.id}_col_dist",   pattern.showDistance)
             putBoolean("${pattern.id}_col_fuel",   pattern.showFuel)
+            putBoolean("${pattern.id}_col_meter",  pattern.showMeter)
+            putBoolean("${pattern.id}_col_income", pattern.showIncome)
             putBoolean("${pattern.id}_col_area",   pattern.showArea)
             putBoolean("${pattern.id}_col_rem",    pattern.showRemarks)
             putInt    ("${pattern.id}_pay_type",   pattern.paymentType)
