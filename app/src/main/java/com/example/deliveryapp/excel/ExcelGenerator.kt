@@ -57,13 +57,15 @@ class ExcelGenerator(private val context: Context) {
         val workingDays = records.sumOf { 1 + it.endDateOffset }
 
         val columns = buildList<ColDef> {
-            if (pattern.showTime) {
+            if (pattern.showTime || pattern.showStartEndTime) {
                 add(ColDef("開始時刻", { it?.startTime ?: "" }))
                 add(ColDef("終了時刻", {
                     if (it == null) ""
                     else if (it.endDateOffset > 0) "${it.endTime}(+${it.endDateOffset}日)"
                     else it.endTime
                 }))
+            }
+            if (pattern.showTime || pattern.showWorkingHours) {
                 add(ColDef("稼働時間", { it?.workingHoursText ?: "" }, totalHours))
             }
             if (pattern.showDelivery)

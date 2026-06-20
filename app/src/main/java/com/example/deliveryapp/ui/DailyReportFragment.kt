@@ -357,7 +357,7 @@ class DailyReportFragment : Fragment() {
         }
 
         val hasExistingTime = record.startTime.isNotBlank() || record.endTime.isNotBlank()
-        var showTime = hasExistingTime
+        var showTime = hasExistingTime || pattern.showTime
 
         // 日またぎボタンを先に宣言して applyOffsetStyle を定義可能にする
         val offsetBtnList    = mutableListOf<android.widget.Button>()
@@ -390,16 +390,6 @@ class DailyReportFragment : Fragment() {
             offsetLbl.visibility = v; offsetRow.visibility = v
         }
 
-        val cbTime = CheckBox(ctx).apply {
-            text = "稼働時間を記録する"
-            isChecked = showTime
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.topMargin = (10 * dp).toInt() }
-            setOnCheckedChangeListener { _, checked ->
-                showTime = checked; applyTimeVisibility()
-            }
-        }
-        root.addView(cbTime)
 
         val btnStart = android.widget.Button(ctx).apply {
             isAllCaps = false; textSize = 16f; background = null

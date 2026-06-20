@@ -75,12 +75,14 @@ object PdfGenerator {
         val cols: List<Triple<String, (WorkRecord?) -> String, String>> = buildList {
             add(Triple("日付", { _: WorkRecord? -> "" }, "合計(${workingDays}日)"))
             add(Triple("曜",   { _: WorkRecord? -> "" }, ""))
-            if (pattern.showTime) {
+            if (pattern.showTime || pattern.showStartEndTime) {
+                add(Triple("開始", { r: WorkRecord? -> r?.startTime ?: "" }, ""))
+                add(Triple("終了", { r: WorkRecord? -> r?.endTime ?: "" }, ""))
+            }
+            if (pattern.showTime || pattern.showWorkingHours) {
                 val totalHours = records.sumOf { it.workingMinutes }.let { t ->
                     if (t > 0) "%d時間%02d分".format(t / 60, t % 60) else ""
                 }
-                add(Triple("開始",     { r: WorkRecord? -> r?.startTime ?: "" }, ""))
-                add(Triple("終了",     { r: WorkRecord? -> r?.endTime ?: "" }, ""))
                 add(Triple("稼働時間", { r: WorkRecord? -> r?.workingHoursText ?: "" }, totalHours))
             }
             if (pattern.showDelivery) {

@@ -28,7 +28,9 @@ object PatternStorage {
             closingDay    = sp.getInt(   "${id}_closing",    25),
             deliveryLabel = sp.getString("${id}_deliv_lbl",  "配達件数") ?: "配達件数",
             packageLabel  = sp.getString("${id}_pkg_lbl",    "個数") ?: "個数",
-            showTime      = sp.getBoolean("${id}_col_time",  true),
+            showTime         = sp.getBoolean("${id}_col_time",        true),
+            showStartEndTime = sp.getBoolean("${id}_col_start_end",  true),
+            showWorkingHours = sp.getBoolean("${id}_col_work_hours", true),
             showDelivery  = sp.getBoolean("${id}_col_deliv", true),
             showPackage   = sp.getBoolean("${id}_col_pkg",   true),
             showDistance  = sp.getBoolean("${id}_col_dist",   true),
@@ -55,7 +57,9 @@ object PatternStorage {
             putInt    ("${pattern.id}_closing",    pattern.closingDay)
             putString ("${pattern.id}_deliv_lbl",  pattern.deliveryLabel)
             putString ("${pattern.id}_pkg_lbl",    pattern.packageLabel)
-            putBoolean("${pattern.id}_col_time",   pattern.showTime)
+            putBoolean("${pattern.id}_col_time",        pattern.showTime)
+            putBoolean("${pattern.id}_col_start_end",  pattern.showStartEndTime)
+            putBoolean("${pattern.id}_col_work_hours", pattern.showWorkingHours)
             putBoolean("${pattern.id}_col_deliv",  pattern.showDelivery)
             putBoolean("${pattern.id}_col_pkg",    pattern.showPackage)
             putBoolean("${pattern.id}_col_dist",   pattern.showDistance)
@@ -75,7 +79,8 @@ object PatternStorage {
         putIds(ctx, ids)
         p(ctx).edit().apply {
             listOf("title","client","driver","closing","deliv_lbl","pkg_lbl",
-                   "col_time","col_deliv","col_pkg","col_dist","col_fuel",
+                   "col_time","col_start_end","col_work_hours",
+                   "col_deliv","col_pkg","col_dist","col_fuel",
                    "col_meter","col_income","col_area","show_total","col_rem",
                    "pay_type","unit_price")
                 .forEach { remove("${id}_$it") }
