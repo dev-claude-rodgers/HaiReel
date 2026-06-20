@@ -63,18 +63,23 @@ object BackupManager {
     }
 
     suspend fun createBackup(context: Context): File {
-        val dao      = AppDatabase.getInstance(context).workRecordDao()
+        val db       = AppDatabase.getInstance(context)
+        val dao      = db.workRecordDao()
         val records  = dao.getAll()
         val patterns = PatternStorage.getAll(context)
         val activeId = PatternStorage.getActiveId(context)
+        val groups   = db.deliveryGroupDao().getAll()
+        val deliveries = db.deliveryDao().getAll()
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPANESE).format(Date())
         val zipFile = File(context.cacheDir, "RouteJin_backup_$timestamp.zip")
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.utf8Entry("version.txt", FORMAT_VERSION)
-            zos.utf8Entry("records.json",  recordsToJson(records).toString())
-            zos.utf8Entry("patterns.json", patternsToJson(patterns, activeId).toString())
+            zos.utf8Entry("records.json",    recordsToJson(records).toString())
+            zos.utf8Entry("patterns.json",   patternsToJson(patterns, activeId).toString())
+            zos.utf8Entry("groups.json",     groupsToJson(groups).toString())
+            zos.utf8Entry("deliveries.json", deliveriesToJson(deliveries).toString())
 
             for (type in listOf(SignatureStorage.TYPE_DRIVER, SignatureStorage.TYPE_CLIENT)) {
                 val sig = SignatureStorage.fileFor(context, type)
@@ -110,7 +115,8 @@ object BackupManager {
     }
 
     private suspend fun restoreFromStream(context: Context, input: InputStream) {
-        val dao = AppDatabase.getInstance(context).workRecordDao()
+        val db  = AppDatabase.getInstance(context)
+        val dao = db.workRecordDao()
 
         ZipInputStream(input).use { zis ->
             var entry = zis.nextEntry
@@ -126,6 +132,49 @@ object BackupManager {
                     }
                     "patterns.json" -> {
                         restorePatterns(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
+                    }
+                    "groups.json" -> {
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        db.deliveryGroupDao().deleteAll()
+                        for (i in 0 until arr.length()) {
+                            try {
+                                val o = arr.getJSONObject(i)
+                                db.deliveryGroupDao().upsert(com.rodgers.routist.db.DeliveryGroupEntity(
+                                    id        = o.getString("id"),
+                                    name      = o.optString("name", "ルート"),
+                                    colorHex  = o.optString("colorHex", "#F44336"),
+                                    patternId = o.optInt("patternId", -1),
+                                    sortOrder = o.optInt("sortOrder", i)
+                                ))
+                            } catch (e: Exception) { Log.w("BackupManager", "ルートの復元失敗: item $i", e) }
+                        }
+                    }
+                    "deliveries.json" -> {
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        db.deliveryDao().deleteAll()
+                        for (i in 0 until arr.length()) {
+                            try {
+                                val o = arr.getJSONObject(i)
+                                db.deliveryDao().upsert(com.rodgers.routist.db.DeliveryEntity(
+                                    id              = o.getString("id"),
+                                    groupId         = o.getString("groupId"),
+                                    order           = o.optInt("order", i),
+                                    name            = o.optString("name").ifBlank { null },
+                                    address         = o.optString("address", ""),
+                                    geocodedAddress = o.optString("geocodedAddress").ifBlank { null },
+                                    note            = o.optString("note").ifBlank { null },
+                                    photoUri        = o.optString("photoUri").ifBlank { null },
+                                    photoUrisJson   = o.optString("photoUrisJson").ifBlank { null },
+                                    roomsJson       = o.optString("roomsJson").ifBlank { null },
+                                    timeSlot        = o.optString("timeSlot").ifBlank { null },
+                                    packageCount    = o.optInt("packageCount", 0),
+                                    lat             = o.optDouble("lat", 0.0),
+                                    lng             = o.optDouble("lng", 0.0),
+                                    isCompleted     = o.optBoolean("isCompleted", false),
+                                    isGeocoded      = o.optBoolean("isGeocoded", false)
+                                ))
+                            } catch (e: Exception) { Log.w("BackupManager", "配達先の復元失敗: item $i", e) }
+                        }
                     }
                     "sig_driver.png" -> {
                         try {
@@ -216,6 +265,45 @@ object BackupManager {
             put("activeId",  activeId)
             put("patterns",  arr)
         }
+    }
+
+    private fun groupsToJson(groups: List<com.rodgers.routist.db.DeliveryGroupEntity>): JSONArray {
+        val arr = JSONArray()
+        for (g in groups) {
+            arr.put(JSONObject().apply {
+                put("id",        g.id)
+                put("name",      g.name)
+                put("colorHex",  g.colorHex)
+                put("patternId", g.patternId)
+                put("sortOrder", g.sortOrder)
+            })
+        }
+        return arr
+    }
+
+    private fun deliveriesToJson(deliveries: List<com.rodgers.routist.db.DeliveryEntity>): JSONArray {
+        val arr = JSONArray()
+        for (d in deliveries) {
+            arr.put(JSONObject().apply {
+                put("id",              d.id)
+                put("groupId",         d.groupId)
+                put("order",           d.order)
+                put("name",            d.name ?: "")
+                put("address",         d.address)
+                put("geocodedAddress", d.geocodedAddress ?: "")
+                put("note",            d.note ?: "")
+                put("photoUri",        d.photoUri ?: "")
+                put("photoUrisJson",   d.photoUrisJson ?: "")
+                put("roomsJson",       d.roomsJson ?: "")
+                put("timeSlot",        d.timeSlot ?: "")
+                put("packageCount",    d.packageCount)
+                put("lat",             d.lat)
+                put("lng",             d.lng)
+                put("isCompleted",     d.isCompleted)
+                put("isGeocoded",      d.isGeocoded)
+            })
+        }
+        return arr
     }
 
     private fun restorePatterns(context: Context, json: JSONObject) {

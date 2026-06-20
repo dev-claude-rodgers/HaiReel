@@ -11,8 +11,14 @@ interface DeliveryGroupDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entities: List<DeliveryGroupEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: DeliveryGroupEntity)
+
     @Query("DELETE FROM delivery_groups WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM delivery_groups")
+    suspend fun deleteAll()
 
     @Query("SELECT COUNT(*) FROM delivery_groups")
     suspend fun count(): Int
