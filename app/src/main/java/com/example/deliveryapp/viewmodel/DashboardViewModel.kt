@@ -69,7 +69,7 @@ class DashboardViewModel @Inject constructor(
                     income = monthRecords.sumOf { it.income },
                     fuelCost = monthRecords.sumOf { it.fuelCost },
                     profit = monthRecords.sumOf { it.income - it.fuelCost },
-                    workDays = monthRecords.size,
+                    workDays = monthRecords.distinctBy { it.date }.size,
                     deliveryCount = monthRecords.sumOf { it.deliveryCount }
                 )
             }
