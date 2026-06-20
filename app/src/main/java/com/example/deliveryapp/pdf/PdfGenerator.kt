@@ -89,8 +89,8 @@ object PdfGenerator {
                 add(Triple(lbl, { r: WorkRecord? -> if ((r?.packageCount ?: 0) > 0) r!!.packageCount.toString() else "" }, tot))
             }
             if (pattern.showDistance) {
-                val tot = records.sumOf { it.distanceKm.toDouble() }.let { if (it > 0) "%.1f".format(it) else "" }
-                add(Triple("走行km", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.1f".format(r!!.distanceKm) else "" }, tot))
+                val tot = records.sumOf { it.distanceKm.toDouble() }.let { if (it > 0) "%.0f".format(it) else "" }
+                add(Triple("走行km", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0f".format(r!!.distanceKm) else "" }, tot))
             }
             if (pattern.paymentType != 3) {
                 val tot = records.sumOf { it.income }.let { if (it > 0) "%,d".format(it) else "" }

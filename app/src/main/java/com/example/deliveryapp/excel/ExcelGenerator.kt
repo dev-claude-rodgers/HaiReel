@@ -84,8 +84,8 @@ class ExcelGenerator(private val context: Context) {
                     { it?.packageCount?.toString() ?: "" }, totalPkg.toString()))
             if (pattern.showDistance)
                 add(ColDef("走行(km)",
-                    { if (it != null) "%.1f".format(it.distanceKm) else "" },
-                    "%.1f".format(totalDist)))
+                    { if (it != null) "%.0f".format(it.distanceKm) else "" },
+                    "%.0f".format(totalDist)))
             if (pattern.showFuel) {
                 val totalFuel = records.sumOf { it.fuelCost }
                 add(ColDef("燃料費(円)",

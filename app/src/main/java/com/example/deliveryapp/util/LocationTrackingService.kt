@@ -111,7 +111,7 @@ class LocationTrackingService : Service() {
 
     private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
         .setContentTitle("RouteJin 走行距離追跡中")
-        .setContentText("本日の走行距離: ${"%.1f".format(accumulatedKm)} km")
+        .setContentText("本日の走行距離: ${"%.0f".format(accumulatedKm)} km")
         .setSmallIcon(android.R.drawable.ic_menu_mylocation)
         .setOngoing(true)
         .setPriority(NotificationCompat.PRIORITY_LOW)

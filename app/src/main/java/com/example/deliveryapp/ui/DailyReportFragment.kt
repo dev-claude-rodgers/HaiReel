@@ -227,7 +227,7 @@ class DailyReportFragment : Fragment() {
         if (!isAdded) return
         binding.tvSummaryDays.text       = "${records.size}日稼働"
         binding.tvSummaryDeliveries.text = "配達 ${records.sumOf { it.deliveryCount }}件"
-        binding.tvSummaryDistance.text   = "走行 ${"%.1f".format(records.sumOf { it.distanceKm.toDouble() })}km"
+        binding.tvSummaryDistance.text   = "走行 ${"%.0f".format(records.sumOf { it.distanceKm.toDouble() })}km"
         val pattern     = currentPattern()
         val totalIncome = records.sumOf { it.income }
         val totalFuel   = records.sumOf { it.fuelCost }
@@ -567,8 +567,8 @@ class DailyReportFragment : Fragment() {
             val gpsKm = if (record.distanceKm <= 0f)
                 LocationTrackingService.getTodayDistanceKm(ctx) else 0f
             setText(when {
-                record.distanceKm > 0f -> record.distanceKm.toString()
-                gpsKm > 0f && record.date == LocalDate.now().toString() -> "%.1f".format(gpsKm)
+                record.distanceKm > 0f -> record.distanceKm.toInt().toString()
+                gpsKm > 0f && record.date == LocalDate.now().toString() -> "%.0f".format(gpsKm)
                 else -> ""
             })
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
@@ -916,7 +916,7 @@ class DayEntryAdapter(
                 }
                 // 走行距離
                 if (r.distanceKm > 0f || r.endMeter > 0) {
-                    val dist   = if (r.distanceKm > 0f) "${"%.1f".format(r.distanceKm)}km" else "${r.endMeter - r.startMeter}km"
+                    val dist   = if (r.distanceKm > 0f) "${"%.0f".format(r.distanceKm)}km" else "${r.endMeter - r.startMeter}km"
                     val meter  = if (r.startMeter > 0 && r.endMeter > 0) "  (${r.startMeter}km→${r.endMeter}km)" else ""
                     root.addView(tv("🚗 $dist$meter", 12f, secondaryColor))
                 }
