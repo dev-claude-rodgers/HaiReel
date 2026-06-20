@@ -208,14 +208,14 @@ object PdfGenerator {
         }
 
         // 情報行2: 事業者
-        val rowY2 = MARGIN + 52f
+        val rowY2 = MARGIN + 54f
         if (company.isNotBlank()) canvas.drawText("事業者：$company", MARGIN, rowY2, p)
 
-        // 下区切り線
+        // 下区切り線（tableTop = MARGIN + headerH = MARGIN + 64f の直前）
         p.style = Paint.Style.STROKE
         p.strokeWidth = 0.8f
         p.color = Color.parseColor("#AAAAAA")
-        canvas.drawLine(MARGIN, MARGIN + 58f, MARGIN + tableW, MARGIN + 58f, p)
+        canvas.drawLine(MARGIN, MARGIN + 62f, MARGIN + tableW, MARGIN + 62f, p)
         p.style = Paint.Style.FILL
     }
 

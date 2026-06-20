@@ -701,7 +701,11 @@ class DailyReportFragment : Fragment() {
                 assignmentId  = reportViewModel.assignmentId.value
             )
             lifecycleScope.launch {
-                reportViewModel.saveAndWait(updated)
+                // NonCancellable: 画面回転などでコルーチンがキャンセルされてもDB書き込みを完走させる
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    reportViewModel.saveAndWait(updated)
+                }
+                if (!isAdded) return@launch
                 Toast.makeText(ctx, "保存しました（$selectedDate）", Toast.LENGTH_SHORT).show()
                 dlg.dismiss()
             }
