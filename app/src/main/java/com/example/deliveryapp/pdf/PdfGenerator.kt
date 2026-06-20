@@ -67,21 +67,34 @@ object PdfGenerator {
         val daysInMonth = java.time.YearMonth.of(y, m).lengthOfMonth()
         val recordMap = records.associateBy { it.date }
         val companyName = AppSettings.getCompanyName(context)
-        val driverName  = AppSettings.getDriverName(context)
+        val driverName  = pattern.driverName.ifBlank { AppSettings.getDriverName(context) }
+        val clientName  = pattern.clientName
+        val workingDays = records.sumOf { 1 + it.endDateOffset }
 
         // 列定義: (ヘッダー, データ取得関数, 合計値)
         val cols: List<Triple<String, (WorkRecord?) -> String, String>> = buildList {
-            add(Triple("日付", { _: WorkRecord? -> "" }, "合計"))
+            add(Triple("日付", { _: WorkRecord? -> "" }, "合計(${workingDays}日)"))
             add(Triple("曜",   { _: WorkRecord? -> "" }, ""))
             if (pattern.showTime) {
+                val totalHours = records.sumOf { it.workingMinutes }.let { t ->
+                    if (t > 0) "%d時間%02d分".format(t / 60, t % 60) else ""
+                }
                 add(Triple("開始",     { r: WorkRecord? -> r?.startTime ?: "" }, ""))
                 add(Triple("終了",     { r: WorkRecord? -> r?.endTime ?: "" }, ""))
-                add(Triple("稼働時間", { r: WorkRecord? -> r?.workingHoursText ?: "" }, ""))
+                add(Triple("稼働時間", { r: WorkRecord? -> r?.workingHoursText ?: "" }, totalHours))
             }
             if (pattern.showDelivery) {
                 val lbl = pattern.deliveryLabel.ifBlank { "件数" }
                 val tot = records.sumOf { it.deliveryCount }.let { if (it > 0) "${it}件" else "" }
                 add(Triple(lbl, { r: WorkRecord? -> if ((r?.deliveryCount ?: 0) > 0) "${r!!.deliveryCount}件" else "" }, tot))
+            }
+            if (pattern.showMeter) {
+                add(Triple("開始メーター", { r: WorkRecord? -> if ((r?.startMeter ?: 0) > 0) "${r!!.startMeter}km" else "" }, ""))
+                add(Triple("終了メーター", { r: WorkRecord? -> if ((r?.endMeter ?: 0) > 0) "${r!!.endMeter}km" else "" }, ""))
+            }
+            if (pattern.showIncome) {
+                val tot = records.sumOf { it.income }.let { if (it > 0) "%,d円".format(it) else "" }
+                add(Triple("収入", { r: WorkRecord? -> if ((r?.income ?: 0) > 0) "%,d円".format(r!!.income) else "" }, tot))
             }
             if (pattern.showPackage) {
                 val lbl = pattern.packageLabel.ifBlank { "個数" }
@@ -91,10 +104,6 @@ object PdfGenerator {
             if (pattern.showDistance) {
                 val tot = records.sumOf { it.distanceKm.toDouble() }.let { if (it > 0) "%.0fkm".format(it) else "" }
                 add(Triple("走行距離", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0fkm".format(r!!.distanceKm) else "" }, tot))
-            }
-            if (pattern.paymentType != 3) {
-                val tot = records.sumOf { it.income }.let { if (it > 0) "%,d円".format(it) else "" }
-                add(Triple("報酬", { r: WorkRecord? -> if ((r?.income ?: 0) > 0) "%,d円".format(r!!.income) else "" }, tot))
             }
             if (pattern.showFuel) {
                 val fuelTot = records.sumOf { it.fuelCost }.let { if (it > 0) "%,d円".format(it) else "" }
@@ -138,14 +147,17 @@ object PdfGenerator {
         val canvas = page.canvas
 
         val tableTop = MARGIN + headerH
-        drawReportHeader(canvas, y, m, companyName, driverName, assignmentName, pageW)
+        drawReportHeader(canvas, y, m, companyName, driverName, clientName, pattern, assignmentName, pageW)
         drawReportTable(canvas, headers, dataRows, totalRow, widths, rowH, tableTop, daysInMonth)
 
         doc.finishPage(page)
 
-        val label = if (assignmentName.isNotBlank()) "${y}年${m}月_${assignmentName}_日報" else "${y}年${m}月_日報"
+        val safeName = pattern.title.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val safeAssign = assignmentName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val label = if (safeAssign.isNotBlank()) "${y}年${m}月_${safeAssign}_${safeName}" else "${y}年${m}月_${safeName}"
+        val ts    = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val dir   = context.getExternalFilesDir(null) ?: context.filesDir
-        val file  = File(dir, "$label.pdf")
+        val file  = File(dir, "${label}_${ts}.pdf")
         file.outputStream().use { doc.writeTo(it) }
         doc.close()
         return file
@@ -153,24 +165,31 @@ object PdfGenerator {
 
     private fun drawReportHeader(
         canvas: Canvas, y: Int, m: Int,
-        company: String, driver: String, assignment: String,
+        company: String, driver: String, client: String,
+        pattern: ReportPattern, assignment: String,
         pageW: Int
     ) {
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
         val cx = pageW / 2f
 
         p.typeface = Typeface.DEFAULT_BOLD
-        p.textSize = 18f
+        p.textSize = 16f
         p.textAlign = Paint.Align.CENTER
         p.color = Color.BLACK
-        canvas.drawText("${y}年${m}月 稼働日報", cx, MARGIN + 18f, p)
+        canvas.drawText("${y}年${m}月 ${pattern.title}", cx, MARGIN + 16f, p)
 
         p.typeface = Typeface.DEFAULT
-        p.textSize = 11f
+        p.textSize = 10f
         p.textAlign = Paint.Align.LEFT
-        if (company.isNotBlank()) canvas.drawText("事業者: $company", MARGIN, MARGIN + 36f, p)
-        if (driver.isNotBlank())  canvas.drawText("担当者: $driver",  MARGIN + 200f, MARGIN + 36f, p)
-        if (assignment.isNotBlank()) canvas.drawText("案件: $assignment", MARGIN + 400f, MARGIN + 36f, p)
+        val col1 = MARGIN
+        val col2 = MARGIN + 180f
+        val col3 = MARGIN + 380f
+        val col4 = MARGIN + 560f
+        if (driver.isNotBlank())      canvas.drawText("担当者: $driver",  col1, MARGIN + 32f, p)
+        if (client.isNotBlank())      canvas.drawText("取引先: $client",  col2, MARGIN + 32f, p)
+        if (company.isNotBlank())     canvas.drawText("事業者: $company", col3, MARGIN + 32f, p)
+        canvas.drawText("締め日: ${pattern.closingDay}日", col4, MARGIN + 32f, p)
+        if (assignment.isNotBlank())  canvas.drawText("案件: $assignment", col1, MARGIN + 44f, p)
     }
 
     private fun drawReportTable(
