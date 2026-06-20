@@ -3,6 +3,21 @@
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+// Hilt経由で@Injectできるクラス版（新規コードはこちらを使う）
+@Singleton
+class AppSettingsManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    fun getUserApiKey(): String = AppSettings.getUserApiKey(context)
+    fun setUserApiKey(key: String) = AppSettings.setUserApiKey(context, key)
+    fun hasUserApiKey(): Boolean = AppSettings.hasUserApiKey(context)
+    fun isDriverMode(): Boolean = AppSettings.isDriverMode(context)
+    fun getCompanyName(): String = AppSettings.getCompanyName(context)
+}
 
 object AppSettings {
     private const val PREFS = "kado_settings"
