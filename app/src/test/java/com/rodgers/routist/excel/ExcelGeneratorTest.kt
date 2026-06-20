@@ -1,13 +1,20 @@
 package com.rodgers.routist.excel
 
 import android.content.Context
+import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.File
 
 class ExcelGeneratorTest {
 
-    private val gen = ExcelGenerator(mockk<Context>(relaxed = true))
+    private val tmpDir = File(System.getProperty("java.io.tmpdir")!!)
+    private val ctx = mockk<Context>(relaxed = true).also {
+        every { it.filesDir } returns tmpDir
+        every { it.getExternalFilesDir(null) } returns null
+    }
+    private val gen = ExcelGenerator(ctx)
 
     // ── displayLen ────────────────────────────────────────────
 
@@ -100,5 +107,45 @@ class ExcelGeneratorTest {
         val w = gen.calcWidth("東京都新宿区", listOf("短"))
         // "東京都新宿区" = 12（全角6文字）→ +4=16
         assertEquals(16.0, w, 0.01)
+    }
+
+    // ── showTotal制御（合計行の出力） ─────────────────────────────
+
+    @Test
+    fun `showTotal=trueのとき生成XMLに合計行が含まれる`() {
+        val records = listOf(
+            com.rodgers.routist.model.WorkRecord(
+                date = "2026-06-01", deliveryCount = 10,
+                income = 5000, fuelCost = 1000, distanceKm = 50f
+            )
+        )
+        val pattern = com.rodgers.routist.model.ReportPattern(
+            id = 0, showTotal = true
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        assertTrue("合計行テキストが含まれる", sheet.contains("合計"))
+    }
+
+    @Test
+    fun `showTotal=falseのとき生成XMLに合計値が含まれない`() {
+        val records = listOf(
+            com.rodgers.routist.model.WorkRecord(
+                date = "2026-06-01", deliveryCount = 10
+            )
+        )
+        val pattern = com.rodgers.routist.model.ReportPattern(
+            id = 0, showTotal = false, showDelivery = true
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        // showTotal=false なので合計行は空行になり「合計」文字が含まれない
+        assertFalse("合計行が出力されない", sheet.contains("合計"))
     }
 }
