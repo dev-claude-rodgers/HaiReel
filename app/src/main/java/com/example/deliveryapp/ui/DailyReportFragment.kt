@@ -356,10 +356,8 @@ class DailyReportFragment : Fragment() {
             }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
         }
 
-        val isContractor = com.rodgers.routist.util.AppSettings.getEmploymentType(ctx, reportViewModel.assignmentId.value) == "contractor"
-        // 業務委託の場合: 既存データに時刻があればデフォルトで展開
         val hasExistingTime = record.startTime.isNotBlank() || record.endTime.isNotBlank()
-        var showTime = !isContractor || hasExistingTime
+        var showTime = hasExistingTime
 
         // 日またぎボタンを先に宣言して applyOffsetStyle を定義可能にする
         val offsetBtnList    = mutableListOf<android.widget.Button>()
@@ -392,19 +390,16 @@ class DailyReportFragment : Fragment() {
             offsetLbl.visibility = v; offsetRow.visibility = v
         }
 
-        // 業務委託のみ「時刻を入力する」チェックボックスを表示
-        if (isContractor) {
-            val cbTime = CheckBox(ctx).apply {
-                text = "時刻を入力する"
-                isChecked = showTime
-                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.topMargin = (10 * dp).toInt() }
-                setOnCheckedChangeListener { _, checked ->
-                    showTime = checked; applyTimeVisibility()
-                }
+        val cbTime = CheckBox(ctx).apply {
+            text = "稼働時間を記録する"
+            isChecked = showTime
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.topMargin = (10 * dp).toInt() }
+            setOnCheckedChangeListener { _, checked ->
+                showTime = checked; applyTimeVisibility()
             }
-            root.addView(cbTime)
         }
+        root.addView(cbTime)
 
         val btnStart = android.widget.Button(ctx).apply {
             isAllCaps = false; textSize = 16f; background = null
