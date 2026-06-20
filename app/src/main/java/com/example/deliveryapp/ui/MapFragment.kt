@@ -84,7 +84,13 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
+        com.google.android.gms.maps.MapsInitializer.initialize(
+            requireContext(),
+            com.google.android.gms.maps.MapsInitializer.Renderer.LATEST
+        ) { }
+
+        val mapFragment = childFragmentManager.findFragmentById(R.id.map) as? SupportMapFragment
+            ?: return
         mapFragment.getMapAsync(this)
 
         binding.buttonMenu.setOnClickListener { showMapMenu() }
