@@ -247,7 +247,8 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     val chkIncome   = chk("収入",             base.showIncome)
     val chkArea     = chk("エリア",           base.showArea)
     val chkRemarks  = chk("備考",             base.showRemarks)
-    listOf(chkTime, chkDelivery, chkPackage, chkDistance, chkFuel, chkMeter, chkIncome, chkArea, chkRemarks).forEach { root.addView(it) }
+    val chkTotal    = chk("合計行を表示する", base.showTotal)
+    listOf(chkTime, chkDelivery, chkPackage, chkDistance, chkFuel, chkMeter, chkIncome, chkArea, chkRemarks, chkTotal).forEach { root.addView(it) }
 
     root.addView(TextView(ctx).apply {
         text = "報酬タイプ"; textSize = 13f
@@ -302,6 +303,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
                 showMeter     = chkMeter.isChecked,
                 showIncome    = chkIncome.isChecked,
                 showArea      = chkArea.isChecked,
+                showTotal     = chkTotal.isChecked,
                 showRemarks   = chkRemarks.isChecked,
                 paymentType   = selectedPayType,
                 unitPrice     = unitPriceIn.text.toString().toIntOrNull() ?: 0

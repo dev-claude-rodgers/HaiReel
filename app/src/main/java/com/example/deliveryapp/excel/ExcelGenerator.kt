@@ -281,14 +281,18 @@ class ExcelGenerator(private val context: Context) {
 
         val sumRow = allDays.size + 6
         val mergeEnd = minOf(numCols - 1, 2)
-        if (mergeEnd >= 1) merges.add("A${sumRow}:${colLetter(mergeEnd)}${sumRow}")
-        sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
-        sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))
-        for (ci in 1..mergeEnd) sb.append(sc(colLetter(ci), sumRow, "", s = 2))
-        columns.forEachIndexed { ci, col ->
-            if (ci > mergeEnd - 1) sb.append(sc(colLetter(ci + 1), sumRow, col.totalValue, s = 2))
+        if (pattern.showTotal) {
+            if (mergeEnd >= 1) merges.add("A${sumRow}:${colLetter(mergeEnd)}${sumRow}")
+            sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
+            sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))
+            for (ci in 1..mergeEnd) sb.append(sc(colLetter(ci), sumRow, "", s = 2))
+            columns.forEachIndexed { ci, col ->
+                if (ci > mergeEnd - 1) sb.append(sc(colLetter(ci + 1), sumRow, col.totalValue, s = 2))
+            }
+            sb.append("</row>")
+        } else {
+            sb.append("""<row r="$sumRow" ht="5" customHeight="1"/>""")
         }
-        sb.append("</row>")
 
         sb.append("""<row r="${sumRow + 1}" ht="6" customHeight="1"/>""")
 

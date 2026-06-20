@@ -17,6 +17,7 @@ data class ReportPattern(
     val showIncome: Boolean = false,
     val showArea: Boolean = true,
     val showRemarks: Boolean = true,
+    val showTotal: Boolean = true,
     // 0=個建て  1=車建て（日当）  2=時間制  3=なし
     val paymentType: Int = 3,
     val unitPrice: Int = 0

@@ -36,6 +36,7 @@ object PatternStorage {
             showMeter     = sp.getBoolean("${id}_col_meter",  false),
             showIncome    = sp.getBoolean("${id}_col_income", false),
             showArea      = sp.getBoolean("${id}_col_area",   true),
+            showTotal     = sp.getBoolean("${id}_show_total", true),
             showRemarks   = sp.getBoolean("${id}_col_rem",   true),
             paymentType   = sp.getInt(   "${id}_pay_type",   3),
             unitPrice     = sp.getInt(   "${id}_unit_price", 0)
@@ -62,6 +63,7 @@ object PatternStorage {
             putBoolean("${pattern.id}_col_meter",  pattern.showMeter)
             putBoolean("${pattern.id}_col_income", pattern.showIncome)
             putBoolean("${pattern.id}_col_area",   pattern.showArea)
+            putBoolean("${pattern.id}_show_total", pattern.showTotal)
             putBoolean("${pattern.id}_col_rem",    pattern.showRemarks)
             putInt    ("${pattern.id}_pay_type",   pattern.paymentType)
             putInt    ("${pattern.id}_unit_price", pattern.unitPrice)

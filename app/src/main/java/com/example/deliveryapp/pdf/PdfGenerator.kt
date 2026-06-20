@@ -131,13 +131,16 @@ object PdfGenerator {
                 }
             }
         }
-        val totalRow = cols.mapIndexed { idx, col -> if (idx == 0) "合計" else col.third }
+        val totalRow = if (pattern.showTotal)
+            cols.mapIndexed { idx, col -> if (idx == 0) "合計(${workingDays}日)" else col.third }
+        else
+            cols.map { "" }
 
         val tableW = pageW - MARGIN * 2
         val widths = autoWidths(headers, dataRows + listOf(totalRow), tableW)
 
         val rowsPerPage = daysInMonth + 2
-        val headerH = 52f
+        val headerH = 64f
         val tableH  = pageH - MARGIN - headerH - MARGIN
         val rowH    = tableH / rowsPerPage
 
@@ -148,7 +151,7 @@ object PdfGenerator {
 
         val tableTop = MARGIN + headerH
         drawReportHeader(canvas, y, m, companyName, driverName, clientName, pattern, assignmentName, pageW)
-        drawReportTable(canvas, headers, dataRows, totalRow, widths, rowH, tableTop, daysInMonth)
+        drawReportTable(canvas, headers, dataRows, totalRow, widths, rowH, tableTop, daysInMonth, pattern.showTotal)
 
         doc.finishPage(page)
 
@@ -169,27 +172,56 @@ object PdfGenerator {
         pattern: ReportPattern, assignment: String,
         pageW: Int
     ) {
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val p  = Paint(Paint.ANTI_ALIAS_FLAG)
         val cx = pageW / 2f
+        val tableW = pageW - MARGIN * 2
 
+        // タイトル
         p.typeface = Typeface.DEFAULT_BOLD
         p.textSize = 16f
         p.textAlign = Paint.Align.CENTER
         p.color = Color.BLACK
         canvas.drawText("${y}年${m}月 ${pattern.title}", cx, MARGIN + 16f, p)
 
+        // 区切り線
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = 0.8f
+        p.color = Color.parseColor("#AAAAAA")
+        canvas.drawLine(MARGIN, MARGIN + 22f, MARGIN + tableW, MARGIN + 22f, p)
+        p.style = Paint.Style.FILL
+
+        // 情報行1: 担当者 / 取引先 / 締め日
         p.typeface = Typeface.DEFAULT
-        p.textSize = 10f
+        p.textSize = 9.5f
         p.textAlign = Paint.Align.LEFT
-        val col1 = MARGIN
-        val col2 = MARGIN + 180f
-        val col3 = MARGIN + 380f
-        val col4 = MARGIN + 560f
-        if (driver.isNotBlank())      canvas.drawText("担当者: $driver",  col1, MARGIN + 32f, p)
-        if (client.isNotBlank())      canvas.drawText("取引先: $client",  col2, MARGIN + 32f, p)
-        if (company.isNotBlank())     canvas.drawText("事業者: $company", col3, MARGIN + 32f, p)
-        canvas.drawText("締め日: ${pattern.closingDay}日", col4, MARGIN + 32f, p)
-        if (assignment.isNotBlank())  canvas.drawText("案件: $assignment", col1, MARGIN + 44f, p)
+        p.color = Color.parseColor("#333333")
+        val rowY1 = MARGIN + 36f
+        val colW  = tableW / 3f
+        val items1 = listOf(
+            "担当者：${driver.ifBlank { "　" }}",
+            "取引先：${client.ifBlank { "　" }}",
+            "締め日：${pattern.closingDay}日"
+        )
+        items1.forEachIndexed { i, text ->
+            p.textAlign = Paint.Align.LEFT
+            canvas.drawText(text, MARGIN + colW * i, rowY1, p)
+        }
+
+        // 情報行2: 事業者 / 案件
+        val rowY2 = MARGIN + 52f
+        val items2 = mutableListOf<String>()
+        if (company.isNotBlank())    items2.add("事業者：$company")
+        if (assignment.isNotBlank()) items2.add("案件：$assignment")
+        items2.forEachIndexed { i, text ->
+            canvas.drawText(text, MARGIN + colW * i, rowY2, p)
+        }
+
+        // 下区切り線
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = 0.8f
+        p.color = Color.parseColor("#AAAAAA")
+        canvas.drawLine(MARGIN, MARGIN + 58f, MARGIN + tableW, MARGIN + 58f, p)
+        p.style = Paint.Style.FILL
     }
 
     private fun drawReportTable(
@@ -200,7 +232,8 @@ object PdfGenerator {
         widths: List<Float>,
         rowH: Float,
         tableTop: Float,
-        daysInMonth: Int
+        daysInMonth: Int,
+        showTotal: Boolean = true
     ) {
         val p    = Paint(Paint.ANTI_ALIAS_FLAG)
         val gray = Color.parseColor("#DDDDDD")
@@ -221,14 +254,17 @@ object PdfGenerator {
         }
 
         val totalY = tableTop + rowH * (daysInMonth + 1)
-        drawRow(canvas, p, totalRow, widths, totalY, rowH, isHeader = true, Color.parseColor("#E3F2FD"))
+        if (showTotal) {
+            drawRow(canvas, p, totalRow, widths, totalY, rowH, isHeader = true, Color.parseColor("#E3F2FD"))
+        }
 
         // 外枠
         p.style = Paint.Style.STROKE
         p.strokeWidth = 1.5f
         p.color = Color.parseColor("#888888")
         val tableW = widths.sum()
-        canvas.drawRect(MARGIN, tableTop, MARGIN + tableW, totalY + rowH, p)
+        val bottomY = if (showTotal) totalY + rowH else totalY
+        canvas.drawRect(MARGIN, tableTop, MARGIN + tableW, bottomY, p)
     }
 
     private fun drawRow(
