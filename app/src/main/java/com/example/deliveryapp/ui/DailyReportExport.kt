@@ -14,19 +14,13 @@ import com.rodgers.routist.util.SignatureStorage
 import com.rodgers.routist.viewmodel.ReportViewModel
 import kotlinx.coroutines.launch
 
-internal fun DailyReportFragment.askOrientation(ctx: android.content.Context, format: String = "ファイル", onSelected: (Boolean) -> Unit) {
-    showOrientationSheet(ctx, format, onSelected)
-}
-
 internal fun DailyReportFragment.exportExcel() {
     if (!isAdded) return
     val ctx    = requireContext()
     val ym     = reportViewModel.yearMonth.value
     val groups = deliveryViewModel.groups.value
     if (groups.size <= 1) {
-        askOrientation(ctx, "Excel") { portrait ->
-            exportNippo(ctx, ym, reportViewModel.assignmentId.value, deliveryViewModel.currentGroup()?.name ?: "", portrait)
-        }
+        exportNippo(ctx, ym, reportViewModel.assignmentId.value, deliveryViewModel.currentGroup()?.name ?: "")
         return
     }
     val options = (listOf("すべての案件") + groups.map { it.name }).toTypedArray()
@@ -35,15 +29,13 @@ internal fun DailyReportFragment.exportExcel() {
         .setItems(options) { _, which ->
             val (id, name) = if (which == 0) Pair("", "全案件")
                              else { val g = groups[which - 1]; Pair(g.id, g.name) }
-            askOrientation(ctx, "Excel") { portrait ->
-                exportNippo(ctx, ym, id, name, portrait)
-            }
+            exportNippo(ctx, ym, id, name)
         }
         .setNegativeButton("キャンセル", null)
         .show()
 }
 
-internal fun DailyReportFragment.exportNippo(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String, portrait: Boolean = false) {
+internal fun DailyReportFragment.exportNippo(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String) {
     val group   = if (assignmentId.isNotBlank()) (deliveryViewModel.groups.value).find { it.id == assignmentId } else null
     val pid     = group?.patternId?.takeIf { it != -1 }
                   ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
@@ -58,7 +50,7 @@ internal fun DailyReportFragment.exportNippo(ctx: android.content.Context, ym: S
             }
             val driverSig = SignatureStorage.fileFor(ctx, SignatureStorage.TYPE_DRIVER).takeIf { it.exists() }
             val clientSig = SignatureStorage.fileFor(ctx, SignatureStorage.TYPE_CLIENT).takeIf { it.exists() }
-            val file = ExcelGenerator(ctx).generate(records, ym, pattern, driverSig, clientSig, assignmentName, portrait)
+            val file = ExcelGenerator(ctx).generate(records, ym, pattern, driverSig, clientSig, assignmentName, portrait = true)
             shareExcel(ctx, file)
         } catch (e: Exception) {
             Toast.makeText(ctx, "Excel出力エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
@@ -94,9 +86,7 @@ internal fun DailyReportFragment.exportReportPdf() {
     val ym     = reportViewModel.yearMonth.value
     val groups = deliveryViewModel.groups.value
     if (groups.size <= 1) {
-        askOrientation(ctx, "PDF") { portrait ->
-            doExportReportPdf(ctx, ym, reportViewModel.assignmentId.value, deliveryViewModel.currentGroup()?.name ?: "", portrait)
-        }
+        doExportReportPdf(ctx, ym, reportViewModel.assignmentId.value, deliveryViewModel.currentGroup()?.name ?: "")
         return
     }
     val options = (listOf("すべての案件") + groups.map { it.name }).toTypedArray()
@@ -105,25 +95,27 @@ internal fun DailyReportFragment.exportReportPdf() {
         .setItems(options) { _, which ->
             val (id, name) = if (which == 0) Pair("", "全案件")
                              else { val g = groups[which - 1]; Pair(g.id, g.name) }
-            askOrientation(ctx, "PDF") { portrait ->
-                doExportReportPdf(ctx, ym, id, name, portrait)
-            }
+            doExportReportPdf(ctx, ym, id, name)
         }
         .setNegativeButton("キャンセル", null)
         .show()
 }
 
-internal fun DailyReportFragment.doExportReportPdf(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String, portrait: Boolean = false) {
+internal fun DailyReportFragment.doExportReportPdf(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String) {
     val group   = if (assignmentId.isNotBlank()) (deliveryViewModel.groups.value).find { it.id == assignmentId } else null
-    val pid     = group?.patternId ?: -1
-    val pattern = if (pid != -1) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx)
+    val pid     = group?.patternId?.takeIf { it != -1 }
+                  ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
+    val pattern = if (pid != null) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx)
                   else PatternStorage.ensureDefault(ctx)
     lifecycleScope.launch {
         try {
-            val records = reportViewModel.recordsForPeriodWithAssignment(
-                "${ym}-01", "${ym}-31", assignmentId
-            ).filter { it.date.startsWith(ym) }
-            val file = PdfGenerator.generateReportPdf(ctx, records, ym, assignmentName, portrait, pattern)
+            val (startDate, endDate) = ReportViewModel.computePeriod(ym, pattern.closingDay)
+            val records = reportViewModel.recordsForPeriodWithAssignment(startDate, endDate, assignmentId)
+            if (records.isEmpty()) {
+                Toast.makeText(ctx, "この期間の記録がまだありません", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val file = PdfGenerator.generateReportPdf(ctx, records, ym, assignmentName, portrait = true, pattern)
             sharePdf(ctx, file, "${ym.replace("-", "年").plus("月")}日報PDF")
         } catch (e: Exception) {
             Toast.makeText(ctx, "PDF出力エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
