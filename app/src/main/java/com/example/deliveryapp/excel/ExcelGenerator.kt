@@ -42,7 +42,8 @@ class ExcelGenerator(private val context: Context) {
         val safeAssignment = assignmentName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
         val prefix = if (safeAssignment.isNotBlank()) "${year}年${month}月_${safeAssignment}_${safeName}" else "${year}年${month}月_${safeName}"
         val dir  = context.getExternalFilesDir(null) ?: context.filesDir
-        val file = File(dir, "$prefix.xlsx")
+        val ts   = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val file = File(dir, "${prefix}_${ts}.xlsx")
 
         val firstDay  = LocalDate.of(year, month, 1)
         val allDays   = (1..firstDay.lengthOfMonth()).map { firstDay.withDayOfMonth(it) }

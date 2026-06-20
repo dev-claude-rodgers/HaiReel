@@ -148,13 +148,26 @@ internal fun DailyReportFragment.showPatternListDialog() {
         }
     }
 
+    val dp2  = ctx.resources.displayMetrics.density
+    val titleTv = TextView(ctx).apply {
+        text = "帳票設定"; textSize = 17f
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurface))
+        setPadding((20*dp2).toInt(), (16*dp2).toInt(), (20*dp2).toInt(), (12*dp2).toInt())
+    }
+    val wrapper = android.widget.LinearLayout(ctx).apply {
+        orientation = android.widget.LinearLayout.VERTICAL
+        setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurface))
+        addView(titleTv)
+        addView(scroll)
+    }
+
     rebuildList()
 
-    MaterialAlertDialogBuilder(ctx)
-        .setTitle("帳票設定")
-        .setView(scroll)
-        .setNegativeButton("閉じる", null)
-        .show()
+    val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
+    sheet.setContentView(wrapper)
+    sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+    sheet.show()
 }
 
 internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, onSaved: () -> Unit = {}) {
