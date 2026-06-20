@@ -68,6 +68,15 @@ internal fun DailyReportFragment.showPatternListDialog() {
         patterns.forEach { pattern ->
             val isActive = (pattern.id == activeId)
 
+            val selectAction: () -> Unit = {
+                PatternStorage.setActiveId(ctx, pattern.id)
+                val gid = reportViewModel.assignmentId.value
+                if (gid.isNotBlank()) deliveryViewModel.linkPatternToGroup(gid, pattern.id)
+                reportViewModel.setClosingDay(pattern.closingDay)
+                rebuildList()
+                Toast.makeText(ctx, "「${pattern.title}」を選択しました", Toast.LENGTH_SHORT).show()
+            }
+
             val card = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding((12 * dp).toInt(), (10 * dp).toInt(), (12 * dp).toInt(), (8 * dp).toInt())
@@ -79,6 +88,7 @@ internal fun DailyReportFragment.showPatternListDialog() {
                 background = bg
                 layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
                     .also { it.bottomMargin = (8 * dp).toInt() }
+                if (!isActive) setOnClickListener { selectAction() }
             }
 
             val titleRow = LinearLayout(ctx).apply {
@@ -122,16 +132,7 @@ internal fun DailyReportFragment.showPatternListDialog() {
                 }
 
             if (!isActive) {
-                btnRow.addView(rowBtn("選択", greenColor) {
-                    PatternStorage.setActiveId(ctx, pattern.id)
-                    val gid = reportViewModel.assignmentId.value
-                    if (gid.isNotBlank()) {
-                        deliveryViewModel.linkPatternToGroup(gid, pattern.id)
-                    }
-                    reportViewModel.setClosingDay(pattern.closingDay)
-                    rebuildList()
-                    Toast.makeText(ctx, "「${pattern.title}」を選択しました", Toast.LENGTH_SHORT).show()
-                })
+                btnRow.addView(rowBtn("✅ 選択", greenColor) { selectAction() })
             }
             btnRow.addView(rowBtn("編集", primaryColor) {
                 showPatternEditDialog(pattern) { rebuildList() }
@@ -152,26 +153,13 @@ internal fun DailyReportFragment.showPatternListDialog() {
         }
     }
 
-    val dp2  = ctx.resources.displayMetrics.density
-    val titleTv = TextView(ctx).apply {
-        text = "帳票設定"; textSize = 17f
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-        setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurface))
-        setPadding((20*dp2).toInt(), (16*dp2).toInt(), (20*dp2).toInt(), (12*dp2).toInt())
-    }
-    val wrapper = android.widget.LinearLayout(ctx).apply {
-        orientation = android.widget.LinearLayout.VERTICAL
-        setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurface))
-        addView(titleTv)
-        addView(scroll)
-    }
-
     rebuildList()
 
-    val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
-    sheet.setContentView(wrapper)
-    sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
-    sheet.show()
+    MaterialAlertDialogBuilder(ctx)
+        .setTitle("帳票設定")
+        .setView(scroll)
+        .setNegativeButton("閉じる", null)
+        .show()
 }
 
 internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, onSaved: () -> Unit = {}) {
