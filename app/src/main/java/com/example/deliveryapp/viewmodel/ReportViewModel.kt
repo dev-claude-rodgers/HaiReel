@@ -60,6 +60,8 @@ class ReportViewModel @Inject constructor(
 
     fun save(record: WorkRecord) = viewModelScope.launch { dao.upsert(record) }
 
+    suspend fun saveAndWait(record: WorkRecord) = dao.upsert(record)
+
     fun delete(record: WorkRecord) = viewModelScope.launch { dao.delete(record) }
 
     suspend fun recordForDate(date: String): WorkRecord? = dao.recordForDate(date, _assignmentId.value)

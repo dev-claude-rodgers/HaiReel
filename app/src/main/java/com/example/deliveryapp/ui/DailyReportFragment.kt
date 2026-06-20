@@ -685,7 +685,7 @@ class DailyReportFragment : Fragment() {
                 ?: if (em > sm) (em - sm).toFloat() else record.distanceKm
             val delivCount = delivCntIn.text.toString().toIntOrNull() ?: 0
             val workMins   = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
-            reportViewModel.save(record.copy(
+            val updated = record.copy(
                 date          = selectedDate,
                 startTime     = "%02d:%02d".format(startH, startM),
                 endTime       = "%02d:%02d".format(endH, endM),
@@ -699,9 +699,12 @@ class DailyReportFragment : Fragment() {
                 income        = incomeIn.text.toString().toIntOrNull() ?: calcIncome(pattern, delivCount, workMins),
                 fuelCost      = fuelIn.text.toString().toIntOrNull() ?: 0,
                 assignmentId  = reportViewModel.assignmentId.value
-            ))
-            Toast.makeText(ctx, "保存しました（$selectedDate）", Toast.LENGTH_SHORT).show()
-            dlg.dismiss()
+            )
+            lifecycleScope.launch {
+                reportViewModel.saveAndWait(updated)
+                Toast.makeText(ctx, "保存しました（$selectedDate）", Toast.LENGTH_SHORT).show()
+                dlg.dismiss()
+            }
         }
     }
 

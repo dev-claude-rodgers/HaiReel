@@ -32,7 +32,7 @@ internal fun DailyReportFragment.showPatternListDialog() {
 
     fun rebuildList() {
         listRoot.removeAllViews()
-        val activeId = PatternStorage.getActiveId(ctx)
+        val activeId = currentPattern().id
         val patterns = PatternStorage.getAll(ctx)
         val activeBg       = ContextCompat.getColor(ctx, R.color.colorReportPrimaryBg)
         val inactiveBg     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
