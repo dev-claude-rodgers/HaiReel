@@ -260,9 +260,10 @@ class DailyReportFragment : Fragment() {
         val ctx = requireContext()
         val gid = reportViewModel.assignmentId.value
         val group = deliveryViewModel.groups.value.find { it.id == gid }
-        val pid = group?.patternId ?: -1
-        return if (pid != -1) com.rodgers.routist.util.PatternStorage.get(ctx, pid)
-                              ?: com.rodgers.routist.util.PatternStorage.ensureDefault(ctx)
+        val pid = group?.patternId?.takeIf { it != -1 }
+            ?: com.rodgers.routist.util.PatternStorage.getActiveId(ctx).takeIf { it != -1 }
+        return if (pid != null) com.rodgers.routist.util.PatternStorage.get(ctx, pid)
+                                ?: com.rodgers.routist.util.PatternStorage.ensureDefault(ctx)
                else com.rodgers.routist.util.PatternStorage.ensureDefault(ctx)
     }
 

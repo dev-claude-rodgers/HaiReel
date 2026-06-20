@@ -45,8 +45,9 @@ internal fun DailyReportFragment.exportExcel() {
 
 internal fun DailyReportFragment.exportNippo(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String, portrait: Boolean = false) {
     val group   = if (assignmentId.isNotBlank()) (deliveryViewModel.groups.value).find { it.id == assignmentId } else null
-    val pid     = group?.patternId ?: -1
-    val pattern = if (pid != -1) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx) else PatternStorage.ensureDefault(ctx)
+    val pid     = group?.patternId?.takeIf { it != -1 }
+                  ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
+    val pattern = if (pid != null) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx) else PatternStorage.ensureDefault(ctx)
     lifecycleScope.launch {
         try {
             val (startDate, endDate) = ReportViewModel.computePeriod(ym, pattern.closingDay)

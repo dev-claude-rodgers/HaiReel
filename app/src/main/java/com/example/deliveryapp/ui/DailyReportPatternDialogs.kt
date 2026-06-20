@@ -124,6 +124,10 @@ internal fun DailyReportFragment.showPatternListDialog() {
             if (!isActive) {
                 btnRow.addView(rowBtn("選択", greenColor) {
                     PatternStorage.setActiveId(ctx, pattern.id)
+                    val gid = reportViewModel.assignmentId.value
+                    if (gid.isNotBlank()) {
+                        deliveryViewModel.linkPatternToGroup(gid, pattern.id)
+                    }
                     reportViewModel.setClosingDay(pattern.closingDay)
                     rebuildList()
                     Toast.makeText(ctx, "「${pattern.title}」を選択しました", Toast.LENGTH_SHORT).show()
