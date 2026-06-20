@@ -60,7 +60,7 @@ class ReportViewModel @Inject constructor(
 
     fun save(record: WorkRecord) = viewModelScope.launch { dao.upsert(record) }
 
-    suspend fun saveAndWait(record: WorkRecord) = dao.upsert(record)
+    suspend fun saveAndWait(record: WorkRecord) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { dao.upsert(record) }
 
     fun delete(record: WorkRecord) = viewModelScope.launch { dao.delete(record) }
 

@@ -75,7 +75,8 @@ object PatternStorage {
         putIds(ctx, ids)
         p(ctx).edit().apply {
             listOf("title","client","driver","closing","deliv_lbl","pkg_lbl",
-                   "col_time","col_deliv","col_pkg","col_dist","col_area","col_rem",
+                   "col_time","col_deliv","col_pkg","col_dist","col_fuel",
+                   "col_meter","col_income","col_area","show_total","col_rem",
                    "pay_type","unit_price")
                 .forEach { remove("${id}_$it") }
         }.apply()

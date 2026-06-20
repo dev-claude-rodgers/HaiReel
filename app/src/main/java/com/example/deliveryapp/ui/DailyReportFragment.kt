@@ -567,7 +567,7 @@ class DailyReportFragment : Fragment() {
             val gpsKm = if (record.distanceKm <= 0f)
                 LocationTrackingService.getTodayDistanceKm(ctx) else 0f
             setText(when {
-                record.distanceKm > 0f -> record.distanceKm.toInt().toString()
+                record.distanceKm > 0f -> "%.0f".format(record.distanceKm)
                 gpsKm > 0f && record.date == LocalDate.now().toString() -> "%.0f".format(gpsKm)
                 else -> ""
             })
