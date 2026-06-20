@@ -68,29 +68,31 @@ class ExcelGenerator(private val context: Context) {
             }
             if (pattern.showDelivery)
                 add(ColDef(pattern.deliveryLabel,
-                    { it?.deliveryCount?.toString() ?: "" }, totalDeliv.toString()))
+                    { if ((it?.deliveryCount ?: 0) > 0) "${it!!.deliveryCount}件" else "" },
+                    if (totalDeliv > 0) "${totalDeliv}件" else ""))
             if (pattern.showMeter) {
-                add(ColDef("開始メーター", { if (it != null && it.startMeter > 0) it.startMeter.toString() else "" }))
-                add(ColDef("終了メーター", { if (it != null && it.endMeter > 0) it.endMeter.toString() else "" }))
+                add(ColDef("開始メーター(km)", { if (it != null && it.startMeter > 0) "${it.startMeter}km" else "" }))
+                add(ColDef("終了メーター(km)", { if (it != null && it.endMeter > 0) "${it.endMeter}km" else "" }))
             }
             if (pattern.showIncome) {
                 val totalIncome = records.sumOf { it.income }
-                add(ColDef("収入(円)",
-                    { if ((it?.income ?: 0) > 0) "%,d".format(it!!.income) else "" },
-                    if (totalIncome > 0) "%,d".format(totalIncome) else ""))
+                add(ColDef("収入",
+                    { if ((it?.income ?: 0) > 0) "%,d円".format(it!!.income) else "" },
+                    if (totalIncome > 0) "%,d円".format(totalIncome) else ""))
             }
             if (pattern.showPackage)
                 add(ColDef(pattern.packageLabel,
-                    { it?.packageCount?.toString() ?: "" }, totalPkg.toString()))
+                    { if ((it?.packageCount ?: 0) > 0) "${it!!.packageCount}個" else "" },
+                    if (totalPkg > 0) "${totalPkg}個" else ""))
             if (pattern.showDistance)
-                add(ColDef("走行(km)",
-                    { if (it != null) "%.0f".format(it.distanceKm) else "" },
-                    "%.0f".format(totalDist)))
+                add(ColDef("走行距離",
+                    { if (it != null && it.distanceKm > 0f) "%.0fkm".format(it.distanceKm) else "" },
+                    if (totalDist > 0) "%.0fkm".format(totalDist) else ""))
             if (pattern.showFuel) {
                 val totalFuel = records.sumOf { it.fuelCost }
-                add(ColDef("燃料費(円)",
-                    { if ((it?.fuelCost ?: 0) > 0) "%,d".format(it!!.fuelCost) else "" },
-                    if (totalFuel > 0) "%,d".format(totalFuel) else ""))
+                add(ColDef("燃料費",
+                    { if ((it?.fuelCost ?: 0) > 0) "%,d円".format(it!!.fuelCost) else "" },
+                    if (totalFuel > 0) "%,d円".format(totalFuel) else ""))
             }
             if (pattern.showArea)
                 add(ColDef("エリア",   { it?.area ?: "" }))

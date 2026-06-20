@@ -80,25 +80,25 @@ object PdfGenerator {
             }
             if (pattern.showDelivery) {
                 val lbl = pattern.deliveryLabel.ifBlank { "件数" }
-                val tot = records.sumOf { it.deliveryCount }.let { if (it > 0) it.toString() else "" }
-                add(Triple(lbl, { r: WorkRecord? -> if ((r?.deliveryCount ?: 0) > 0) r!!.deliveryCount.toString() else "" }, tot))
+                val tot = records.sumOf { it.deliveryCount }.let { if (it > 0) "${it}件" else "" }
+                add(Triple(lbl, { r: WorkRecord? -> if ((r?.deliveryCount ?: 0) > 0) "${r!!.deliveryCount}件" else "" }, tot))
             }
             if (pattern.showPackage) {
                 val lbl = pattern.packageLabel.ifBlank { "個数" }
-                val tot = records.sumOf { it.packageCount }.let { if (it > 0) it.toString() else "" }
-                add(Triple(lbl, { r: WorkRecord? -> if ((r?.packageCount ?: 0) > 0) r!!.packageCount.toString() else "" }, tot))
+                val tot = records.sumOf { it.packageCount }.let { if (it > 0) "${it}個" else "" }
+                add(Triple(lbl, { r: WorkRecord? -> if ((r?.packageCount ?: 0) > 0) "${r!!.packageCount}個" else "" }, tot))
             }
             if (pattern.showDistance) {
-                val tot = records.sumOf { it.distanceKm.toDouble() }.let { if (it > 0) "%.0f".format(it) else "" }
-                add(Triple("走行km", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0f".format(r!!.distanceKm) else "" }, tot))
+                val tot = records.sumOf { it.distanceKm.toDouble() }.let { if (it > 0) "%.0fkm".format(it) else "" }
+                add(Triple("走行距離", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0fkm".format(r!!.distanceKm) else "" }, tot))
             }
             if (pattern.paymentType != 3) {
-                val tot = records.sumOf { it.income }.let { if (it > 0) "%,d".format(it) else "" }
-                add(Triple("報酬(円)", { r: WorkRecord? -> if ((r?.income ?: 0) > 0) "%,d".format(r!!.income) else "" }, tot))
+                val tot = records.sumOf { it.income }.let { if (it > 0) "%,d円".format(it) else "" }
+                add(Triple("報酬", { r: WorkRecord? -> if ((r?.income ?: 0) > 0) "%,d円".format(r!!.income) else "" }, tot))
             }
             if (pattern.showFuel) {
-                val fuelTot = records.sumOf { it.fuelCost }.let { if (it > 0) "%,d".format(it) else "" }
-                add(Triple("燃料費(円)", { r: WorkRecord? -> if ((r?.fuelCost ?: 0) > 0) "%,d".format(r!!.fuelCost) else "" }, fuelTot))
+                val fuelTot = records.sumOf { it.fuelCost }.let { if (it > 0) "%,d円".format(it) else "" }
+                add(Triple("燃料費", { r: WorkRecord? -> if ((r?.fuelCost ?: 0) > 0) "%,d円".format(r!!.fuelCost) else "" }, fuelTot))
             }
             if (pattern.showArea)
                 add(Triple("エリア", { r: WorkRecord? -> r?.area ?: "" }, ""))
