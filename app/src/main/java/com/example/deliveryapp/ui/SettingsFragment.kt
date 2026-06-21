@@ -34,9 +34,6 @@ class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
 
-    companion object {
-        private const val REQUEST_RESTORE = 9001
-    }
 
     private fun doRestore(ctx: android.content.Context, uri: android.net.Uri, password: String? = null) {
         Toast.makeText(ctx, "復元中...", Toast.LENGTH_SHORT).show()
@@ -90,14 +87,10 @@ class SettingsFragment : Fragment() {
 
         binding.rowBackupCreate.setOnClickListener { createBackup() }
         binding.rowBackupRestore.setOnClickListener {
-            val intent = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(android.content.Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                putExtra(android.content.Intent.EXTRA_MIME_TYPES,
-                    arrayOf("application/zip", "application/octet-stream"))
+            (activity as? com.rodgers.routist.MainActivity)?.launchRestoreFilePicker { uri ->
+                if (uri == null) return@launchRestoreFilePicker
+                handleRestoreUri(uri)
             }
-            @Suppress("DEPRECATION")
-            startActivityForResult(intent, REQUEST_RESTORE)
         }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
         binding.rowHelp.setOnClickListener { showHelpDialog() }
@@ -108,11 +101,8 @@ class SettingsFragment : Fragment() {
         binding.rowExit.setOnClickListener { activity?.finishAffinity() }
     }
 
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_RESTORE || resultCode != android.app.Activity.RESULT_OK) return
-        val uri = data?.data ?: return
+    private fun handleRestoreUri(uri: android.net.Uri) {
+        if (!isAdded) return
         val ctx = requireContext()
         lifecycleScope.launch {
             val rawBytes = withContext(Dispatchers.IO) {

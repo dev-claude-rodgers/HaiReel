@@ -39,6 +39,17 @@ class MainActivity : AppCompatActivity() {
     private var suppressNavSync = false
     private val isDriverMode = true
 
+    // バックアップ復元ファイルピッカー（Hilt Fragment内では動かないためActivity側で管理）
+    private var restoreCallback: ((android.net.Uri?) -> Unit)? = null
+    private val restoreFilePicker = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri -> restoreCallback?.invoke(uri); restoreCallback = null }
+
+    fun launchRestoreFilePicker(callback: (android.net.Uri?) -> Unit) {
+        restoreCallback = callback
+        restoreFilePicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+    }
+
     private var statusBarHeight = 0
     private var isAuthenticated = false
     private var isPromptShowing = false
