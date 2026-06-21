@@ -45,8 +45,8 @@ class OnboardingActivity : AppCompatActivity() {
         ),
         Page(
             "🔑",
-            "地図を使うにはAPIキーが必要です",
-            "設定 → Google APIキー設定から\n自分のキーを登録してください。\n\nGoogle Cloudで無料取得できます。\n個人利用なら無料枠内に収まります。\n\nキーがなくても住所管理・日報・\n点呼の機能は使えます。"
+            "地図にはAPIキーが必要です",
+            "設定 → Google APIキー設定から登録できます。\n\nGoogle Cloudで無料取得でき、\n個人利用は無料枠内に収まります。\n\nキーなしでも住所管理・日報・\n点呼は使えます。"
         )
     )
 
