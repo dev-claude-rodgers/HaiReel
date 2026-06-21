@@ -45,4 +45,7 @@ interface TenkoDao {
 
     @Query("DELETE FROM tenko_records WHERE date LIKE :monthPrefix || '%'")
     suspend fun deleteByMonth(monthPrefix: String)
+
+    @Query("DELETE FROM tenko_records")
+    suspend fun deleteAll()
 }

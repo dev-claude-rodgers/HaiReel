@@ -16,4 +16,7 @@ interface GeocodingCacheDao {
 
     @Query("DELETE FROM geocoding_cache WHERE cachedAt < :threshold")
     suspend fun evictExpired(threshold: Long)
+
+    @Query("DELETE FROM geocoding_cache")
+    suspend fun deleteAll()
 }

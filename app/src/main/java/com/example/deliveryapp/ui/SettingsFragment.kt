@@ -85,6 +85,7 @@ class SettingsFragment : Fragment() {
         binding.rowBackupRestore.setOnClickListener {
             restoreFilePicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
         }
+        binding.rowResetData.setOnClickListener { showResetDataDialog() }
         binding.rowHelp.setOnClickListener { showHelpDialog() }
         binding.rowAbout.setOnClickListener {
             (activity as? com.rodgers.routist.MainActivity)?.showAboutDialog()
@@ -488,6 +489,50 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(ctx, "バックアップに失敗しました", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun showResetDataDialog() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("⚠️ データをすべて初期化")
+            .setMessage("日報・配達先・ルート・帳票パターン・署名を含むすべてのデータを削除します。\n\nこの操作は元に戻せません。\n\n先にバックアップを作成することをおすすめします。")
+            .setPositiveButton("初期化する") { _, _ ->
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        val db = com.rodgers.routist.db.AppDatabase.getInstance(ctx)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            db.workRecordDao().deleteAll()
+                            db.deliveryDao().deleteAll()
+                            db.deliveryGroupDao().deleteAll()
+                            db.tenkoDao().deleteAll()
+                            db.geocodingCacheDao().deleteAll()
+                        }
+                        // SharedPreferences をクリア
+                        ctx.getSharedPreferences("kado_settings", android.content.Context.MODE_PRIVATE)
+                            .edit().clear().apply()
+                        ctx.getSharedPreferences("delivery_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit().clear().apply()
+                        ctx.getSharedPreferences("report_patterns", android.content.Context.MODE_PRIVATE)
+                            .edit().clear().apply()
+                        // 署名を削除
+                        for (type in listOf(com.rodgers.routist.util.SignatureStorage.TYPE_DRIVER, com.rodgers.routist.util.SignatureStorage.TYPE_CLIENT)) {
+                            com.rodgers.routist.util.SignatureStorage.fileFor(ctx, type).delete()
+                        }
+                        android.widget.Toast.makeText(ctx, "初期化が完了しました。アプリを再起動します。", android.widget.Toast.LENGTH_LONG).show()
+                        kotlinx.coroutines.delay(1500)
+                        val intent = requireActivity().packageManager
+                            .getLaunchIntentForPackage(requireActivity().packageName)!!
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        requireActivity().finish()
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(ctx, "初期化に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
     }
 
     private fun showHelpDialog() {
