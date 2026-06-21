@@ -552,7 +552,7 @@ class SettingsFragment : Fragment() {
                             db.geocodingCacheDao().deleteAll()
                         }
                         // SharedPreferences をクリア
-                        ctx.getSharedPreferences("kado_settings", android.content.Context.MODE_PRIVATE)
+                        ctx.getSharedPreferences(com.rodgers.routist.util.AppSettings.PREFS, android.content.Context.MODE_PRIVATE)
                             .edit().clear().apply()
                         ctx.getSharedPreferences("delivery_prefs", android.content.Context.MODE_PRIVATE)
                             .edit().clear().apply()

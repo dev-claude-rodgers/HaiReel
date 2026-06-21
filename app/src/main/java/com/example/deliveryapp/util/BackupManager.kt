@@ -283,7 +283,7 @@ object BackupManager {
     }
 
     private fun settingsToJson(context: Context): JSONObject {
-        val prefs = context.getSharedPreferences("kado_settings", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(AppSettings.PREFS, Context.MODE_PRIVATE)
         val json = JSONObject()
         prefs.all.forEach { (k, v) ->
             when (v) {
@@ -302,7 +302,7 @@ object BackupManager {
     }
 
     private fun restoreSettings(context: Context, json: JSONObject) {
-        val prefs = context.getSharedPreferences("kado_settings", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(AppSettings.PREFS, Context.MODE_PRIVATE)
         val editor = prefs.edit()
         json.keys().forEach { key ->
             if (key == "_user_api_key") return@forEach

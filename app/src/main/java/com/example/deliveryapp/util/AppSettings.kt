@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 object AppSettings {
-    private const val PREFS = "kado_settings"
-    private const val ENCRYPTED_PREFS = "kado_secure"
+    const val PREFS = "kado_settings"
+    const val ENCRYPTED_PREFS = "kado_secure"
     private fun p(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private fun ep(ctx: Context): android.content.SharedPreferences = try {
         val master = MasterKey.Builder(ctx)

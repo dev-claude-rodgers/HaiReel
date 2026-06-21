@@ -30,7 +30,7 @@ class TenkoFlowTest {
     fun setUp() {
         hiltRule.inject()
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
-        ctx.getSharedPreferences("kado_settings", Context.MODE_PRIVATE)
+        ctx.getSharedPreferences(com.rodgers.routist.util.AppSettings.PREFS, Context.MODE_PRIVATE)
             .edit()
             .putBoolean("driver_mode", true)
             .putBoolean("show_mode_on_launch", false)

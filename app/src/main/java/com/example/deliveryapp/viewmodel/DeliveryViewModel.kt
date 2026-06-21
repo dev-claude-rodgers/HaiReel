@@ -65,9 +65,7 @@ class DeliveryViewModel @Inject constructor(
         val updated = list.map { d ->
             if (d.id == deliveryId) d.copy(rooms = newRooms) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     private val geocodingJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
@@ -342,9 +340,7 @@ class DeliveryViewModel @Inject constructor(
         val list = entries.mapIndexed { i, entry ->
             Delivery(order = i + 1, name = entry.name.ifBlank { null }, address = entry.address)
         }
-        _deliveries.value = list
-        saveGroupDeliveries(groupId, list)
-        updateAllDeliveries(groupId, list)
+        commitDeliveries(groupId, list)
         startGeocoding(groupId)
     }
 
@@ -673,9 +669,7 @@ class DeliveryViewModel @Inject constructor(
         val updated = list.map { d ->
             if (d.id == deliveryId) d.copy(rooms = d.roomList + Room(number = roomNumber)) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun updateRoom(deliveryId: String, roomId: String, note: String, isCompleted: Boolean) {
@@ -686,9 +680,7 @@ class DeliveryViewModel @Inject constructor(
                 if (r.id == roomId) r.copy(note = note, isCompleted = isCompleted) else r
             }) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun setRoomStatus(deliveryId: String, roomId: String, status: String) {
@@ -704,9 +696,7 @@ class DeliveryViewModel @Inject constructor(
                 ) else r
             }) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun deleteRoom(deliveryId: String, roomId: String) {
@@ -715,18 +705,14 @@ class DeliveryViewModel @Inject constructor(
         val updated = list.map { d ->
             if (d.id == deliveryId) d.copy(rooms = d.roomList.filter { it.id != roomId }) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun clearRooms(deliveryId: String) {
         val groupId = _currentGroupId.value
         val list = _deliveries.value
         val updated = list.map { d -> if (d.id == deliveryId) d.copy(rooms = emptyList()) else d }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun clearPhotos(deliveryId: String) {
@@ -734,9 +720,7 @@ class DeliveryViewModel @Inject constructor(
         val updated = _deliveries.value.map { d ->
             if (d.id == deliveryId) d.copy(photoUris = emptyList(), photoUri = null) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun editNote(id: String, note: String) {
@@ -744,9 +728,7 @@ class DeliveryViewModel @Inject constructor(
         val updated = _deliveries.value.map { d ->
             if (d.id == id) d.copy(note = note) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun updateTimeSlotAndPackage(id: String, timeSlot: String?, packageCount: Int) {
@@ -770,9 +752,7 @@ class DeliveryViewModel @Inject constructor(
         val updated = _deliveries.value.map { d ->
             if (d.id == id) d.copy(photoUris = d.allPhotoUris + photoUri, photoUri = null) else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     fun removePhoto(id: String, index: Int) {
@@ -783,9 +763,7 @@ class DeliveryViewModel @Inject constructor(
                 d.copy(photoUris = newUris, photoUri = null)
             } else d
         }
-        _deliveries.value = updated
-        saveGroupDeliveries(groupId, updated)
-        updateAllDeliveries(groupId, updated)
+        commitDeliveries(groupId, updated)
     }
 
     // ドラッグ並べ替え後に呼ぶ: 新しい順序でorder番号を振り直して保存
@@ -797,9 +775,7 @@ class DeliveryViewModel @Inject constructor(
 
     fun clearCurrentGroup() {
         val groupId = _currentGroupId.value
-        _deliveries.value = emptyList()
-        saveGroupDeliveries(groupId, emptyList())
-        updateAllDeliveries(groupId, emptyList())
+        commitDeliveries(groupId, emptyList())
         repo.clearFileUri(groupId)
     }
 
@@ -878,9 +854,7 @@ class DeliveryViewModel @Inject constructor(
                                 geocodedAddress = null
                             ) else d
                         }
-                        _deliveries.value = updated
-                        saveGroupDeliveries(groupId, updated)
-                        updateAllDeliveries(groupId, updated)
+                        commitDeliveries(groupId, updated)
                     }
                 }
             )
