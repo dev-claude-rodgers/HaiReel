@@ -176,10 +176,10 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
     val WRAP  = LinearLayout.LayoutParams.WRAP_CONTENT
 
-    val scroll = ScrollView(ctx).also {
-        val maxH = (ctx.resources.displayMetrics.heightPixels * 0.75).toInt()
-        it.layoutParams = android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.MATCH_PARENT, maxH
+    val maxH = (ctx.resources.displayMetrics.heightPixels * 0.75).toInt()
+    val scroll = ScrollView(ctx).apply {
+        layoutParams = android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT, maxH
         )
     }
     val root   = LinearLayout(ctx).apply {

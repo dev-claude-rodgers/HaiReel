@@ -98,8 +98,9 @@ object PdfGenerator {
                 add(Triple("開始メーター(km)", { r: WorkRecord? -> if ((r?.startMeter ?: 0) > 0) "${r!!.startMeter}km" else "" }, ""))
                 add(Triple("終了メーター(km)", { r: WorkRecord? -> if ((r?.endMeter ?: 0) > 0) "${r!!.endMeter}km" else "" }, ""))
             }
-            if (pattern.showIncome || pattern.paymentType != 3) {
-                val tot = records.sumOf { it.income }.let { if (it > 0) "%,d円".format(it) else "" }
+            val totalIncomeSum = records.sumOf { it.income }
+            if (pattern.showIncome || pattern.paymentType != 3 || totalIncomeSum > 0) {
+                val tot = totalIncomeSum.let { if (it > 0) "%,d円".format(it) else "" }
                 add(Triple("収入", { r: WorkRecord? -> if ((r?.income ?: 0) > 0) "%,d円".format(r!!.income) else "" }, tot))
             }
             if (pattern.showPackage) {
