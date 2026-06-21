@@ -110,7 +110,7 @@ class DashboardFragment : Fragment() {
                     (12 * dp).toInt(), (10 * dp).toInt(),
                     (12 * dp).toInt(), (10 * dp).toInt()
                 )
-                if (index % 2 == 1) setBackgroundColor(Color.parseColor("#F9F9F9"))
+                if (index % 2 == 1) setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant))
             }
 
             fun cell(text: String, weight: Float, align: Int = android.view.Gravity.START, color: Int? = null, bold: Boolean = false): TextView {

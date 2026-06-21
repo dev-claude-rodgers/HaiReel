@@ -363,7 +363,7 @@ class DailyReportFragment : Fragment() {
         val offsetBtnList    = mutableListOf<android.widget.Button>()
         val offsetSelectedColor = ContextCompat.getColor(ctx, R.color.colorReportPrimary)
         val offsetUnselectColor = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-        val offsetTextUnselect  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val offsetTextUnselect  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         fun applyOffsetStyle() {
             offsetBtnList.forEachIndexed { j, b ->
                 val sel = (j == endDateOffset)
