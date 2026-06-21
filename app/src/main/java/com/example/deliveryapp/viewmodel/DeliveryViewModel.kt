@@ -39,7 +39,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DeliveryViewModel @Inject constructor(
     app: Application,
-    private val repo: DeliveryRepository,
+    internal val repo: DeliveryRepository,
     private val geocodingManager: GeocodingManager,
     private val geocodingApi: GeocodingApi
 ) : AndroidViewModel(app) {
@@ -68,22 +68,22 @@ class DeliveryViewModel @Inject constructor(
         commitDeliveries(groupId, updated)
     }
 
-    private val geocodingJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
+    internal val geocodingJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     // グループ一覧
-    private val _groups = MutableStateFlow<List<DeliveryGroup>>(emptyList())
+    internal val _groups = MutableStateFlow<List<DeliveryGroup>>(emptyList())
     val groups: StateFlow<List<DeliveryGroup>> = _groups.asStateFlow()
 
     // 選択中のグループID
-    private val _currentGroupId = MutableStateFlow("")
+    internal val _currentGroupId = MutableStateFlow("")
     val currentGroupId: StateFlow<String> = _currentGroupId.asStateFlow()
 
     // 選択中グループの配達リスト
-    private val _deliveries = MutableStateFlow<List<Delivery>>(emptyList())
+    internal val _deliveries = MutableStateFlow<List<Delivery>>(emptyList())
     val deliveries: StateFlow<List<Delivery>> = _deliveries.asStateFlow()
 
     // 全グループの配達リスト（地図表示用）
-    private val _allDeliveries = MutableStateFlow<Map<String, List<Delivery>>>(emptyMap())
+    internal val _allDeliveries = MutableStateFlow<Map<String, List<Delivery>>>(emptyMap())
     val allDeliveries: StateFlow<Map<String, List<Delivery>>> = _allDeliveries.asStateFlow()
 
     fun searchDeliveriesByName(query: String, excludeId: String = ""): List<Delivery> {
@@ -99,22 +99,22 @@ class DeliveryViewModel @Inject constructor(
             .take(8)
     }
 
-    private val _geocodingProgress = MutableStateFlow<GeocodingProgress?>(null)
+    internal val _geocodingProgress = MutableStateFlow<GeocodingProgress?>(null)
     val geocodingProgress: StateFlow<GeocodingProgress?> = _geocodingProgress.asStateFlow()
 
-    private val _geocodingFailedCount = MutableStateFlow(0)
+    internal val _geocodingFailedCount = MutableStateFlow(0)
     val geocodingFailedCount: StateFlow<Int> = _geocodingFailedCount.asStateFlow()
     fun clearGeocodingFailure() { _geocodingFailedCount.value = 0 }
     fun retryGeocoding() { startGeocoding(_currentGroupId.value) }
 
-    private val _areaHint = MutableStateFlow("")  // 値はinitで現在グループから読み込む
+    internal val _areaHint = MutableStateFlow("")  // 値はinitで現在グループから読み込む
     val areaHint: StateFlow<String> = _areaHint.asStateFlow()
 
     private val _isSelectMode = MutableStateFlow(false)
     val isSelectMode: StateFlow<Boolean> = _isSelectMode.asStateFlow()
     fun setSelectMode(enabled: Boolean) { _isSelectMode.value = enabled }
 
-    private val _errorMessage = MutableStateFlow<String?>(null)
+    internal val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     fun clearError() { _errorMessage.value = null }
 
@@ -135,16 +135,16 @@ class DeliveryViewModel @Inject constructor(
     }
 
     data class PinLocation(val lat: Double, val lng: Double)
-    private val _pinAddedFromMap = MutableSharedFlow<PinLocation>(extraBufferCapacity = 1)
+    internal val _pinAddedFromMap = MutableSharedFlow<PinLocation>(extraBufferCapacity = 1)
     val pinAddedFromMap: SharedFlow<PinLocation> = _pinAddedFromMap.asSharedFlow()
 
-    private val _openEditForDelivery = MutableStateFlow<String?>(null)
+    internal val _openEditForDelivery = MutableStateFlow<String?>(null)
     val openEditForDelivery: StateFlow<String?> = _openEditForDelivery.asStateFlow()
     fun requestEditDelivery(id: String) { _openEditForDelivery.value = id }
     fun clearEditRequest() { _openEditForDelivery.value = null }
 
     data class OverwriteConfirmation(val uri: android.net.Uri, val newContent: String)
-    private val _pendingOverwrite = MutableStateFlow<OverwriteConfirmation?>(null)
+    internal val _pendingOverwrite = MutableStateFlow<OverwriteConfirmation?>(null)
     val pendingOverwrite: StateFlow<OverwriteConfirmation?> = _pendingOverwrite.asStateFlow()
 
     fun confirmOverwrite() {
@@ -164,7 +164,7 @@ class DeliveryViewModel @Inject constructor(
 
     // 配達リストをUIと永続化層に一括コミット
     // ※ファイルへの自動書き出しは行わない（明示的なエクスポート操作のみ）
-    private fun commitDeliveries(groupId: String, list: List<Delivery>) {
+    internal fun commitDeliveries(groupId: String, list: List<Delivery>) {
         _deliveries.value = list
         saveGroupDeliveries(groupId, list)
         updateAllDeliveries(groupId, list)
@@ -175,11 +175,11 @@ class DeliveryViewModel @Inject constructor(
         )
     }
 
-    private val _mapFilter = MutableStateFlow<Set<String>?>(null)
+    internal val _mapFilter = MutableStateFlow<Set<String>?>(null)
     val mapFilter: StateFlow<Set<String>?> = _mapFilter.asStateFlow()
     fun setMapFilter(ids: Set<String>?) { _mapFilter.value = ids }
 
-    private val _visibleGroupIds = MutableStateFlow<Set<String>?>(null) // null = 全グループ表示
+    internal val _visibleGroupIds = MutableStateFlow<Set<String>?>(null) // null = 全グループ表示
     val visibleGroupIds: StateFlow<Set<String>?> = _visibleGroupIds.asStateFlow()
     fun setVisibleGroups(ids: Set<String>?) { _visibleGroupIds.value = ids }
 
@@ -214,7 +214,7 @@ class DeliveryViewModel @Inject constructor(
         }
     }
 
-    private fun applyAreaHintForGroup(groupId: String) {
+    internal fun applyAreaHintForGroup(groupId: String) {
         val hint = repo.getAreaHint(groupId)
         _areaHint.value = hint
         geocodingApi.setAreaHint(hint)
@@ -229,105 +229,6 @@ class DeliveryViewModel @Inject constructor(
             geocodingApi.setBias(0.0, 0.0)
         }
     }
-
-    // ---- グループ操作 ----
-
-    // リスト内の順番に基づいて全グループの色を再割り当てして保存（1番目=赤, 2番目=青…）
-    private fun normalizeGroupColors() {
-        val current = _groups.value
-        _groups.value = current.mapIndexed { i, g -> g.copy(colorHex = colorForIndex(i)) }
-        saveGroups()
-    }
-
-    fun createGroup(name: String): DeliveryGroup {
-        val index = _groups.value.size
-        val group = DeliveryGroup(name = name, colorHex = colorForIndex(index))
-        _groups.value = _groups.value + group
-        normalizeGroupColors()
-        return _groups.value.last()
-    }
-
-    fun deleteGroup(groupId: String) {
-        geocodingJobs[groupId]?.cancel()
-        geocodingJobs.remove(groupId)
-        val group = _groups.value.find { it.id == groupId }
-        val updated = _groups.value.filter { it.id != groupId }
-        _groups.value = updated
-        normalizeGroupColors()
-        repo.clearGroupPrefs(groupId)
-        viewModelScope.launch(Dispatchers.IO) { repo.deleteGroup(groupId) }
-        group?.let { deleteDownloadsFile(groupId, it.name) }
-
-        val allMap = _allDeliveries.value.toMutableMap()
-        allMap.remove(groupId)
-        _allDeliveries.value = allMap
-
-        if (_currentGroupId.value == groupId) {
-            val first = updated.firstOrNull()
-            if (first != null) switchGroup(first.id) else {
-                _currentGroupId.value = ""
-                _deliveries.value = emptyList()
-            }
-        }
-    }
-
-    fun copyGroup(sourceGroupId: String) {
-        val source = _groups.value.find { it.id == sourceGroupId } ?: return
-        // 末尾の " N"（スペース＋数字）を除いたベース名で番号を管理
-        val baseName = source.name.replace(Regex(" \\d+$"), "")
-        val existing = _groups.value
-        val maxNum = existing.mapNotNull { g ->
-            when {
-                g.name == baseName -> 1
-                g.name.matches(Regex("${Regex.escape(baseName)} \\d+")) ->
-                    g.name.removePrefix("$baseName ").toIntOrNull()
-                else -> null
-            }
-        }.maxOrNull() ?: 1
-        val newGroup = createGroup("$baseName ${maxNum + 1}")
-        val copied = (_allDeliveries.value.get(sourceGroupId) ?: emptyList())
-            .mapIndexed { i, d -> d.copy(order = i + 1) }
-        if (copied.isNotEmpty()) {
-            saveGroupDeliveries(newGroup.id, copied)
-            val allMap = _allDeliveries.value.toMutableMap()
-            allMap[newGroup.id] = copied
-            _allDeliveries.value = allMap
-        }
-        switchGroup(newGroup.id)
-    }
-
-    fun renameGroup(groupId: String, newName: String) {
-        val oldName = _groups.value.find { it.id == groupId }?.name
-        val updated = _groups.value.map {
-            if (it.id == groupId) it.copy(name = newName) else it
-        }
-        _groups.value = updated
-        saveGroups()
-        // 旧ファイルを削除して新しいグループ名でファイルを出力
-        if (oldName != null && oldName != newName) {
-            deleteDownloadsFile(groupId, oldName)
-            val list = _allDeliveries.value.get(groupId) ?: emptyList()
-            if (list.isNotEmpty()) exportToDownloads(groupId, list)
-        }
-    }
-
-    fun switchGroup(groupId: String) {
-        if (_currentGroupId.value == groupId) return
-        geocodingJobs[_currentGroupId.value]?.cancel()
-        _geocodingProgress.value = null
-        // currentGroupId を変える前に visibleGroupIds をリセットしておく
-        // → どのオブザーバが先に発火しても「現在のリストのみ」になることを保証
-        _visibleGroupIds.value = null
-        _currentGroupId.value = groupId
-        repo.saveCurrentGroupId(groupId)
-        applyAreaHintForGroup(groupId)
-        val list = _allDeliveries.value.get(groupId) ?: emptyList()
-        _deliveries.value = list
-        updateAllDeliveries(groupId, list)
-    }
-
-    fun currentGroup(): DeliveryGroup? =
-        _groups.value.find { it.id == _currentGroupId.value }
 
     // ---- 配達操作 ----
 
@@ -344,175 +245,6 @@ class DeliveryViewModel @Inject constructor(
         startGeocoding(groupId)
     }
 
-    // 起動時: グループがあるのにDownloadsファイルが存在しない場合、再作成する
-    private fun createMissingDownloadFiles(activeGroups: List<com.rodgers.routist.model.DeliveryGroup>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val resolver = context.contentResolver
-                    val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                    activeGroups.forEach { group ->
-                        val list = repo.loadDeliveries(group.id)
-                        if (list.isEmpty()) return@forEach
-                        val safeName = group.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
-                        val fileName = "RouteJin_$safeName.txt"
-                        val exists = resolver.query(baseUri, arrayOf(MediaStore.Downloads._ID),
-                            "${MediaStore.Downloads.DISPLAY_NAME} = ?",
-                            arrayOf(fileName), null)?.use { it.count > 0 } ?: false
-                        if (!exists) {
-                            val content = list.mapIndexed { i, d ->
-                                "${i + 1}. ${if (!d.name.isNullOrBlank()) d.name else d.address}"
-                            }.joinToString("\n")
-                            val values = ContentValues().apply {
-                                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                                put(MediaStore.Downloads.MIME_TYPE, "text/plain")
-                                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                            }
-                            resolver.insert(baseUri, values)?.let { uri ->
-                                resolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use { w -> w.write(content) }
-                                repo.saveDownloadFileUri(group.id, uri.toString())
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) { Log.w(TAG, "Downloadsファイル作成失敗", e) }
-        }
-    }
-
-    // 起動時: Downloadsの RouteJin_*.txt のうち、対応するグループが存在しないファイルを全削除
-    private fun cleanupOrphanedDownloadFiles(activeGroups: List<com.rodgers.routist.model.DeliveryGroup>) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val resolver = context.contentResolver
-                    val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                    val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.DISPLAY_NAME)
-                    resolver.query(baseUri, projection, null, null, null)?.use { cursor ->
-                        while (cursor.moveToNext()) {
-                            val fileId = cursor.getLong(0)
-                            val fileName = cursor.getString(1) ?: continue
-                            if (!fileName.startsWith("RouteJin_") || !fileName.endsWith(".txt")) continue
-                            val hasGroup = activeGroups.any { g ->
-                                val safe = g.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
-                                "RouteJin_$safe.txt" == fileName
-                            }
-                            if (!hasGroup) {
-                                resolver.delete(ContentUris.withAppendedId(baseUri, fileId), null, null)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) { Log.w(TAG, "不要Downloadsファイル削除失敗", e) }
-        }
-    }
-
-    // Downloadsフォルダの RouteJin_グループ名.txt を削除
-    private fun deleteDownloadsFile(groupId: String, groupName: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val resolver = context.contentResolver
-                    // 保存済みURIで直接削除（確実）
-                    val savedUri = repo.getDownloadFileUri(groupId)
-                    if (savedUri != null) {
-                        try {
-                            resolver.delete(android.net.Uri.parse(savedUri), null, null)
-                        } catch (_: Exception) {}
-                        repo.clearDownloadFileUri(groupId)
-                    }
-                    // フォールバック: ファイル名で検索して削除
-                    val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                    val safeName = groupName.replace(Regex("[/\\\\:*?\"<>|]"), "_")
-                    val fileName = "RouteJin_$safeName.txt"
-                    resolver.query(baseUri, arrayOf(MediaStore.Downloads._ID),
-                        "${MediaStore.Downloads.DISPLAY_NAME} = ?",
-                        arrayOf(fileName), null)?.use { cursor ->
-                        while (cursor.moveToNext()) {
-                            resolver.delete(ContentUris.withAppendedId(baseUri, cursor.getLong(0)), null, null)
-                        }
-                    }
-                }
-            } catch (e: Exception) { Log.w(TAG, "Downloadsファイル削除失敗", e) }
-        }
-    }
-
-    // インポートファイルの MediaStore ID を返す（DocumentsProvider/MediaStore 両形式に対応）
-    private fun importFileMediaStoreId(groupId: String): Long? {
-        val uriStr = repo.getFileUri(groupId) ?: return null
-        val uri = android.net.Uri.parse(uriStr)
-        return when (uri.authority) {
-            "com.android.providers.media.documents" ->
-                DocumentsContract.getDocumentId(uri).split(":").lastOrNull()?.toLongOrNull()
-            else -> try { ContentUris.parseId(uri) } catch (_: Exception) { null }
-        }
-    }
-
-    // Downloadsフォルダに RouteJin_グループ名.txt として出力
-    private fun exportToDownloads(groupId: String, list: List<Delivery>) {
-        if (list.isEmpty()) return
-        val group = _groups.value.find { it.id == groupId } ?: return
-        val content = list.mapIndexed { index, d ->
-            val num = index + 1
-            val label = if (!d.name.isNullOrBlank()) d.name else d.address
-            "$num. $label"
-        }.joinToString("\n")
-        val safeName = group.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
-        val fileName = "RouteJin_$safeName.txt"
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val context = getApplication<Application>()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val resolver = context.contentResolver
-                    val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                    // 既存ファイルを検索し、あればそのURIに上書き（削除→再作成だと重複ファイルになる）
-                    val projection = arrayOf(MediaStore.Downloads._ID)
-                    val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ?"
-                    val existingCursor = resolver.query(baseUri, projection, selection, arrayOf(fileName), null)
-                    val fileUri = if (existingCursor != null && existingCursor.moveToFirst()) {
-                        val id = existingCursor.getLong(0)
-                        existingCursor.close()
-                        val sameAsImport = importFileMediaStoreId(groupId) == id
-                        val fileUri = ContentUris.withAppendedId(baseUri, id)
-                        if (sameAsImport) {
-                            // 内容が変わっていたら確認ダイアログを出す
-                            val existing = try {
-                                resolver.openInputStream(fileUri)?.bufferedReader()?.readText()
-                            } catch (_: Exception) { null }
-                            if (existing != null && existing.trim() != content.trim()) {
-                                withContext(Dispatchers.Main) {
-                                    _pendingOverwrite.value = OverwriteConfirmation(fileUri, content)
-                                }
-                            }
-                            return@launch
-                        }
-                        fileUri
-                    } else {
-                        existingCursor?.close()
-                        val values = ContentValues().apply {
-                            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                            put(MediaStore.Downloads.MIME_TYPE, "text/plain")
-                            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                        }
-                        resolver.insert(baseUri, values)
-                    }
-                    fileUri?.let { uri ->
-                        resolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use { w -> w.write(content) }
-                        // 削除時に直接使えるようURIを保存
-                        repo.saveDownloadFileUri(groupId, uri.toString())
-                    }
-                } else {
-                    File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-                        .writeText(content)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "エクスポート失敗", e)
-                _errorMessage.value = "エクスポートに失敗しました"
-            }
-        }
-    }
 
     fun toggleCompleted(id: String) {
         val groupId = _currentGroupId.value
@@ -821,7 +553,7 @@ class DeliveryViewModel @Inject constructor(
         return s.trim().ifBlank { address }
     }
 
-    private fun startGeocoding(groupId: String) {
+    internal fun startGeocoding(groupId: String) {
         geocodingJobs[groupId]?.cancel()
         _geocodingProgress.value = null
         val originalList = _deliveries.value.toList()
@@ -873,18 +605,18 @@ class DeliveryViewModel @Inject constructor(
         geocodingJobs[groupId] = job
     }
 
-    private fun updateAllDeliveries(groupId: String, list: List<Delivery>) {
+    internal fun updateAllDeliveries(groupId: String, list: List<Delivery>) {
         val map = _allDeliveries.value.toMutableMap()
         map[groupId] = list
         _allDeliveries.value = map
     }
 
-    private fun saveGroups() {
+    internal fun saveGroups() {
         val groups = _groups.value
         viewModelScope.launch(Dispatchers.IO) { repo.saveGroups(groups) }
     }
 
-    private fun saveGroupDeliveries(groupId: String, list: List<Delivery>) {
+    internal fun saveGroupDeliveries(groupId: String, list: List<Delivery>) {
         viewModelScope.launch(Dispatchers.IO) { repo.saveDeliveries(groupId, list) }
     }
 
