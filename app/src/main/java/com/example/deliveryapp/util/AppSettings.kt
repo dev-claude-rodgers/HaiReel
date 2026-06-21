@@ -225,13 +225,7 @@ object AppSettings {
     fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).commit() }
     fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
 
-    // 走行距離追跡（点呼連動）
-    fun isLocationTrackingEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("location_tracking_enabled", true)
-    fun setLocationTrackingEnabled(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean("location_tracking_enabled", v).commit() }
 
-    // 到着通知（ジオフェンス）
-    fun isGeofenceEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("geofence_enabled", false)
-    fun setGeofenceEnabled(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean("geofence_enabled", v).commit() }
 
     // セキュリティ
     fun isAppLockEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("app_lock_enabled", false)

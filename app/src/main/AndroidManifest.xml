@@ -8,9 +8,6 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:name=".RouteJinApp"
@@ -84,15 +81,6 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
-        <receiver
-            android:name=".util.GeofenceBroadcastReceiver"
-            android:exported="false" />
-
-        <service
-            android:name=".util.LocationTrackingService"
-            android:foregroundServiceType="location"
-            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

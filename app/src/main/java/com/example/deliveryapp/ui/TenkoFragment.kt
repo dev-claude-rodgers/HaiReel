@@ -23,9 +23,9 @@ import com.rodgers.routist.R
 import com.rodgers.routist.databinding.FragmentTenkoBinding
 import com.rodgers.routist.model.TenkoRecord
 import com.rodgers.routist.util.AppSettings
-import com.rodgers.routist.util.BackupManager
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.viewmodel.DeliveryViewModel
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.viewmodel.TenkoViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -42,22 +42,6 @@ class TenkoFragment : Fragment() {
     val deliveryViewModel: DeliveryViewModel by activityViewModels()
 
     lateinit var adapter: TenkoMonthAdapter
-
-    val restoreLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        val ctx = context ?: return@registerForActivityResult
-        if (uri != null) {
-            lifecycleScope.launch {
-                try {
-                    BackupManager.restoreBackup(ctx, uri)
-                    if (isAdded) Toast.makeText(ctx, "バックアップから復元しました", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    if (isAdded) Toast.makeText(ctx, "復元エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
 
     val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()

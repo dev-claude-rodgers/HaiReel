@@ -39,13 +39,12 @@ import com.rodgers.routist.databinding.FragmentDailyReportBinding
 import com.rodgers.routist.excel.ExcelGenerator
 import com.rodgers.routist.model.ReportPattern
 import com.rodgers.routist.model.WorkRecord
-import com.rodgers.routist.util.BackupManager
 import com.rodgers.routist.util.GeocodingClient
 
-import com.rodgers.routist.util.LocationTrackingService
 import com.rodgers.routist.util.PatternStorage
 import com.rodgers.routist.util.SignatureStorage
 import com.rodgers.routist.viewmodel.DeliveryViewModel
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.viewmodel.ReportViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.flow.collect
@@ -80,22 +79,6 @@ class DailyReportFragment : Fragment() {
     var fuelEfficiencyKmL: Float  = 12.0f
     var vehicleTypeName:   String = "軽自動車"
     var fuelTypeName:      String = "レギュラー"
-
-    val restoreLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        val ctx = context ?: return@registerForActivityResult
-        if (uri != null) {
-            lifecycleScope.launch {
-                try {
-                    BackupManager.restoreBackup(ctx, uri)
-                    if (isAdded) Toast.makeText(ctx, "バックアップから復元しました", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    if (isAdded) Toast.makeText(ctx, "復元エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -360,7 +343,7 @@ class DailyReportFragment : Fragment() {
         }
 
         val hasExistingTime = record.startTime.isNotBlank() || record.endTime.isNotBlank()
-        var showTime = hasExistingTime || pattern.showTime
+        var showTime = hasExistingTime || pattern.showStartEndTime
 
         // 日またぎボタンを先に宣言して applyOffsetStyle を定義可能にする
         val offsetBtnList       = mutableListOf<android.widget.Button>()
@@ -564,8 +547,7 @@ class DailyReportFragment : Fragment() {
         val distIn = EditText(ctx).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
             hint = "0.0"
-            val gpsKm = if (record.distanceKm <= 0f)
-                LocationTrackingService.getTodayDistanceKm(ctx) else 0f
+            val gpsKm = 0f
             setText(when {
                 record.distanceKm > 0f -> "%.0f".format(record.distanceKm)
                 gpsKm > 0f && record.date == LocalDate.now().toString() -> "%.0f".format(gpsKm)

@@ -55,12 +55,6 @@ internal fun TenkoFragment.showTenkoMenu() {
     row("⚙️", "点呼設定", "乗務員名・確認者名・車両・表示設定") { showTenkoSettings() }
     row("🔔", "点呼リマインダー", "乗務前後の通知時刻を設定") { showReminderDialog() }
     divider()
-    // ── バックアップ
-    row("💾", "バックアップを作成", "データをzipファイルで保存") { backupData() }
-    row("📂", "バックアップから復元", "以前のデータを読み込む") {
-        restoreLauncher.launch(arrayOf("application/zip", "*/*"))
-    }
-    divider()
     row("🗑", "表示月の点呼データを削除", "削除直後は取り消し可能", redColor) { confirmDeleteMonth() }
 
     root.addView(View(ctx).apply {

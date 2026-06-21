@@ -46,12 +46,6 @@ internal fun DailyReportFragment.showReportMenu() {
     divider()
     // ── 集計
     row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
-    divider()
-    // ── バックアップ
-    row("💾", "バックアップを作成", "データをzipファイルで保存") { backupData() }
-    row("📂", "バックアップから復元", "以前のデータを読み込む") {
-        restoreLauncher.launch(arrayOf("application/zip", "*/*"))
-    }
 
     root.addView(View(ctx).apply {
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (20 * dp).toInt())

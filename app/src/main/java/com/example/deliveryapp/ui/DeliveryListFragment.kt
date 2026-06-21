@@ -44,11 +44,11 @@ import com.rodgers.routist.R
 import com.rodgers.routist.databinding.FragmentListBinding
 import com.rodgers.routist.ui.MapFragment
 import com.rodgers.routist.util.AppSettings
-import com.rodgers.routist.util.GeofenceManager
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.util.TimeSlotColor
 import com.rodgers.routist.model.Delivery
 import com.rodgers.routist.viewmodel.DeliveryViewModel
+import com.rodgers.routist.viewmodel.*
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -248,12 +248,8 @@ class DeliveryListFragment : Fragment() {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.deliveries.collectLatest { deliveries ->
+            viewModel.deliveries.collectLatest {
                 applyFilter()
-                val ctx = context ?: return@collectLatest
-                if (AppSettings.isGeofenceEnabled(ctx)) {
-                    GeofenceManager.sync(ctx, deliveries)
-                }
             }
         }
 

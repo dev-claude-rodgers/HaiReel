@@ -353,10 +353,8 @@ class SettingsFragment : Fragment() {
 
     private fun buildBackgroundSummary(ctx: android.content.Context): String {
         val items = mutableListOf<String>()
-        if (AppSettings.isLocationTrackingEnabled(ctx)) items.add("走行距離追跡 ON")
         if (AppSettings.getReminderBeforeEnabled(ctx)) items.add("乗務前通知 ON")
         if (AppSettings.getReminderAfterEnabled(ctx)) items.add("乗務後通知 ON")
-        if (AppSettings.isGeofenceEnabled(ctx)) items.add("到着通知 ON")
         return if (items.isEmpty()) "すべてOFF" else items.joinToString("・")
     }
 
@@ -445,11 +443,6 @@ class SettingsFragment : Fragment() {
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1*dp).toInt())
                 .also { it.setMargins((84*dp).toInt(), 0, 0, 0) }
         })
-        toggleRow("🛣️", "走行距離追跡", AppSettings.isLocationTrackingEnabled(ctx)) { on, _ ->
-            AppSettings.setLocationTrackingEnabled(ctx, on)
-            if (!on) com.rodgers.routist.util.LocationTrackingService.stop(ctx)
-        }
-        divider()
         toggleRow("🔔", "乗務前リマインダー", AppSettings.getReminderBeforeEnabled(ctx)) { on, _ ->
             AppSettings.setReminderBeforeEnabled(ctx, on)
         }
@@ -457,81 +450,12 @@ class SettingsFragment : Fragment() {
         toggleRow("🔔", "乗務後リマインダー", AppSettings.getReminderAfterEnabled(ctx)) { on, _ ->
             AppSettings.setReminderAfterEnabled(ctx, on)
         }
-        divider()
-        toggleRow("📍", "目的地到着通知", AppSettings.isGeofenceEnabled(ctx)) { on, stateV ->
-            if (on) {
-                requestGeofencePermission { granted ->
-                    if (granted) {
-                        AppSettings.setGeofenceEnabled(ctx, true)
-                    } else {
-                        stateV.text = "OFF"
-                        android.widget.Toast.makeText(ctx,
-                            "バックグラウンド位置情報を「常に許可」に設定してください",
-                            android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }
-            } else {
-                AppSettings.setGeofenceEnabled(ctx, false)
-                com.rodgers.routist.util.GeofenceManager.removeAll(ctx)
-            }
-        }
 
         val scrollView = android.widget.ScrollView(ctx).apply { addView(root) }
         sheet.setContentView(scrollView)
         sheet.setOnDismissListener { onDismiss() }
         sheet.show()
     }
-
-    private var geofencePermissionCallback: ((Boolean) -> Unit)? = null
-
-    private val bgLocationLauncher = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { granted -> geofencePermissionCallback?.invoke(granted); geofencePermissionCallback = null }
-
-    private val fineLocationLauncher = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (!granted) { geofencePermissionCallback?.invoke(false); geofencePermissionCallback = null; return@registerForActivityResult }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle("バックグラウンド位置情報の許可")
-                .setMessage("到着通知を受け取るには、位置情報を「常に許可」に設定してください。\n次の画面でアプリを選び「常に許可」を選択してください。")
-                .setPositiveButton("設定を開く") { _, _ ->
-                    bgLocationLauncher.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                }
-                .setNegativeButton("キャンセル") { _, _ ->
-                    geofencePermissionCallback?.invoke(false); geofencePermissionCallback = null
-                }
-                .show()
-        } else {
-            geofencePermissionCallback?.invoke(true); geofencePermissionCallback = null
-        }
-    }
-
-    private fun requestGeofencePermission(callback: (Boolean) -> Unit) {
-        val ctx = requireContext()
-        geofencePermissionCallback = callback
-        when {
-            androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION)
-                != android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                fineLocationLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q &&
-            androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                != android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("バックグラウンド位置情報の許可")
-                    .setMessage("到着通知を受け取るには、位置情報を「常に許可」に設定してください。")
-                    .setPositiveButton("設定を開く") { _, _ ->
-                        bgLocationLauncher.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                    }
-                    .setNegativeButton("キャンセル") { _, _ -> callback(false); geofencePermissionCallback = null }
-                    .show()
-            }
-            else -> callback(true)
-        }
-    }
-
 
     private fun createBackup() {
         val ctx = requireContext()
@@ -812,7 +736,7 @@ RouteJin（以下「本アプリ」）は、ユーザーのプライバシーを
 ■ 収集する情報
 ・配達先情報（氏名・住所・備考など）
 ・日報・点呼記録・収支データ
-・位置情報（走行距離追跡機能を使用する場合のみ）
+・位置情報（地図・ルート最適化機能を使用する場合のみ・端末外に送信しない）
 ・Google APIキー（端末内に暗号化して保存）
 
 ■ 利用目的

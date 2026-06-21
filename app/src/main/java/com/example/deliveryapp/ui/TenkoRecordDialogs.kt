@@ -16,7 +16,6 @@ import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.routist.model.TenkoRecord
 import com.rodgers.routist.util.AppSettings
-import com.rodgers.routist.util.LocationTrackingService
 import com.rodgers.routist.util.themeColor
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -205,7 +204,6 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
                         healthOk, fatigueYes, alc, inspOk,
                         etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                         selVehicleNumber)
-                    if (date == LocalDate.now().toString() && AppSettings.isLocationTrackingEnabled(ctx)) LocationTrackingService.start(ctx)
                     dlgBefore.dismiss()
                 }
                 .setNegativeButton("修正する", null).show()
@@ -214,7 +212,6 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
                 healthOk, fatigueYes, alc, inspOk,
                 etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                 selVehicleNumber)
-            if (date == LocalDate.now().toString()) LocationTrackingService.start(ctx)
             dlgBefore.dismiss()
         }
     }
@@ -398,7 +395,6 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
                         healthOk, fatigueYes, alc, accidentYes, vehicleOk,
                         etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                         etNote.text.toString().trim())
-                    if (date == LocalDate.now().toString()) LocationTrackingService.stop(ctx)
                     dlgAfter.dismiss()
                 }
                 .setNegativeButton("修正する", null).show()
@@ -407,7 +403,6 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
                 healthOk, fatigueYes, alc, accidentYes, vehicleOk,
                 etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                 etNote.text.toString().trim())
-            if (date == LocalDate.now().toString()) LocationTrackingService.stop(ctx)
             dlgAfter.dismiss()
         }
     }
