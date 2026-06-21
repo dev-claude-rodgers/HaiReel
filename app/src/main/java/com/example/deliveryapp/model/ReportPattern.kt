@@ -8,7 +8,6 @@ data class ReportPattern(
     val closingDay: Int = 25,
     val deliveryLabel: String = "配達件数",
     val packageLabel: String = "個数",
-    val showTime: Boolean = true,
     val showStartEndTime: Boolean = true,
     val showWorkingHours: Boolean = true,
     val showDelivery: Boolean = true,

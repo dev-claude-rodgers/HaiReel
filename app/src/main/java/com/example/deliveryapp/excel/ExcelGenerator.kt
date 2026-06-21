@@ -57,7 +57,7 @@ class ExcelGenerator(private val context: Context) {
         val workingDays = records.sumOf { 1 + it.endDateOffset }
 
         val columns = buildList<ColDef> {
-            if (pattern.showTime || pattern.showStartEndTime) {
+            if (pattern.showStartEndTime) {
                 add(ColDef("開始時刻", { it?.startTime ?: "" }))
                 add(ColDef("終了時刻", {
                     if (it == null) ""
@@ -65,7 +65,7 @@ class ExcelGenerator(private val context: Context) {
                     else it.endTime
                 }))
             }
-            if (pattern.showTime || pattern.showWorkingHours) {
+            if (pattern.showWorkingHours) {
                 add(ColDef("稼働時間", { it?.workingHoursText ?: "" }, totalHours))
             }
             if (pattern.showDelivery)
@@ -87,7 +87,7 @@ class ExcelGenerator(private val context: Context) {
                     { if ((it?.packageCount ?: 0) > 0) "${it!!.packageCount}個" else "" },
                     if (totalPkg > 0) "${totalPkg}個" else ""))
             if (pattern.showDistance)
-                add(ColDef("走行距離",
+                add(ColDef("走行距離(km)",
                     { if (it != null && it.distanceKm > 0f) "%.0fkm".format(it.distanceKm) else "" },
                     if (totalDist > 0) "%.0fkm".format(totalDist) else ""))
             if (pattern.showFuel) {

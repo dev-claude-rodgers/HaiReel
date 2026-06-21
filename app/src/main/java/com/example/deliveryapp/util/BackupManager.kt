@@ -267,7 +267,8 @@ object BackupManager {
                 put("closingDay",    p.closingDay)
                 put("deliveryLabel", p.deliveryLabel)
                 put("packageLabel",  p.packageLabel)
-                put("showTime",      p.showTime)
+                put("showStartEndTime", p.showStartEndTime)
+                put("showWorkingHours", p.showWorkingHours)
                 put("showDelivery",  p.showDelivery)
                 put("showPackage",   p.showPackage)
                 put("showDistance",  p.showDistance)
@@ -437,7 +438,8 @@ object BackupManager {
                 closingDay    = j.optInt("closingDay", 25),
                 deliveryLabel = j.optString("deliveryLabel", "配達件数"),
                 packageLabel  = j.optString("packageLabel", "個数"),
-                showTime      = j.optBoolean("showTime",     true),
+                showStartEndTime = j.optBoolean("showStartEndTime", true),
+                showWorkingHours = j.optBoolean("showWorkingHours", true),
                 showDelivery  = j.optBoolean("showDelivery", true),
                 showPackage   = j.optBoolean("showPackage", true),
                 showDistance  = j.optBoolean("showDistance", true),

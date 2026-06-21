@@ -75,7 +75,7 @@ object PdfGenerator {
         val cols: List<Triple<String, (WorkRecord?) -> String, String>> = buildList {
             add(Triple("日付", { _: WorkRecord? -> "" }, "合計（${workingDays}日稼働）"))
             add(Triple("曜",   { _: WorkRecord? -> "" }, ""))
-            if (pattern.showTime || pattern.showStartEndTime) {
+            if (pattern.showStartEndTime) {
                 add(Triple("開始時刻", { r: WorkRecord? -> r?.startTime ?: "" }, ""))
                 add(Triple("終了時刻", { r: WorkRecord? ->
                     if (r == null) ""
@@ -83,7 +83,7 @@ object PdfGenerator {
                     else r.endTime
                 }, ""))
             }
-            if (pattern.showTime || pattern.showWorkingHours) {
+            if (pattern.showWorkingHours) {
                 val totalHours = records.sumOf { it.workingMinutes }.let { t ->
                     if (t > 0) "%d時間%02d分".format(t / 60, t % 60) else ""
                 }
@@ -110,7 +110,7 @@ object PdfGenerator {
             }
             if (pattern.showDistance) {
                 val tot = records.sumOf { it.distanceKm.toDouble() }.let { if (it > 0) "%.0fkm".format(it) else "" }
-                add(Triple("走行距離", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0fkm".format(r!!.distanceKm) else "" }, tot))
+                add(Triple("走行距離(km)", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0fkm".format(r!!.distanceKm) else "" }, tot))
             }
             if (pattern.showFuel) {
                 val fuelTot = records.sumOf { it.fuelCost }.let { if (it > 0) "%,d円".format(it) else "" }

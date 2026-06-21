@@ -28,7 +28,6 @@ object PatternStorage {
             closingDay    = sp.getInt(   "${id}_closing",    25),
             deliveryLabel = sp.getString("${id}_deliv_lbl",  "配達件数") ?: "配達件数",
             packageLabel  = sp.getString("${id}_pkg_lbl",    "個数") ?: "個数",
-            showTime         = sp.getBoolean("${id}_col_time",        true),
             showStartEndTime = sp.getBoolean("${id}_col_start_end",  true),
             showWorkingHours = sp.getBoolean("${id}_col_work_hours", true),
             showDelivery  = sp.getBoolean("${id}_col_deliv", true),
@@ -57,7 +56,6 @@ object PatternStorage {
             putInt    ("${pattern.id}_closing",    pattern.closingDay)
             putString ("${pattern.id}_deliv_lbl",  pattern.deliveryLabel)
             putString ("${pattern.id}_pkg_lbl",    pattern.packageLabel)
-            putBoolean("${pattern.id}_col_time",        pattern.showTime)
             putBoolean("${pattern.id}_col_start_end",  pattern.showStartEndTime)
             putBoolean("${pattern.id}_col_work_hours", pattern.showWorkingHours)
             putBoolean("${pattern.id}_col_deliv",  pattern.showDelivery)

@@ -236,9 +236,8 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
         text = label; isChecked = checked
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }
-    val chkTime     = chk("時刻（開始・終了・稼働時間）", base.showTime)
     val chkStartEnd = chk("開始・終了時刻", base.showStartEndTime)
-    val chkWorkHrs  = chk("稼働時間", base.showWorkingHours)
+    val chkWorkHrs  = chk("稼働時間",      base.showWorkingHours)
     val chkDelivery = chk("配達件数",  base.showDelivery)
     val chkPackage  = chk("個数",      base.showPackage)
     val chkDistance = chk("走行距離",         base.showDistance)
@@ -248,7 +247,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     val chkArea     = chk("エリア",           base.showArea)
     val chkRemarks  = chk("備考",             base.showRemarks)
     val chkTotal    = chk("合計行を表示する", base.showTotal)
-    listOf(chkTime, chkStartEnd, chkWorkHrs, chkDelivery, chkPackage, chkDistance, chkFuel, chkMeter, chkIncome, chkArea, chkRemarks, chkTotal).forEach { root.addView(it) }
+    listOf(chkStartEnd, chkWorkHrs, chkDelivery, chkPackage, chkIncome, chkDistance, chkMeter, chkFuel, chkArea, chkRemarks, chkTotal).forEach { root.addView(it) }
 
     root.addView(TextView(ctx).apply {
         text = "報酬タイプ"; textSize = 13f
@@ -295,15 +294,14 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
                 closingDay    = closingIn.text.toString().toIntOrNull()?.coerceIn(1, 31) ?: 25,
                 deliveryLabel = delivLblIn.text.toString().trim().ifBlank { "配達件数" },
                 packageLabel  = pkgLblIn.text.toString().trim().ifBlank { "個数" },
-                showTime      = chkTime.isChecked,
-                showDelivery  = chkDelivery.isChecked,
-                showPackage   = chkPackage.isChecked,
-                showDistance  = chkDistance.isChecked,
-                showFuel      = chkFuel.isChecked,
                 showStartEndTime = chkStartEnd.isChecked,
                 showWorkingHours = chkWorkHrs.isChecked,
-                showMeter     = chkMeter.isChecked,
+                showDelivery  = chkDelivery.isChecked,
+                showPackage   = chkPackage.isChecked,
                 showIncome    = chkIncome.isChecked,
+                showDistance  = chkDistance.isChecked,
+                showMeter     = chkMeter.isChecked,
+                showFuel      = chkFuel.isChecked,
                 showArea      = chkArea.isChecked,
                 showTotal     = chkTotal.isChecked,
                 showRemarks   = chkRemarks.isChecked,
