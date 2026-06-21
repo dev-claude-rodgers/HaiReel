@@ -81,6 +81,7 @@ object BackupManager {
             zos.utf8Entry("patterns.json",   patternsToJson(patterns, activeId).toString())
             zos.utf8Entry("groups.json",     groupsToJson(groups).toString())
             zos.utf8Entry("deliveries.json", deliveriesToJson(deliveries).toString())
+            zos.utf8Entry("settings.json",   settingsToJson(context).toString())
 
             for (type in listOf(SignatureStorage.TYPE_DRIVER, SignatureStorage.TYPE_CLIENT)) {
                 val sig = SignatureStorage.fileFor(context, type)
@@ -131,6 +132,9 @@ object BackupManager {
                         for (i in 0 until arr.length()) {
                             try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { Log.w("BackupManager", "記録の復元失敗: item $i", e) }
                         }
+                    }
+                    "settings.json" -> {
+                        restoreSettings(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
                     }
                     "tenko.json" -> {
                         val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
@@ -275,6 +279,50 @@ object BackupManager {
         return JSONObject().apply {
             put("activeId",  activeId)
             put("patterns",  arr)
+        }
+    }
+
+    private fun settingsToJson(context: Context): JSONObject {
+        val prefs = context.getSharedPreferences("kado_settings", Context.MODE_PRIVATE)
+        val json = JSONObject()
+        prefs.all.forEach { (k, v) ->
+            when (v) {
+                is String  -> json.put(k, v)
+                is Int     -> json.put(k, v)
+                is Boolean -> json.put(k, v)
+                is Float   -> json.put(k, v)
+                is Long    -> json.put(k, v)
+                is Set<*>  -> json.put(k, JSONArray(v.toList()))
+            }
+        }
+        // APIキーも保存（空でなければ）
+        val apiKey = try { AppSettings.getUserApiKey(context) } catch (_: Exception) { "" }
+        if (apiKey.isNotBlank()) json.put("_user_api_key", apiKey)
+        return json
+    }
+
+    private fun restoreSettings(context: Context, json: JSONObject) {
+        val prefs = context.getSharedPreferences("kado_settings", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        json.keys().forEach { key ->
+            if (key == "_user_api_key") return@forEach
+            when (val v = json.get(key)) {
+                is String  -> editor.putString(key, v)
+                is Int     -> editor.putInt(key, v)
+                is Boolean -> editor.putBoolean(key, v)
+                is Double  -> editor.putFloat(key, v.toFloat())
+                is Long    -> editor.putLong(key, v)
+                is JSONArray -> {
+                    val set = (0 until v.length()).map { v.getString(it) }.toSet()
+                    editor.putStringSet(key, set)
+                }
+            }
+        }
+        editor.apply()
+        // APIキーを復元（暗号化保存）
+        val apiKey = json.optString("_user_api_key").ifBlank { null }
+        if (apiKey != null) {
+            try { AppSettings.setUserApiKey(context, apiKey) } catch (_: Exception) { }
         }
     }
 
