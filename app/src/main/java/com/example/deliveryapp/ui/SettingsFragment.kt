@@ -99,6 +99,8 @@ class SettingsFragment : Fragment() {
             updateLicenseStatus()
         }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
+        binding.rowTerms.setOnClickListener { showTermsDialog() }
+        binding.rowSct.setOnClickListener { showSctDialog() }
         binding.rowHelp.setOnClickListener { showHelpDialog() }
         binding.rowAbout.setOnClickListener {
             (activity as? com.rodgers.routist.MainActivity)?.showAboutDialog()
@@ -601,6 +603,112 @@ class SettingsFragment : Fragment() {
             .show()
     }
 
+    private fun showTermsDialog() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val dp = ctx.resources.displayMetrics.density
+        val tv = android.widget.TextView(ctx).apply {
+            text = """利用規約
+
+第1条（目的）
+本規約は、RouteJin（以下「本アプリ」）の利用条件を定めるものです。
+ご利用の前に必ずお読みください。
+
+第2条（利用対象）
+本アプリは軽貨物ドライバーおよびその業務に関わる方を対象とした業務管理ツールです。
+
+第3条（禁止事項）
+・逆コンパイル・リバースエンジニアリング
+・ライセンスキーの第三者への譲渡・共有
+・違法な目的での使用
+・本アプリを利用した迷惑行為
+
+第4条（免責事項）
+・本アプリはあくまで補助ツールです。点呼記録・日報の法的効力を保証しません。
+・ルート最適化の結果は参考情報であり、精度を保証しません。
+・データの消失・破損に関して開発者は責任を負いません。
+・本アプリの利用により生じた損害について、開発者は一切責任を負いません。
+
+第5条（サービスの変更・停止）
+開発者は事前の通知なくサービスの内容変更・停止を行う場合があります。
+
+第6条（料金）
+試用期間（7日間）は無料でご利用いただけます。
+継続利用にはライセンスキーの購入が必要です。
+
+第7条（準拠法・管轄）
+本規約は日本法に準拠し、紛争は開発者所在地の裁判所を第一審管轄とします。
+
+第8条（規約の変更）
+本規約は事前の通知なく変更される場合があります。
+変更後の規約はアプリ内に掲示された時点で効力を生じます。"""
+            textSize = 13f
+            setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt())
+            setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                ctx, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK))
+        }
+        val scroll = android.widget.ScrollView(ctx).apply { addView(tv) }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("利用規約")
+            .setView(scroll)
+            .setPositiveButton("閉じる", null)
+            .show()
+    }
+
+    private fun showSctDialog() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val dp = ctx.resources.displayMetrics.density
+        val tv = android.widget.TextView(ctx).apply {
+            text = """特定商取引法に基づく表記
+
+■ 販売業者
+imai kenichi
+
+■ 所在地
+個人情報保護のため非公開
+（お問い合わせいただければ開示します）
+
+■ 電話番号
+個人情報保護のため非公開
+（お問い合わせいただければ開示します）
+
+■ メールアドレス
+proxyroutine777@gmail.com
+
+■ 販売価格
+ライセンスキー（1年間有効）
+詳細は販売ページをご確認ください。
+
+■ 支払方法
+クレジットカード・その他決済（Stripe経由）
+
+■ 支払時期
+ご注文と同時にお支払いいただきます。
+
+■ 提供時期
+お支払い確認後、メールにてライセンスキーをお送りします。
+
+■ 返品・キャンセルポリシー
+デジタルコンテンツ（ライセンスキー）の性質上、
+発行後の返金・キャンセルは原則お受けできません。
+ただし、キーが正常に機能しない場合はご対応いたします。
+
+■ 動作環境
+Android 8.0（API 26）以上"""
+            textSize = 13f
+            setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt())
+            setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                ctx, com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK))
+        }
+        val scroll = android.widget.ScrollView(ctx).apply { addView(tv) }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("特定商取引法に基づく表記")
+            .setView(scroll)
+            .setPositiveButton("閉じる", null)
+            .show()
+    }
+
     private fun showHelpDialog() {
         if (!isAdded) return
         val ctx = requireContext()
@@ -643,26 +751,35 @@ class SettingsFragment : Fragment() {
         }
 
         section("📦 基本的な使い方")
-        item("① メニュー →「住所をインポート」でCSV・テキストを読み込む")
-        item("② 住所が取得できたら「ルート最適化」で順番を自動整列")
-        item("③ 配達が完了したら各行をタップして完了マークをつける")
-        item("④ 乗務終了後に日報を記録して収入・走行距離を入力する")
+        item("① 配達リストメニュー →「名前・住所を追加」で住所を入力")
+        item("② 地図ボタン → 「ルート最適化」で最短順に自動整列")
+        item("③ 配達完了後に各行をタップして完了マークをつける")
+        item("④ 点呼タブで乗務前後の点呼を記録する")
+        item("⑤ 報告タブで日報（収入・走行距離）を記録してExcel出力")
 
         section("🔑 Google APIキーについて")
         item("住所検索・地図機能にGoogle APIキーが必要です。")
         item("設定 →「Google APIキー設定」から登録できます。")
         note("月額\$200相当まで無料枠があり、個人利用は通常無料枠内に収まります。")
-        note("料金はGoogle側で発生します。利用前に必ず料金体系をご確認ください。")
+        note("料金はGoogle側で発生します。利用前に料金体系をご確認ください。")
+
+        section("💡 便利な使い方")
+        item("伝票スキャン: カメラで伝票を撮影して住所を自動読み取り")
+        item("帳票パターン: 取引先ごとに帳票の設定を切り替えられます")
+        item("バックアップ: 定期的に設定 → バックアップを作成してください")
+        item("ライセンス: 設定 → ライセンスから購入・認証できます")
 
         section("❓ よくある質問")
-        item("Q. 住所が地図に表示されない")
-        note("→ APIキーが設定されているか確認してください。設定 →「Google APIキー設定」→「動作確認する」で確認できます。")
+        item("Q. 地図が白くなる")
+        note("→ Google APIキーが設定されていないか無効です。設定 → Google APIキー設定を確認してください。")
         item("Q. ルート最適化ができない")
-        note("→ 住所が1件以上登録されている必要があります。また住所のジオコーディング（緑色の丸マーク）が完了しているか確認してください。")
-        item("Q. 年収入がダッシュボードに表示されない")
+        note("→ 住所のジオコーディング（緑マーク）が完了しているか確認してください。")
+        item("Q. 年収入が表示されない")
         note("→ 日報の「収入（円）」欄に金額を入力して保存してください。")
         item("Q. データが消えた")
-        note("→ 設定 →「バックアップを作成」で定期的にバックアップを取ってください。")
+        note("→ 設定 → バックアップから復元できます。定期的なバックアップをおすすめします。")
+        item("Q. ライセンスキーを紛失した")
+        note("→ ご購入時のメールをご確認ください。見つからない場合は proxyroutine777@gmail.com にお問い合わせください。")
 
         val scroll = android.widget.ScrollView(ctx).apply { addView(root) }
         MaterialAlertDialogBuilder(ctx)
@@ -678,32 +795,41 @@ class SettingsFragment : Fragment() {
         val dp  = ctx.resources.displayMetrics.density
         val tv  = TextView(ctx).apply {
             text = """プライバシーポリシー
+最終更新日：2026年6月
 
 RouteJin（以下「本アプリ」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。
 
 ■ 収集する情報
-本アプリが収集する情報は以下のとおりです。
-・ユーザーが入力した配達先情報、日報、点呼記録、収支データ
+・配達先情報（氏名・住所・備考など）
+・日報・点呼記録・収支データ
 ・位置情報（走行距離追跡機能を使用する場合のみ）
+・Google APIキー（端末内に暗号化して保存）
 
 ■ 利用目的
-収集した情報は、本アプリの機能提供のみに使用します。
-外部サーバーへのデータ送信は行いません。すべてのデータは端末内にのみ保存されます。
+収集した情報は本アプリの機能提供のみに使用します。
+外部サーバーへの送信は行いません。
 
-■ データの管理
-・データは端末内のみに保存され、クラウドには送信されません
-・バックアップ機能でエクスポートしたファイルの管理はユーザー自身の責任となります
-・アプリを削除するとすべてのデータが削除されます
+■ データの保存場所
+すべてのデータは端末内にのみ保存されます。
+バックアップファイルをエクスポートした場合の管理はユーザー自身の責任となります。
 
 ■ 第三者への提供
 ユーザーのデータを第三者に提供・販売することは一切ありません。
 
-■ Firebase Crashlytics について
-アプリの安定性向上のため、Firebase Crashlytics によりクラッシュレポートを収集することがあります。
+■ Google APIの利用
+住所検索・地図機能においてGoogle Geocoding API・Places API・Maps SDK for Androidを使用します。
+これらのAPIはGoogleのプライバシーポリシーに従います。
+
+■ Firebase Crashlytics
+アプリ安定性向上のためクラッシュレポートを収集します。
 このレポートには個人を特定できる情報は含まれません。
 
+■ データの削除
+アプリを削除するとすべてのデータが端末から削除されます。
+ただし端末のバックアップ機能により復元される場合があります。
+
 ■ お問い合わせ
-ご不明な点がある場合は、開発者までお問い合わせください。"""
+proxyroutine777@gmail.com"""
             textSize = 14f
             setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt())
             setTextColor(
