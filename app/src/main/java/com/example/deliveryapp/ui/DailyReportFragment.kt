@@ -614,8 +614,17 @@ class DailyReportFragment : Fragment() {
                 val dc = delivCntIn.text.toString().toIntOrNull() ?: 0
                 val wm = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
                 val calc = calcIncome(pattern, dc, wm)
-                if (calc > 0) incomeIn.setText(calc.toString())
-                else Toast.makeText(ctx, "帳票パターンで単価を設定してください", Toast.LENGTH_SHORT).show()
+                if (calc > 0) {
+                    incomeIn.setText(calc.toString())
+                } else {
+                    val msg = when (pattern.paymentType) {
+                        3    -> "帳票設定の「報酬タイプ」を「個建て」「車建て」「時間制」のいずれかに設定してください"
+                        0    -> if (dc == 0) "配達件数を入力してください" else "帳票設定の「単価」を設定してください"
+                        2    -> if (wm == 0) "開始・終了時刻を入力してください" else "帳票設定の「単価」を設定してください"
+                        else -> "帳票設定の「単価」を設定してください"
+                    }
+                    Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                }
             }
         }
         incomeRow.addView(incomeIn); incomeRow.addView(incomeCalcBtn)
