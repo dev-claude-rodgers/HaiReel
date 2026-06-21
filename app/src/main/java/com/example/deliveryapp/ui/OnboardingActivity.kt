@@ -15,6 +15,9 @@ import com.rodgers.routist.MainActivity
 import com.rodgers.routist.R
 import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.util.themeColor
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 
 class OnboardingActivity : AppCompatActivity() {
 
@@ -102,6 +105,13 @@ class OnboardingActivity : AppCompatActivity() {
         root.addView(btnRow)
 
         setContentView(root)
+
+        // システムバーのinsets対応
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            root.updatePadding(top = bars.top, bottom = bars.bottom)
+            insets
+        }
 
         // インジケータードット生成
         val dotSize = (8 * dp).toInt()
