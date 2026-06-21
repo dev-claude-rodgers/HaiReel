@@ -100,12 +100,13 @@ object BackupManager {
         return encFile
     }
 
-    suspend fun restoreBackup(context: Context, uri: Uri) {
+    suspend fun restoreBackup(context: Context, uri: Uri, password: String? = null) {
         val rawBytes = context.contentResolver.openInputStream(uri)?.readBytes()
             ?: error("ファイルを開けませんでした")
         val zipBytes = if (isEncryptedData(rawBytes)) {
-            val pw = AppSettings.getBackupPassword(context)
-            if (pw.isBlank()) error("このバックアップはパスワードで暗号化されています。設定でバックアップパスワードを入力してください。")
+            val pw = password?.takeIf { it.isNotBlank() }
+                ?: AppSettings.getBackupPassword(context).takeIf { it.isNotBlank() }
+                ?: error("このバックアップはパスワードで暗号化されています。パスワードを入力してください。")
             try { decryptBytes(rawBytes, pw) }
             catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
         } else {

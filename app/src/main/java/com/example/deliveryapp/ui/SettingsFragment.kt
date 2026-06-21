@@ -34,52 +34,15 @@ class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
 
-    private val restoreFilePicker = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@registerForActivityResult
-        val ctx = context ?: return@registerForActivityResult
-
-        // ファイルの先頭バイトで暗号化判定（URI形式に依存しない）
-        viewLifecycleOwner.lifecycleScope.launch {
-            val rawBytes = withContext(Dispatchers.IO) {
-                ctx.contentResolver.openInputStream(uri)?.readBytes()
-            }
-            if (rawBytes == null) {
-                Toast.makeText(ctx, "ファイルを開けませんでした", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            if (com.rodgers.routist.util.BackupManager.isEncryptedData(rawBytes)) {
-                // 暗号化バックアップ → パスワード入力ダイアログ
-                val input = android.widget.EditText(ctx).apply {
-                    hint = "バックアップパスワード"
-                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-                }
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("パスワードを入力")
-                    .setMessage("このバックアップはパスワードで暗号化されています。\n作成時に設定したパスワードを入力してください。")
-                    .setView(input)
-                    .setPositiveButton("復元") { _, _ ->
-                        val pw = input.text.toString()
-                        if (pw.isBlank()) {
-                            Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
-                            return@setPositiveButton
-                        }
-                        com.rodgers.routist.util.AppSettings.setBackupPassword(ctx, pw)
-                        doRestore(ctx, uri)
-                    }
-                    .setNegativeButton("キャンセル", null)
-                    .show()
-            } else {
-                doRestore(ctx, uri)
-            }
-        }
+    companion object {
+        private const val REQUEST_RESTORE = 9001
     }
 
-    private fun doRestore(ctx: android.content.Context, uri: android.net.Uri) {
-        viewLifecycleOwner.lifecycleScope.launch {
+    private fun doRestore(ctx: android.content.Context, uri: android.net.Uri, password: String? = null) {
+        Toast.makeText(ctx, "復元中...", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) { BackupManager.restoreBackup(ctx, uri) }
+                withContext(Dispatchers.IO) { BackupManager.restoreBackup(ctx, uri, password) }
                 Toast.makeText(ctx, "復元しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
                 kotlinx.coroutines.delay(1500)
                 val intent = requireActivity().packageManager
@@ -127,7 +90,14 @@ class SettingsFragment : Fragment() {
 
         binding.rowBackupCreate.setOnClickListener { createBackup() }
         binding.rowBackupRestore.setOnClickListener {
-            restoreFilePicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+            val intent = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(android.content.Intent.EXTRA_MIME_TYPES,
+                    arrayOf("application/zip", "application/octet-stream"))
+            }
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_RESTORE)
         }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
         binding.rowHelp.setOnClickListener { showHelpDialog() }
@@ -136,6 +106,45 @@ class SettingsFragment : Fragment() {
         }
         binding.rowPrivacy.setOnClickListener { showPrivacyPolicyDialog() }
         binding.rowExit.setOnClickListener { activity?.finishAffinity() }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_RESTORE || resultCode != android.app.Activity.RESULT_OK) return
+        val uri = data?.data ?: return
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val rawBytes = withContext(Dispatchers.IO) {
+                ctx.contentResolver.openInputStream(uri)?.readBytes()
+            }
+            if (rawBytes == null) {
+                Toast.makeText(ctx, "ファイルを開けませんでした", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (com.rodgers.routist.util.BackupManager.isEncryptedData(rawBytes)) {
+                val input = android.widget.EditText(ctx).apply {
+                    hint = "バックアップパスワード"
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                }
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("パスワードを入力")
+                    .setMessage("このバックアップはパスワードで暗号化されています。\n作成時に設定したパスワードを入力してください。")
+                    .setView(input)
+                    .setPositiveButton("復元") { _, _ ->
+                        val pw = input.text.toString()
+                        if (pw.isBlank()) {
+                            Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        doRestore(ctx, uri, pw)
+                    }
+                    .setNegativeButton("キャンセル", null)
+                    .show()
+            } else {
+                doRestore(ctx, uri)
+            }
+        }
     }
 
     override fun onDestroyView() {
