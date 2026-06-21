@@ -361,19 +361,17 @@ class DailyReportFragment : Fragment() {
 
         // 日またぎボタンを先に宣言して applyOffsetStyle を定義可能にする
         val offsetBtnList       = mutableListOf<android.widget.Button>()
-        val offsetLabels        = listOf("当日", "翌日", "+2日")
-        val offsetSelectedColor = ContextCompat.getColor(ctx, R.color.colorReportPrimary)
+        val offsetSelectedColor = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
         val offsetUnselectColor = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
         val offsetBorderColor   = ctx.themeColor(com.google.android.material.R.attr.colorOutline)
-        val offsetTextUnselect  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val offsetTextUnselect  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         fun applyOffsetStyle() {
             offsetBtnList.forEachIndexed { j, b ->
                 val sel = (j == endDateOffset)
                 (b.background as? android.graphics.drawable.GradientDrawable)?.apply {
                     setColor(if (sel) offsetSelectedColor else offsetUnselectColor)
-                    setStroke((1.5f * dp).toInt(), if (sel) offsetSelectedColor else offsetBorderColor)
+                    setStroke((2f * dp).toInt(), if (sel) offsetSelectedColor else offsetBorderColor)
                 }
-                b.text = if (sel) "✓ ${offsetLabels[j]}" else offsetLabels[j]
                 b.setTextColor(if (sel) android.graphics.Color.WHITE else offsetTextUnselect)
                 b.typeface = if (sel) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
             }
