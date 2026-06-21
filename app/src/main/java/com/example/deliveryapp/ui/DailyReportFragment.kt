@@ -184,11 +184,14 @@ class DailyReportFragment : Fragment() {
             }
         }
 
-        // 日報リスト更新
+        // 日報リスト更新（案件・月・グループ変化で再描画）
         viewLifecycleOwner.lifecycleScope.launch {
-            combine(reportViewModel.records, reportViewModel.yearMonth) { records, ym ->
-                Pair(records, ym)
-            }.collect { (records, ym) ->
+            combine(
+                reportViewModel.records,
+                reportViewModel.yearMonth,
+                deliveryViewModel.groups
+            ) { records, ym, _ -> Pair(records, ym) }
+            .collect { (records, ym) ->
                 val days = generateDayEntries(records, ym, 0)
                 adapter.submitList(days)
                 updateSummary(records)
@@ -232,7 +235,7 @@ class DailyReportFragment : Fragment() {
         val totalIncome = records.sumOf { it.income }
         val totalFuel   = records.sumOf { it.fuelCost }
         val balance     = totalIncome - totalFuel
-        val trackIncome = pattern.paymentType != 3
+        val trackIncome = pattern.showIncome || pattern.paymentType != 3
         if (trackIncome && totalIncome > 0) {
             binding.tvSummaryIncome.visibility = View.VISIBLE
             binding.tvSummaryIncome.text = "収入 %,d円".format(totalIncome)
