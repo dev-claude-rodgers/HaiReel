@@ -76,7 +76,7 @@ class ExcelGenerator(private val context: Context) {
                 add(ColDef("開始メーター(km)", { if (it != null && it.startMeter > 0) "${it.startMeter}km" else "" }))
                 add(ColDef("終了メーター(km)", { if (it != null && it.endMeter > 0) "${it.endMeter}km" else "" }))
             }
-            if (pattern.showIncome) {
+            if (pattern.showIncome || pattern.paymentType != 3) {
                 val totalIncome = records.sumOf { it.income }
                 add(ColDef("収入",
                     { if ((it?.income ?: 0) > 0) "%,d円".format(it!!.income) else "" },

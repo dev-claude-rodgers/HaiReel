@@ -267,11 +267,11 @@ class DailyReportFragment : Fragment() {
                else com.rodgers.routist.util.PatternStorage.ensureDefault(ctx)
     }
 
-    private fun calcIncome(pattern: com.rodgers.routist.model.ReportPattern, delivCount: Int, workMinutes: Int): Int =
+    private fun calcIncome(pattern: com.rodgers.routist.model.ReportPattern, delivCount: Int, workMinutes: Int, packageCount: Int = delivCount): Int =
         when (pattern.paymentType) {
-            0 -> pattern.unitPrice * delivCount
-            1 -> pattern.unitPrice
-            2 -> pattern.unitPrice * (workMinutes / 60)
+            0 -> pattern.unitPrice * packageCount   // 個数×単価
+            1 -> pattern.unitPrice                  // 車建て（日当）
+            2 -> pattern.unitPrice * (workMinutes / 60)  // 時間制
             else -> 0
         }
 
@@ -595,7 +595,7 @@ class DailyReportFragment : Fragment() {
         endMeterIn.addTextChangedListener(meterWatcher)
 
         // ── 収入
-        val autoIncome = calcIncome(pattern, record.deliveryCount, 0)
+        val autoIncome = calcIncome(pattern, record.deliveryCount, 0, record.packageCount)
         root.addView(label("収入（円）"))
         val incomeRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -612,14 +612,15 @@ class DailyReportFragment : Fragment() {
             setTextColor(ContextCompat.getColor(ctx, R.color.colorReportPrimary)); background = null
             setOnClickListener {
                 val dc = delivCntIn.text.toString().toIntOrNull() ?: 0
+                val pc = pkgCntIn.text.toString().toIntOrNull() ?: 0
                 val wm = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
-                val calc = calcIncome(pattern, dc, wm)
+                val calc = calcIncome(pattern, dc, wm, pc)
                 if (calc > 0) {
                     incomeIn.setText(calc.toString())
                 } else {
                     val msg = when (pattern.paymentType) {
                         3    -> "帳票設定の「報酬タイプ」を「個建て」「車建て」「時間制」のいずれかに設定してください"
-                        0    -> if (dc == 0) "配達件数を入力してください" else "帳票設定の「単価」を設定してください"
+                        0    -> if (pc == 0) "個数を入力してください" else "帳票設定の「単価」を設定してください"
                         2    -> if (wm == 0) "開始・終了時刻を入力してください" else "帳票設定の「単価」を設定してください"
                         else -> "帳票設定の「単価」を設定してください"
                     }
@@ -702,7 +703,7 @@ class DailyReportFragment : Fragment() {
                 area          = areaIn.text.toString().trim(),
                 alcCheck      = alcValues[alcIdx],
                 remarks       = remarksIn.text.toString().trim(),
-                income        = incomeIn.text.toString().toIntOrNull() ?: calcIncome(pattern, delivCount, workMins),
+                income        = incomeIn.text.toString().toIntOrNull() ?: calcIncome(pattern, delivCount, workMins, pkgCntIn.text.toString().toIntOrNull() ?: 0),
                 fuelCost      = fuelIn.text.toString().toIntOrNull() ?: 0,
                 assignmentId  = reportViewModel.assignmentId.value
             )
