@@ -165,12 +165,12 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
             row("🧭", "ナビ開始", "Google マップでルート案内を起動する") { openNavigation(delivery) }
             val toggleEmoji = if (delivery.isCompleted) "↩️" else "✅"
             val toggleTitle = if (delivery.isCompleted) "未完了に戻す" else "完了にする"
-            val t = AppSettings.termDest(requireContext())
-            val toggleSub   = if (delivery.isCompleted) "未${AppSettings.termDone(requireContext())}として再度リストに戻す" else "この${t}を完了済みにする"
+            val t = "配達先"
+            val toggleSub   = if (delivery.isCompleted) "未${"配達"}として再度リストに戻す" else "この${t}を完了済みにする"
             row(toggleEmoji, toggleTitle, toggleSub) { viewModel.toggleCompleted(delivery.id) }
             divider()
         }
-        row("✏️", "名前・住所を編集", "${AppSettings.termDest(requireContext())}の名前や住所を変更する") { showEditDialog(delivery) }
+        row("✏️", "名前・住所を編集", "${"配達先"}の名前や住所を変更する") { showEditDialog(delivery) }
         row("🕐", "時間帯・個数を設定",
             if (!delivery.timeSlot.isNullOrBlank()) "現在: ${delivery.timeSlot}${if (delivery.packageCount > 0) " · ${delivery.packageCount}個" else ""}"
             else "配達時間帯・荷物個数を登録する") { showTimeSlotPackageDialog(delivery) }

@@ -390,7 +390,7 @@ class DeliveryListFragment : Fragment() {
         binding.textEmpty.visibility = View.GONE
         binding.chipIncomplete.visibility = View.GONE
         binding.buttonListMenu.visibility = View.GONE
-        binding.buttonMapToggle.text = "${AppSettings.termDest(requireContext())}リストへ戻る"
+        binding.buttonMapToggle.text = "${"配達先"}リストへ戻る"
         if (childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
                 .add(R.id.mapContainer, MapFragment(), "map")

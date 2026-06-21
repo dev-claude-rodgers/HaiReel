@@ -209,7 +209,7 @@ import kotlinx.coroutines.withContext
             typeface = android.graphics.Typeface.DEFAULT_BOLD; setTextColor(onSurfaceColor)
         })
         navCol.addView(TextView(ctx).apply {
-            text = "最初の未完了${com.rodgers.routist.util.AppSettings.termDest(ctx)}にナビを起動する"; textSize = 14f
+            text = "最初の未完了${"配達先"}にナビを起動する"; textSize = 14f
             setTextColor(onSurfaceVariant)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)

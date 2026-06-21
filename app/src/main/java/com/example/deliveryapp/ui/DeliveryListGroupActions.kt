@@ -152,7 +152,7 @@ internal fun DeliveryListFragment.showListActions() {
         })
 
         // ── データ追加
-        row("☑️", "選択モード", "複数の${AppSettings.termDest(requireContext())}を選んで操作する") {
+        row("☑️", "選択モード", "複数の${"配達先"}を選んで操作する") {
             if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
         }
         row("📷", "伝票からスキャン", "カメラで伝票を撮影して住所を読み取る") { launchScanActivity() }
@@ -269,7 +269,7 @@ internal fun DeliveryListFragment.showLinkPatternDialog(parentSheet: com.google.
 internal fun DeliveryListFragment.confirmResetCompleted() {
         val done = viewModel.deliveries.value.count { it.isCompleted }
         if (done == 0) {
-            android.widget.Toast.makeText(requireContext(), "完了済みの${AppSettings.termDest(requireContext())}がありません", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(requireContext(), "完了済みの${"配達先"}がありません", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         AlertDialog.Builder(requireContext())
@@ -304,7 +304,7 @@ internal fun DeliveryListFragment.showProgressDialog() {
         val done = list.count { it.isCompleted }
         val remaining = total - done
         val percent = done * 100 / total
-        val groupName = viewModel.currentGroup()?.name ?: AppSettings.termList(requireContext())
+        val groupName = viewModel.currentGroup()?.name ?: "配達リスト"
         AlertDialog.Builder(requireContext())
             .setTitle("📈  $groupName")
             .setMessage("完了　　$done 件\n残り　　$remaining 件\n合計　　$total 件\n\n進捗　　$percent%")
@@ -328,7 +328,7 @@ internal fun DeliveryListFragment.shareList() {
             android.widget.Toast.makeText(requireContext(), "リストが空です", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
-        val groupName = viewModel.groups.value.find { it.id == viewModel.currentGroupId.value }?.name ?: AppSettings.termList(requireContext())
+        val groupName = viewModel.groups.value.find { it.id == viewModel.currentGroupId.value }?.name ?: "配達リスト"
         val lines = buildString {
             append("$groupName（${deliveries.size}件）\n")
             deliveries.forEachIndexed { i, d ->

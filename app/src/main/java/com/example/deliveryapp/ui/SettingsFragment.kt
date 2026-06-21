@@ -79,10 +79,6 @@ class SettingsFragment : Fragment() {
             }
         }
 
-        val isDriver = AppSettings.isDriverMode(requireContext())
-        binding.tvModeSwitchSub.text = "現在: ${if (isDriver) "ドライバー向け" else "一般利用"}"
-        binding.rowModeSwitch.setOnClickListener { showModeSwitchDialog() }
-
         addBackgroundRow()
 
         binding.rowBackupCreate.setOnClickListener { createBackup() }
@@ -294,22 +290,17 @@ class SettingsFragment : Fragment() {
     }
 
     private fun buildBackgroundSummary(ctx: android.content.Context): String {
-        val isDriver = AppSettings.isDriverMode(ctx)
         val items = mutableListOf<String>()
-        if (isDriver) {
-            if (AppSettings.isLocationTrackingEnabled(ctx)) items.add("走行距離追跡 ON")
-            if (AppSettings.getReminderBeforeEnabled(ctx)) items.add("乗務前通知 ON")
-            if (AppSettings.getReminderAfterEnabled(ctx)) items.add("乗務後通知 ON")
-        } else {
-            if (AppSettings.isGeofenceEnabled(ctx)) items.add("到着通知 ON")
-        }
+        if (AppSettings.isLocationTrackingEnabled(ctx)) items.add("走行距離追跡 ON")
+        if (AppSettings.getReminderBeforeEnabled(ctx)) items.add("乗務前通知 ON")
+        if (AppSettings.getReminderAfterEnabled(ctx)) items.add("乗務後通知 ON")
+        if (AppSettings.isGeofenceEnabled(ctx)) items.add("到着通知 ON")
         return if (items.isEmpty()) "すべてOFF" else items.joinToString("・")
     }
 
     private fun showBackgroundSettingsSheet(onDismiss: () -> Unit) {
         val ctx = requireContext()
         val dp  = ctx.resources.displayMetrics.density
-        val isDriver = AppSettings.isDriverMode(ctx)
         val surfaceBg    = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
         val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
@@ -387,44 +378,39 @@ class SettingsFragment : Fragment() {
             root.addView(row)
         }
 
-        if (isDriver) {
-            toggleRow("🛣️", "走行距離追跡", AppSettings.isLocationTrackingEnabled(ctx)) { on, _ ->
-                AppSettings.setLocationTrackingEnabled(ctx, on)
-                if (!on) com.rodgers.routist.util.LocationTrackingService.stop(ctx)
-            }
-            root.addView(android.view.View(ctx).apply {
-                setBackgroundColor(outlineVar)
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1*dp).toInt())
-                    .also { it.setMargins((84*dp).toInt(), 0, 0, 0) }
-            })
-            toggleRow("🔔", "乗務前リマインダー", AppSettings.getReminderBeforeEnabled(ctx)) { on, _ ->
-                AppSettings.setReminderBeforeEnabled(ctx, on)
-            }
-            root.addView(android.view.View(ctx).apply {
-                setBackgroundColor(outlineVar)
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1*dp).toInt())
-                    .also { it.setMargins((84*dp).toInt(), 0, 0, 0) }
-            })
-            toggleRow("🔔", "乗務後リマインダー", AppSettings.getReminderAfterEnabled(ctx)) { on, _ ->
-                AppSettings.setReminderAfterEnabled(ctx, on)
-            }
-        } else {
-            toggleRow("📍", "目的地到着通知", AppSettings.isGeofenceEnabled(ctx)) { on, stateV ->
-                if (on) {
-                    requestGeofencePermission { granted ->
-                        if (granted) {
-                            AppSettings.setGeofenceEnabled(ctx, true)
-                        } else {
-                            stateV.text = "OFF"
-                            android.widget.Toast.makeText(ctx,
-                                "バックグラウンド位置情報を「常に許可」に設定してください",
-                                android.widget.Toast.LENGTH_LONG).show()
-                        }
+        fun divider() = root.addView(android.view.View(ctx).apply {
+            setBackgroundColor(outlineVar)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1*dp).toInt())
+                .also { it.setMargins((84*dp).toInt(), 0, 0, 0) }
+        })
+        toggleRow("🛣️", "走行距離追跡", AppSettings.isLocationTrackingEnabled(ctx)) { on, _ ->
+            AppSettings.setLocationTrackingEnabled(ctx, on)
+            if (!on) com.rodgers.routist.util.LocationTrackingService.stop(ctx)
+        }
+        divider()
+        toggleRow("🔔", "乗務前リマインダー", AppSettings.getReminderBeforeEnabled(ctx)) { on, _ ->
+            AppSettings.setReminderBeforeEnabled(ctx, on)
+        }
+        divider()
+        toggleRow("🔔", "乗務後リマインダー", AppSettings.getReminderAfterEnabled(ctx)) { on, _ ->
+            AppSettings.setReminderAfterEnabled(ctx, on)
+        }
+        divider()
+        toggleRow("📍", "目的地到着通知", AppSettings.isGeofenceEnabled(ctx)) { on, stateV ->
+            if (on) {
+                requestGeofencePermission { granted ->
+                    if (granted) {
+                        AppSettings.setGeofenceEnabled(ctx, true)
+                    } else {
+                        stateV.text = "OFF"
+                        android.widget.Toast.makeText(ctx,
+                            "バックグラウンド位置情報を「常に許可」に設定してください",
+                            android.widget.Toast.LENGTH_LONG).show()
                     }
-                } else {
-                    AppSettings.setGeofenceEnabled(ctx, false)
-                    com.rodgers.routist.util.GeofenceManager.removeAll(ctx)
                 }
+            } else {
+                AppSettings.setGeofenceEnabled(ctx, false)
+                com.rodgers.routist.util.GeofenceManager.removeAll(ctx)
             }
         }
 
@@ -484,24 +470,6 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    private fun showModeSwitchDialog() {
-        val ctx = requireContext()
-        val isDriver = AppSettings.isDriverMode(ctx)
-        val nextMode = if (isDriver) "一般利用" else "ドライバー向け"
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("利用モードを切り替え")
-            .setMessage("「$nextMode」モードに切り替えます。\n切り替え後、アプリを再起動します。")
-            .setPositiveButton("切り替える") { _, _ ->
-                AppSettings.setDriverMode(ctx, !isDriver)
-                val intent = requireActivity().packageManager
-                    .getLaunchIntentForPackage(requireActivity().packageName)!!
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                requireActivity().finish()
-            }
-            .setNegativeButton("キャンセル", null)
-            .show()
-    }
 
     private fun createBackup() {
         val ctx = requireContext()

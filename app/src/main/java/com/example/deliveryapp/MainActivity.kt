@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     val viewModel: DeliveryViewModel by viewModels()
     private var suppressNavSync = false
-    private var isDriverMode = true
+    private val isDriverMode = true
 
     private var statusBarHeight = 0
     private var isAuthenticated = false
@@ -78,9 +78,6 @@ class MainActivity : AppCompatActivity() {
         binding.toolbar.setOnClickListener { showGroupDropdown() }
 
         setupTabs()
-        if (!AppSettings.isAppModeSet(this) || AppSettings.isShowModeOnLaunch(this)) {
-            showModeSelectionDialog()
-        }
 
         lifecycleScope.launch {
             viewModel.deliveries.collectLatest { _ ->
@@ -161,134 +158,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showModeSelectionDialog() {
-        val isFirstTime = !AppSettings.isAppModeSet(this)
-        val dp = resources.displayMetrics.density
-        val ctx = this
-
-        val root = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding((24*dp).toInt(), (8*dp).toInt(), (24*dp).toInt(), (16*dp).toInt())
-        }
-
-        var selectedMode = AppSettings.isDriverMode(ctx)
-
-        fun makeCard(emoji: String, title: String, sub: String, isDriver: Boolean): android.widget.LinearLayout {
-            val surfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-            val primary        = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
-            val onSurface      = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-            val onSurfaceVar   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-            val MATCH = android.widget.LinearLayout.LayoutParams.MATCH_PARENT
-            val WRAP  = android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-
-            val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(if (isDriver == selectedMode) primary else surfaceVariant)
-                cornerRadius = 12 * dp
-            }
-            val card = android.widget.LinearLayout(ctx).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
-                background = bg
-                setPadding((16*dp).toInt(), (14*dp).toInt(), (16*dp).toInt(), (14*dp).toInt())
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.bottomMargin = (10*dp).toInt() }
-            }
-            card.addView(android.widget.TextView(ctx).apply {
-                text = "$emoji  $title"
-                textSize = 16f
-                android.graphics.Typeface.DEFAULT_BOLD.also { typeface = it }
-                setTextColor(if (isDriver == selectedMode) android.graphics.Color.WHITE else onSurface)
-            })
-            card.addView(android.widget.TextView(ctx).apply {
-                text = sub
-                textSize = 13f
-                setTextColor(if (isDriver == selectedMode) android.graphics.Color.argb(200, 255, 255, 255) else onSurfaceVar)
-                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.topMargin = (2*dp).toInt() }
-            })
-            return card
-        }
-
-        val driverCard  = makeCard("🚚", "配達・ドライバー向け", "点呼記録・稼働報告書つき", true)
-        val generalCard = makeCard("📍", "一般利用", "目的地管理・ルート計画", false)
-
-        root.addView(driverCard)
-        root.addView(generalCard)
-
-        val divider = android.view.View(ctx).apply {
-            setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant))
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, (1*dp).toInt()
-            ).also { it.topMargin = (4*dp).toInt(); it.bottomMargin = (12*dp).toInt() }
-        }
-        root.addView(divider)
-
-        val checkBox = android.widget.CheckBox(ctx).apply {
-            text = "次回起動時もこの画面を表示する"
-            isChecked = AppSettings.isShowModeOnLaunch(ctx)
-            textSize = 14f
-        }
-        root.addView(checkBox)
-
-        val dialog = AlertDialog.Builder(ctx)
-            .setTitle("利用モードを選択")
-            .setView(root)
-            .setCancelable(!isFirstTime)
-            .setPositiveButton("決定") { _, _ ->
-                AppSettings.setDriverMode(ctx, selectedMode)
-                AppSettings.setShowModeOnLaunch(ctx, checkBox.isChecked)
-                setupTabs()
-            }
-            .apply {
-                if (!isFirstTime) setNegativeButton("キャンセル", null)
-            }
-            .create()
-
-        driverCard.setOnClickListener {
-            selectedMode = true
-            val primary      = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
-            val surfaceVar   = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-            val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-            val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-            (driverCard.background  as android.graphics.drawable.GradientDrawable).setColor(primary)
-            (generalCard.background as android.graphics.drawable.GradientDrawable).setColor(surfaceVar)
-            (driverCard.getChildAt(0)  as android.widget.TextView).setTextColor(android.graphics.Color.WHITE)
-            (driverCard.getChildAt(1)  as android.widget.TextView).setTextColor(android.graphics.Color.argb(200,255,255,255))
-            (generalCard.getChildAt(0) as android.widget.TextView).setTextColor(onSurface)
-            (generalCard.getChildAt(1) as android.widget.TextView).setTextColor(onSurfaceVar)
-        }
-        generalCard.setOnClickListener {
-            selectedMode = false
-            val primary      = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
-            val surfaceVar   = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-            val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-            val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-            (generalCard.background as android.graphics.drawable.GradientDrawable).setColor(primary)
-            (driverCard.background  as android.graphics.drawable.GradientDrawable).setColor(surfaceVar)
-            (generalCard.getChildAt(0) as android.widget.TextView).setTextColor(android.graphics.Color.WHITE)
-            (generalCard.getChildAt(1) as android.widget.TextView).setTextColor(android.graphics.Color.argb(200,255,255,255))
-            (driverCard.getChildAt(0)  as android.widget.TextView).setTextColor(onSurface)
-            (driverCard.getChildAt(1)  as android.widget.TextView).setTextColor(onSurfaceVar)
-        }
-
-        dialog.show()
-    }
-
     private fun setupTabs() {
-        isDriverMode = AppSettings.isDriverMode(this)
-
-        val fragments = if (isDriverMode) {
-            listOf(
-                TenkoFragment(),
-                DeliveryListFragment(),
-                com.rodgers.routist.ui.ReportContainerFragment(),
-                com.rodgers.routist.ui.SettingsFragment()
-            )
-        } else {
-            listOf(
-                DeliveryListFragment(),
-                com.rodgers.routist.ui.SettingsFragment()
-            )
-        }
+        val fragments = listOf(
+            TenkoFragment(),
+            DeliveryListFragment(),
+            com.rodgers.routist.ui.ReportContainerFragment(),
+            com.rodgers.routist.ui.SettingsFragment()
+        )
 
         binding.viewPager.adapter = object : androidx.viewpager2.adapter.FragmentStateAdapter(this) {
             override fun getItemCount() = fragments.size
@@ -296,16 +172,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.viewPager.isUserInputEnabled = false
 
-        // モード別タブ表示切替・ラベル変更
-        binding.bottomNavigation.menu.findItem(R.id.nav_tenko).isVisible = isDriverMode
-        binding.bottomNavigation.menu.findItem(R.id.nav_report).isVisible = isDriverMode
-        if (!isDriverMode) {
-            binding.bottomNavigation.menu.findItem(R.id.nav_list).title = "目的地"
-        }
-
-        // 初期タブをリスト画面に
-        val listPos = if (isDriverMode) 1 else 0
-        binding.viewPager.setCurrentItem(listPos, false)
+        binding.viewPager.setCurrentItem(1, false)
         binding.bottomNavigation.selectedItemId = R.id.nav_list
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
@@ -323,27 +190,27 @@ class MainActivity : AppCompatActivity() {
                 suppressNavSync = true
                 binding.bottomNavigation.selectedItemId = itemId
                 suppressNavSync = false
-                if (position == if (isDriverMode) 1 else 0) viewModel.setMapFilter(null)
+                if (position == 1) viewModel.setMapFilter(null)
                 updateToolbarForTab(position)
             }
         })
 
-        updateToolbarForTab(listPos)
+        updateToolbarForTab(1)
     }
 
     private fun navItemToPos(itemId: Int): Int? = when (itemId) {
-        R.id.nav_tenko    -> if (isDriverMode) 0 else null
-        R.id.nav_list     -> if (isDriverMode) 1 else 0
-        R.id.nav_report   -> if (isDriverMode) 2 else null
-        R.id.nav_settings -> if (isDriverMode) 3 else 1
+        R.id.nav_tenko    -> 0
+        R.id.nav_list     -> 1
+        R.id.nav_report   -> 2
+        R.id.nav_settings -> 3
         else -> null
     }
 
     private fun posToNavItemId(pos: Int): Int? = when (pos) {
-        0 -> if (isDriverMode) R.id.nav_tenko    else R.id.nav_list
-        1 -> if (isDriverMode) R.id.nav_list     else R.id.nav_settings
-        2 -> if (isDriverMode) R.id.nav_report   else null
-        3 -> if (isDriverMode) R.id.nav_settings else null
+        0 -> R.id.nav_tenko
+        1 -> R.id.nav_list
+        2 -> R.id.nav_report
+        3 -> R.id.nav_settings
         else -> null
     }
 
