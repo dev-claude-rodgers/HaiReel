@@ -222,31 +222,106 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         fun showTermsAndStart() {
+            val onSurface = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+            val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+
+            val termsText = android.widget.TextView(ctx).apply {
+                text = """利用規約
+
+第1条（目的）
+本規約は、RouteJin（以下「本アプリ」）の利用条件を定めるものです。
+ご利用の前に必ずお読みください。
+
+第2条（利用対象）
+本アプリは軽貨物ドライバーおよびその業務に関わる方を対象とした業務管理ツールです。
+
+第3条（禁止事項）
+・逆コンパイル・リバースエンジニアリング
+・ライセンスキーの第三者への譲渡・共有
+・違法な目的での使用
+・本アプリを利用した迷惑行為
+
+第4条（免責事項）
+・本アプリはあくまで補助ツールです。点呼記録・日報の法的効力を保証しません。
+・ルート最適化の結果は参考情報であり、精度を保証しません。
+・データの消失・破損に関して開発者は責任を負いません。
+・本アプリの利用により生じた損害について、開発者は一切責任を負いません。
+
+第5条（サービスの変更・停止）
+開発者は事前の通知なくサービスの内容変更・停止を行う場合があります。
+
+第6条（料金）
+試用期間（7日間）は無料でご利用いただけます。
+継続利用にはライセンスキーの購入が必要です。
+
+第7条（準拠法・管轄）
+本規約は日本法に準拠し、紛争は開発者所在地の裁判所を第一審管轄とします。
+
+第8条（規約の変更）
+本規約は事前の通知なく変更される場合があります。
+変更後の規約はアプリ内に掲示された時点で効力を生じます。"""
+                textSize = 13f
+                setTextColor(onSurface)
+                setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
+            }
+
+            val divider = android.view.View(ctx).apply {
+                setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant))
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt()
+                ).also { it.topMargin = (8 * dp).toInt() }
+            }
+
             val cb = android.widget.CheckBox(ctx).apply {
-                text = "利用規約・プライバシーポリシーに同意します"
+                text = "上記の利用規約に同意します"
                 textSize = 14f
-                setPadding((8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt())
+                setTextColor(onSurface)
+                setPadding((4 * dp).toInt(), (12 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt())
             }
-            val termsNote = android.widget.TextView(ctx).apply {
-                text = "「始める」を押すと利用規約・免責事項に同意したものとみなされます。\n設定 → 利用規約 で内容を確認できます。"
-                textSize = 12f
-                setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-                setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), (8 * dp).toInt())
+
+            val scrollContent = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                addView(termsText)
+                addView(divider)
+                addView(cb)
             }
+            val scrollView = android.widget.ScrollView(ctx).apply {
+                addView(scrollContent)
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, (400 * dp).toInt()
+                )
+            }
+
+            val btnCancel = com.google.android.material.button.MaterialButton(
+                ctx, null, com.google.android.material.R.attr.borderlessButtonStyle
+            ).apply {
+                text = "キャンセル"
+                setOnClickListener { /* dismiss後に設定 */ }
+            }
+            val btnAgree = com.google.android.material.button.MaterialButton(ctx).apply {
+                text = "同意して始める"
+            }
+            val btnRow = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.END
+                setPadding((8 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt())
+                addView(btnCancel)
+                addView(btnAgree)
+            }
+
             val container = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
-                setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
-                addView(cb)
-                addView(termsNote)
+                addView(scrollView)
+                addView(btnRow)
             }
+
             val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("ご利用前に")
+                .setTitle("利用規約")
                 .setView(container)
-                .setPositiveButton("始める", null)
-                .setNegativeButton("キャンセル", null)
                 .create()
             dlg.show()
-            dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            btnCancel.setOnClickListener { dlg.dismiss() }
+            btnAgree.setOnClickListener {
                 if (!cb.isChecked) {
                     android.widget.Toast.makeText(ctx, "利用規約に同意してください", android.widget.Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
