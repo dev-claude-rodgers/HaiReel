@@ -91,17 +91,18 @@ class MainActivity : AppCompatActivity() {
 
         setupTabs()
 
-        // ライセンス・試用期間チェック
-        if (!AppSettings.canUseApp(this)) {
-            showLicenseExpiredDialog()
-        } else if (AppSettings.isInTrial(this)) {
-            val days = AppSettings.trialDaysLeft(this)
-            if (days <= 2) {
-                // 試用期間残り2日以下で通知
-                com.google.android.material.snackbar.Snackbar
-                    .make(binding.root, "試用期間残り${days}日です。", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
-                    .setAction("ライセンスを入力") { showLicenseInputDialog() }
-                    .show()
+        // ライセンス・試用期間チェック（デバッグビルドはスキップ）
+        if (!com.rodgers.routist.BuildConfig.DEBUG) {
+            if (!AppSettings.canUseApp(this)) {
+                showLicenseExpiredDialog()
+            } else if (AppSettings.isInTrial(this)) {
+                val days = AppSettings.trialDaysLeft(this)
+                if (days <= 2) {
+                    com.google.android.material.snackbar.Snackbar
+                        .make(binding.root, "試用期間残り${days}日です。", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                        .setAction("ライセンスを入力") { showLicenseInputDialog() }
+                        .show()
+                }
             }
         }
 

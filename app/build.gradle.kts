@@ -61,6 +61,8 @@ android {
             }
         }
         debug {
+            applicationIdSuffix = ".debug"        // デバッグ版は別パッケージ→本番と同時インストール可能
+            versionNameSuffix = "-dev"
             enableUnitTestCoverage = true
             configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
                 mappingFileUploadEnabled = false
