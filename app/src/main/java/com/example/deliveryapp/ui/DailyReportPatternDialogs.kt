@@ -23,7 +23,12 @@ internal fun DailyReportFragment.showPatternListDialog() {
     val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
     val WRAP  = LinearLayout.LayoutParams.WRAP_CONTENT
 
-    val scroll   = ScrollView(ctx)
+    val maxH = (ctx.resources.displayMetrics.heightPixels * 0.75).toInt()
+    val scroll   = ScrollView(ctx).apply {
+        layoutParams = android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT, maxH
+        )
+    }
     val listRoot = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
         setPadding((4 * dp).toInt(), (4 * dp).toInt(), (4 * dp).toInt(), (4 * dp).toInt())
@@ -154,13 +159,6 @@ internal fun DailyReportFragment.showPatternListDialog() {
     }
 
     rebuildList()
-
-    // 画面高さの80%を最大高さとして設定し、パターンが多くてもスクロール可能に
-    val displayH = ctx.resources.displayMetrics.heightPixels
-    val maxH = (displayH * 0.75).toInt()
-    scroll.layoutParams = android.widget.FrameLayout.LayoutParams(
-        android.widget.FrameLayout.LayoutParams.MATCH_PARENT, maxH
-    )
 
     MaterialAlertDialogBuilder(ctx)
         .setTitle("帳票設定")
