@@ -50,7 +50,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal var googleMap: GoogleMap? = null
     private val markers = mutableMapOf<String, Marker>()
     internal val facilityMarkers = mutableListOf<Marker>()
-    private var routeLine: Polyline? = null
+    private val routeLines = mutableListOf<com.google.android.gms.maps.model.Polyline>()
     internal var showRouteLines = true
     internal var lastKnownLocation: android.location.Location? = null
     private var pendingPinLocation: LatLng? = null
@@ -225,7 +225,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         val map = googleMap ?: return
         map.clear()
         markers.clear()
-        routeLine = null
+        routeLines.forEach { it.remove() }
+        routeLines.clear()
 
         val groups = viewModel.groups.value
         val filter = viewModel.mapFilter.value
@@ -280,15 +281,15 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
             // フィルターなし・現在のグループのみルート線を表示（未完了のみ、2件以上のとき）
             val incomplete = geocoded.filter { !it.isCompleted }
-            if (filter == null && showRouteLines && group.id == viewModel.currentGroupId.value && incomplete.size >= 2) {
+            if (filter == null && showRouteLines && incomplete.size >= 2) {
                 val points = incomplete.map { LatLng(it.lat, it.lng) }
-                routeLine = map.addPolyline(
+                map.addPolyline(
                     PolylineOptions()
                         .addAll(points)
                         .color(color)
                         .width(6f)
                         .pattern(listOf(Dash(20f), Gap(10f)))
-                )
+                )?.let { routeLines.add(it) }
             }
         }
 
