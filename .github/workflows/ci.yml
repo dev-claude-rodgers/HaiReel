@@ -181,13 +181,13 @@ jobs:
       - name: Decode keystore
         env:
           RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
-        run: echo "$RELEASE_KEYSTORE" | base64 -d > /tmp/release.jks
+        run: echo "$RELEASE_KEYSTORE" | base64 -d > /tmp/release.p12
 
       - name: Write local.properties
         run: |
           echo "sdk.dir=$ANDROID_HOME" >> local.properties
           echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}" >> local.properties
-          echo "RELEASE_STORE_FILE=/tmp/release.jks" >> local.properties
+          echo "RELEASE_STORE_FILE=/tmp/release.p12" >> local.properties
           echo "RELEASE_STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }}" >> local.properties
           echo "RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}" >> local.properties
           echo "RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}" >> local.properties
