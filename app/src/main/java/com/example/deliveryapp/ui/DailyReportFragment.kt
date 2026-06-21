@@ -488,8 +488,9 @@ class DailyReportFragment : Fragment() {
         // ── アルコールチェック
         root.addView(label("アルコールチェック"))
         val alcSelectedBg      = listOf("#9E9E9E", "#388E3C", "#D32F2F")
-        val alcUnselectedColor = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-        val alcUnselectedText  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val alcUnselectedColor = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
+        val alcBorderColor     = ctx.themeColor(com.google.android.material.R.attr.colorOutline)
+        val alcUnselectedText  = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         val alcLabels = listOf("未実施", "○ 正常", "× 異常")
 
         val alcRow = LinearLayout(ctx).apply {
@@ -501,9 +502,12 @@ class DailyReportFragment : Fragment() {
         fun applyAlcStyle() {
             alcBtnList.forEachIndexed { j, b ->
                 val selected = (j == alcIdx)
-                (b.background as android.graphics.drawable.GradientDrawable)
-                    .setColor(if (selected) Color.parseColor(alcSelectedBg[j]) else alcUnselectedColor)
+                (b.background as android.graphics.drawable.GradientDrawable).apply {
+                    setColor(if (selected) Color.parseColor(alcSelectedBg[j]) else alcUnselectedColor)
+                    setStroke((2f * dp).toInt(), if (selected) Color.parseColor(alcSelectedBg[j]) else alcBorderColor)
+                }
                 b.setTextColor(if (selected) android.graphics.Color.WHITE else alcUnselectedText)
+                b.typeface = if (selected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
             }
         }
 
@@ -512,7 +516,9 @@ class DailyReportFragment : Fragment() {
                 text = lbl; isAllCaps = false; textSize = 14f
                 setPadding((4 * dp).toInt(), (10 * dp).toInt(), (4 * dp).toInt(), (10 * dp).toInt())
                 background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(alcUnselectedColor); cornerRadius = 6 * dp
+                    setColor(alcUnselectedColor)
+                    setStroke((2f * dp).toInt(), alcBorderColor)
+                    cornerRadius = 6 * dp
                 }
                 setTextColor(alcUnselectedText)
                 layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f).also {
