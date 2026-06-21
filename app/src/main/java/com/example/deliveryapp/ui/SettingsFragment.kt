@@ -39,6 +39,35 @@ class SettingsFragment : Fragment() {
     ) { uri ->
         if (uri == null) return@registerForActivityResult
         val ctx = context ?: return@registerForActivityResult
+
+        // .rbe（暗号化）の場合はパスワード入力ダイアログを先に表示
+        val isEncrypted = uri.lastPathSegment?.endsWith(".rbe") == true
+        if (isEncrypted) {
+            val input = android.widget.EditText(ctx).apply {
+                hint = "バックアップパスワード"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle("パスワードを入力")
+                .setMessage("このバックアップはパスワードで暗号化されています。\n作成時に設定したパスワードを入力してください。")
+                .setView(input)
+                .setPositiveButton("復元") { _, _ ->
+                    val pw = input.text.toString()
+                    if (pw.isBlank()) {
+                        Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    com.rodgers.routist.util.AppSettings.setBackupPassword(ctx, pw)
+                    doRestore(ctx, uri)
+                }
+                .setNegativeButton("キャンセル", null)
+                .show()
+        } else {
+            doRestore(ctx, uri)
+        }
+    }
+
+    private fun doRestore(ctx: android.content.Context, uri: android.net.Uri) {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) { BackupManager.restoreBackup(ctx, uri) }
@@ -49,7 +78,7 @@ class SettingsFragment : Fragment() {
                 intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
                 requireActivity().finish()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Toast.makeText(ctx, "復元に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
             }
         }
