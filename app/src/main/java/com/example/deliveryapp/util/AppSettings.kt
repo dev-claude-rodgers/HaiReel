@@ -6,8 +6,8 @@ import androidx.security.crypto.MasterKey
 object AppSettings {
     const val PREFS = "kado_settings"
     const val ENCRYPTED_PREFS = "kado_secure"
-    private fun p(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-    private fun ep(ctx: Context): android.content.SharedPreferences = try {
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun encryptedPrefs(ctx: Context): android.content.SharedPreferences = try {
         val master = MasterKey.Builder(ctx)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -20,58 +20,58 @@ object AppSettings {
         ctx.getSharedPreferences(ENCRYPTED_PREFS + "_fallback", Context.MODE_PRIVATE)
     }
 
-    fun getDriverName(ctx: Context): String = p(ctx).getString("driver_name", "") ?: ""
-    fun setDriverName(ctx: Context, v: String) = p(ctx).edit().putString("driver_name", v).apply()
+    fun getDriverName(ctx: Context): String = prefs(ctx).getString("driver_name", "") ?: ""
+    fun setDriverName(ctx: Context, v: String) = prefs(ctx).edit().putString("driver_name", v).apply()
 
-    fun getClientName(ctx: Context): String = p(ctx).getString("client_name", "") ?: ""
-    fun setClientName(ctx: Context, v: String) = p(ctx).edit().putString("client_name", v).apply()
+    fun getClientName(ctx: Context): String = prefs(ctx).getString("client_name", "") ?: ""
+    fun setClientName(ctx: Context, v: String) = prefs(ctx).edit().putString("client_name", v).apply()
 
-    fun getClosingDay(ctx: Context): Int = p(ctx).getInt("closing_day", 25)
-    fun setClosingDay(ctx: Context, v: Int) = p(ctx).edit().putInt("closing_day", v).apply()
+    fun getClosingDay(ctx: Context): Int = prefs(ctx).getInt("closing_day", 25)
+    fun setClosingDay(ctx: Context, v: Int) = prefs(ctx).edit().putInt("closing_day", v).apply()
 
-    fun getDeliveryLabel(ctx: Context): String = p(ctx).getString("delivery_label", "配達件数") ?: "配達件数"
-    fun setDeliveryLabel(ctx: Context, v: String) = p(ctx).edit().putString("delivery_label", v).apply()
+    fun getDeliveryLabel(ctx: Context): String = prefs(ctx).getString("delivery_label", "配達件数") ?: "配達件数"
+    fun setDeliveryLabel(ctx: Context, v: String) = prefs(ctx).edit().putString("delivery_label", v).apply()
 
-    fun getPackageLabel(ctx: Context): String = p(ctx).getString("package_label", "個数") ?: "個数"
-    fun setPackageLabel(ctx: Context, v: String) = p(ctx).edit().putString("package_label", v).apply()
+    fun getPackageLabel(ctx: Context): String = prefs(ctx).getString("package_label", "個数") ?: "個数"
+    fun setPackageLabel(ctx: Context, v: String) = prefs(ctx).edit().putString("package_label", v).apply()
 
-    fun isColAlc(ctx: Context): Boolean = p(ctx).getBoolean("col_alc", true)
-    fun setColAlc(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("col_alc", v).apply()
+    fun isColAlc(ctx: Context): Boolean = prefs(ctx).getBoolean("col_alc", true)
+    fun setColAlc(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_alc", v).apply()
 
-    fun isColDelivery(ctx: Context): Boolean = p(ctx).getBoolean("col_delivery", true)
-    fun setColDelivery(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("col_delivery", v).apply()
+    fun isColDelivery(ctx: Context): Boolean = prefs(ctx).getBoolean("col_delivery", true)
+    fun setColDelivery(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_delivery", v).apply()
 
-    fun isColPackage(ctx: Context): Boolean = p(ctx).getBoolean("col_package", true)
-    fun setColPackage(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("col_package", v).apply()
+    fun isColPackage(ctx: Context): Boolean = prefs(ctx).getBoolean("col_package", true)
+    fun setColPackage(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_package", v).apply()
 
-    fun isColDistance(ctx: Context): Boolean = p(ctx).getBoolean("col_distance", true)
-    fun setColDistance(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("col_distance", v).apply()
+    fun isColDistance(ctx: Context): Boolean = prefs(ctx).getBoolean("col_distance", true)
+    fun setColDistance(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_distance", v).apply()
 
-    fun isColArea(ctx: Context): Boolean = p(ctx).getBoolean("col_area", true)
-    fun setColArea(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("col_area", v).apply()
+    fun isColArea(ctx: Context): Boolean = prefs(ctx).getBoolean("col_area", true)
+    fun setColArea(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_area", v).apply()
 
-    fun isColRemarks(ctx: Context): Boolean = p(ctx).getBoolean("col_remarks", true)
-    fun setColRemarks(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("col_remarks", v).apply()
+    fun isColRemarks(ctx: Context): Boolean = prefs(ctx).getBoolean("col_remarks", true)
+    fun setColRemarks(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_remarks", v).apply()
 
     // 報酬設定
     // 0 = 日当制, 1 = 件数単価制
-    fun getPaymentType(ctx: Context): Int = p(ctx).getInt("payment_type", 0)
-    fun setPaymentType(ctx: Context, v: Int) = p(ctx).edit().putInt("payment_type", v).apply()
+    fun getPaymentType(ctx: Context): Int = prefs(ctx).getInt("payment_type", 0)
+    fun setPaymentType(ctx: Context, v: Int) = prefs(ctx).edit().putInt("payment_type", v).apply()
 
-    fun getUnitPrice(ctx: Context): Int = p(ctx).getInt("unit_price", 0)
-    fun setUnitPrice(ctx: Context, v: Int) = p(ctx).edit().putInt("unit_price", v).apply()
+    fun getUnitPrice(ctx: Context): Int = prefs(ctx).getInt("unit_price", 0)
+    fun setUnitPrice(ctx: Context, v: Int) = prefs(ctx).edit().putInt("unit_price", v).apply()
 
     // 点呼設定
-    fun getCheckerName(ctx: Context): String = p(ctx).getString("checker_name", "") ?: ""
-    fun setCheckerName(ctx: Context, v: String) = p(ctx).edit().putString("checker_name", v).apply()
+    fun getCheckerName(ctx: Context): String = prefs(ctx).getString("checker_name", "") ?: ""
+    fun setCheckerName(ctx: Context, v: String) = prefs(ctx).edit().putString("checker_name", v).apply()
 
     // 事業者情報
-    fun getCompanyName(ctx: Context): String = p(ctx).getString("company_name", "") ?: ""
-    fun setCompanyName(ctx: Context, v: String) = p(ctx).edit().putString("company_name", v).apply()
+    fun getCompanyName(ctx: Context): String = prefs(ctx).getString("company_name", "") ?: ""
+    fun setCompanyName(ctx: Context, v: String) = prefs(ctx).edit().putString("company_name", v).apply()
 
     // 複数車両（最大3台）
     fun getVehicles(ctx: Context): List<String> {
-        val p = p(ctx)
+        val p = prefs(ctx)
         val legacy = p.getString("vehicle_number", null)
         return listOf(
             p.getString("vehicle_number_1", legacy ?: "") ?: "",
@@ -80,49 +80,49 @@ object AppSettings {
         )
     }
     fun setVehicles(ctx: Context, list: List<String>) {
-        val edit = p(ctx).edit()
+        val edit = prefs(ctx).edit()
         list.forEachIndexed { i, v -> edit.putString("vehicle_number_${i + 1}", v) }
         edit.apply()
     }
     fun getVehicleNumber(ctx: Context): String =
         getVehicles(ctx).firstOrNull { it.isNotBlank() }
-            ?: p(ctx).getString("vehicle_number", "") ?: ""
+            ?: prefs(ctx).getString("vehicle_number", "") ?: ""
     fun setVehicleNumber(ctx: Context, v: String) {
         val current = getVehicles(ctx)
         setVehicles(ctx, listOf(v, current[1], current[2]))
     }
 
     // 点呼リマインダー（乗務前）
-    fun getReminderBeforeEnabled(ctx: Context): Boolean = p(ctx).getBoolean("reminder_before_on", false)
-    fun setReminderBeforeEnabled(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("reminder_before_on", v).apply()
-    fun getReminderBeforeHour(ctx: Context): Int = p(ctx).getInt("reminder_before_h", 8)
-    fun setReminderBeforeHour(ctx: Context, v: Int) = p(ctx).edit().putInt("reminder_before_h", v).apply()
-    fun getReminderBeforeMinute(ctx: Context): Int = p(ctx).getInt("reminder_before_m", 0)
-    fun setReminderBeforeMinute(ctx: Context, v: Int) = p(ctx).edit().putInt("reminder_before_m", v).apply()
+    fun getReminderBeforeEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("reminder_before_on", false)
+    fun setReminderBeforeEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("reminder_before_on", v).apply()
+    fun getReminderBeforeHour(ctx: Context): Int = prefs(ctx).getInt("reminder_before_h", 8)
+    fun setReminderBeforeHour(ctx: Context, v: Int) = prefs(ctx).edit().putInt("reminder_before_h", v).apply()
+    fun getReminderBeforeMinute(ctx: Context): Int = prefs(ctx).getInt("reminder_before_m", 0)
+    fun setReminderBeforeMinute(ctx: Context, v: Int) = prefs(ctx).edit().putInt("reminder_before_m", v).apply()
 
     // 点呼リマインダー（乗務後）
-    fun getReminderAfterEnabled(ctx: Context): Boolean = p(ctx).getBoolean("reminder_after_on", false)
-    fun setReminderAfterEnabled(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("reminder_after_on", v).apply()
-    fun getReminderAfterHour(ctx: Context): Int = p(ctx).getInt("reminder_after_h", 18)
-    fun setReminderAfterHour(ctx: Context, v: Int) = p(ctx).edit().putInt("reminder_after_h", v).apply()
-    fun getReminderAfterMinute(ctx: Context): Int = p(ctx).getInt("reminder_after_m", 0)
-    fun setReminderAfterMinute(ctx: Context, v: Int) = p(ctx).edit().putInt("reminder_after_m", v).apply()
+    fun getReminderAfterEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("reminder_after_on", false)
+    fun setReminderAfterEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("reminder_after_on", v).apply()
+    fun getReminderAfterHour(ctx: Context): Int = prefs(ctx).getInt("reminder_after_h", 18)
+    fun setReminderAfterHour(ctx: Context, v: Int) = prefs(ctx).edit().putInt("reminder_after_h", v).apply()
+    fun getReminderAfterMinute(ctx: Context): Int = prefs(ctx).getInt("reminder_after_m", 0)
+    fun setReminderAfterMinute(ctx: Context, v: Int) = prefs(ctx).edit().putInt("reminder_after_m", v).apply()
 
     // 休憩アラーム設定
-    fun getBreakAlarmMinutes(ctx: Context): Int = p(ctx).getInt("break_alarm_minutes", 270)
-    fun setBreakAlarmMinutes(ctx: Context, v: Int) = p(ctx).edit().putInt("break_alarm_minutes", v).apply()
+    fun getBreakAlarmMinutes(ctx: Context): Int = prefs(ctx).getInt("break_alarm_minutes", 270)
+    fun setBreakAlarmMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("break_alarm_minutes", v).apply()
 
     // 休憩アラームタイマー状態（state: "IDLE" | "DRIVING" | "ON_BREAK"）
-    fun getDriveTimerState(ctx: Context): String = p(ctx).getString("drive_timer_state", "IDLE") ?: "IDLE"
-    fun setDriveTimerState(ctx: Context, v: String) = p(ctx).edit().putString("drive_timer_state", v).apply()
-    fun getDriveSegmentStartMs(ctx: Context): Long = p(ctx).getLong("drive_seg_start_ms", 0L)
-    fun setDriveSegmentStartMs(ctx: Context, v: Long) = p(ctx).edit().putLong("drive_seg_start_ms", v).apply()
-    fun getDriveAccumulatedMs(ctx: Context): Long = p(ctx).getLong("drive_accum_ms", 0L)
-    fun setDriveAccumulatedMs(ctx: Context, v: Long) = p(ctx).edit().putLong("drive_accum_ms", v).apply()
-    fun getBreakSegmentStartMs(ctx: Context): Long = p(ctx).getLong("break_seg_start_ms", 0L)
-    fun setBreakSegmentStartMs(ctx: Context, v: Long) = p(ctx).edit().putLong("break_seg_start_ms", v).apply()
-    fun getBreakAccumulatedMs(ctx: Context): Long = p(ctx).getLong("break_accum_ms", 0L)
-    fun setBreakAccumulatedMs(ctx: Context, v: Long) = p(ctx).edit().putLong("break_accum_ms", v).apply()
+    fun getDriveTimerState(ctx: Context): String = prefs(ctx).getString("drive_timer_state", "IDLE") ?: "IDLE"
+    fun setDriveTimerState(ctx: Context, v: String) = prefs(ctx).edit().putString("drive_timer_state", v).apply()
+    fun getDriveSegmentStartMs(ctx: Context): Long = prefs(ctx).getLong("drive_seg_start_ms", 0L)
+    fun setDriveSegmentStartMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("drive_seg_start_ms", v).apply()
+    fun getDriveAccumulatedMs(ctx: Context): Long = prefs(ctx).getLong("drive_accum_ms", 0L)
+    fun setDriveAccumulatedMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("drive_accum_ms", v).apply()
+    fun getBreakSegmentStartMs(ctx: Context): Long = prefs(ctx).getLong("break_seg_start_ms", 0L)
+    fun setBreakSegmentStartMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("break_seg_start_ms", v).apply()
+    fun getBreakAccumulatedMs(ctx: Context): Long = prefs(ctx).getLong("break_accum_ms", 0L)
+    fun setBreakAccumulatedMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("break_accum_ms", v).apply()
 
     // 時間帯テンプレート（名前＋色）
     data class TimeSlotTemplate(val name: String, val colorHex: String)
@@ -138,7 +138,7 @@ object AppSettings {
 
     fun getTimeSlotTemplatesWithColor(ctx: Context): List<TimeSlotTemplate> {
         // v2形式: "name\tcolorHex|name\tcolorHex|..."
-        val rawV2 = p(ctx).getString("time_slot_templates_v2", null)
+        val rawV2 = prefs(ctx).getString("time_slot_templates_v2", null)
         if (rawV2 != null) {
             return rawV2.split("|").filter { it.isNotBlank() }.map {
                 val tab = it.indexOf('\t')
@@ -147,7 +147,7 @@ object AppSettings {
             }
         }
         // v1形式からマイグレーション
-        val rawV1 = p(ctx).getString("time_slot_templates", null)
+        val rawV1 = prefs(ctx).getString("time_slot_templates", null)
         if (rawV1 != null) {
             val names = rawV1.split("|").filter { it.isNotBlank() }
             val colorMap = DEFAULT_TEMPLATES.associate { it.name to it.colorHex }
@@ -159,7 +159,7 @@ object AppSettings {
     }
 
     fun saveTimeSlotTemplatesWithColor(ctx: Context, templates: List<TimeSlotTemplate>) =
-        p(ctx).edit().putString("time_slot_templates_v2",
+        prefs(ctx).edit().putString("time_slot_templates_v2",
             templates.joinToString("|") { "${it.name}\t${it.colorHex}" }).apply()
 
     // 後方互換ラッパー
@@ -167,90 +167,94 @@ object AppSettings {
         getTimeSlotTemplatesWithColor(ctx).map { it.name }
 
     // 燃料費自動計算
-    fun getFuelPricePerLiter(ctx: Context): Int = p(ctx).getInt("fuel_price_per_liter", 170)
-    fun setFuelPricePerLiter(ctx: Context, v: Int) = p(ctx).edit().putInt("fuel_price_per_liter", v).apply()
-    fun getFuelEfficiencyKmPerL(ctx: Context): Float = p(ctx).getFloat("fuel_efficiency_km_per_l", 15f)
-    fun setFuelEfficiencyKmPerL(ctx: Context, v: Float) = p(ctx).edit().putFloat("fuel_efficiency_km_per_l", v).apply()
+    fun getFuelPricePerLiter(ctx: Context): Int = prefs(ctx).getInt("fuel_price_per_liter", 170)
+    fun setFuelPricePerLiter(ctx: Context, v: Int) = prefs(ctx).edit().putInt("fuel_price_per_liter", v).apply()
+    fun getFuelEfficiencyKmPerL(ctx: Context): Float = prefs(ctx).getFloat("fuel_efficiency_km_per_l", 15f)
+    fun setFuelEfficiencyKmPerL(ctx: Context, v: Float) = prefs(ctx).edit().putFloat("fuel_efficiency_km_per_l", v).apply()
 
     // インボイス登録
-    fun isInvoiceRegistered(ctx: Context): Boolean = p(ctx).getBoolean("invoice_registered", false)
-    fun setInvoiceRegistered(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("invoice_registered", v).apply()
+    fun isInvoiceRegistered(ctx: Context): Boolean = prefs(ctx).getBoolean("invoice_registered", false)
+    fun setInvoiceRegistered(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("invoice_registered", v).apply()
 
     // 雇用形態 ("contractor" = 業務委託, "employee" = 正社員)
-    fun getEmploymentType(ctx: Context): String = p(ctx).getString("employment_type", "contractor") ?: "contractor"
-    fun setEmploymentType(ctx: Context, v: String) = p(ctx).edit().putString("employment_type", v).apply()
+    fun getEmploymentType(ctx: Context): String = prefs(ctx).getString("employment_type", "contractor") ?: "contractor"
+    fun setEmploymentType(ctx: Context, v: String) = prefs(ctx).edit().putString("employment_type", v).apply()
 
     // ── 案件（グループ）別 報酬・雇用形態設定（未設定時はグローバル値にフォールバック）
     fun getEmploymentType(ctx: Context, groupId: String): String {
         if (groupId.isBlank()) return getEmploymentType(ctx)
-        val sp = p(ctx); val key = "employment_type_$groupId"
+        val sp = prefs(ctx); val key = "employment_type_$groupId"
         return if (sp.contains(key)) sp.getString(key, "contractor") ?: "contractor" else getEmploymentType(ctx)
     }
     fun setEmploymentType(ctx: Context, groupId: String, v: String) =
-        p(ctx).edit().putString("employment_type_$groupId", v).apply()
+        prefs(ctx).edit().putString("employment_type_$groupId", v).apply()
 
     fun getPaymentType(ctx: Context, groupId: String): Int {
         if (groupId.isBlank()) return getPaymentType(ctx)
-        val sp = p(ctx); val key = "payment_type_$groupId"
+        val sp = prefs(ctx); val key = "payment_type_$groupId"
         return if (sp.contains(key)) sp.getInt(key, 0) else getPaymentType(ctx)
     }
     fun setPaymentType(ctx: Context, groupId: String, v: Int) =
-        p(ctx).edit().putInt("payment_type_$groupId", v).apply()
+        prefs(ctx).edit().putInt("payment_type_$groupId", v).apply()
 
     fun getUnitPrice(ctx: Context, groupId: String): Int {
         if (groupId.isBlank()) return getUnitPrice(ctx)
-        val sp = p(ctx); val key = "unit_price_$groupId"
+        val sp = prefs(ctx); val key = "unit_price_$groupId"
         return if (sp.contains(key)) sp.getInt(key, 0) else getUnitPrice(ctx)
     }
     fun setUnitPrice(ctx: Context, groupId: String, v: Int) =
-        p(ctx).edit().putInt("unit_price_$groupId", v).apply()
+        prefs(ctx).edit().putInt("unit_price_$groupId", v).apply()
 
     fun hasGroupPaymentSettings(ctx: Context, groupId: String): Boolean =
-        p(ctx).contains("payment_type_$groupId")
+        prefs(ctx).contains("payment_type_$groupId")
 
     // 点呼リスト右端表示 ("alcohol" | "time" | "none")
-    fun getTenkoRightDisplay(ctx: Context): String = p(ctx).getString("tenko_right_display", "alcohol") ?: "alcohol"
-    fun setTenkoRightDisplay(ctx: Context, v: String) = p(ctx).edit().putString("tenko_right_display", v).apply()
+    fun getTenkoRightDisplay(ctx: Context): String = prefs(ctx).getString("tenko_right_display", "alcohol") ?: "alcohol"
+    fun setTenkoRightDisplay(ctx: Context, v: String) = prefs(ctx).edit().putString("tenko_right_display", v).apply()
 
     // 削除取り消し時間（秒）
-    fun getUndoSeconds(ctx: Context): Int = p(ctx).getInt("undo_seconds", 5)
-    fun setUndoSeconds(ctx: Context, v: Int) = p(ctx).edit().putInt("undo_seconds", v).apply()
+    fun getUndoSeconds(ctx: Context): Int = prefs(ctx).getInt("undo_seconds", 5)
+    fun setUndoSeconds(ctx: Context, v: Int) = prefs(ctx).edit().putInt("undo_seconds", v).apply()
 
     // ダークモード (-1=システム, 1=ライト, 2=ダーク)
-    fun getDarkMode(ctx: Context): Int = p(ctx).getInt("dark_mode", -1)
-    fun setDarkMode(ctx: Context, v: Int) = p(ctx).edit().putInt("dark_mode", v).apply()
+    fun getDarkMode(ctx: Context): Int = prefs(ctx).getInt("dark_mode", -1)
+    fun setDarkMode(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dark_mode", v).apply()
 
     // ユーザー独自のGoogle APIキー（EncryptedSharedPreferencesに保存）
-    fun getUserApiKey(ctx: Context): String = ep(ctx).getString("user_api_key", "") ?: ""
-    fun setUserApiKey(ctx: Context, key: String) { ep(ctx).edit().putString("user_api_key", key).commit() }
+    fun getUserApiKey(ctx: Context): String = encryptedPrefs(ctx).getString("user_api_key", "") ?: ""
+    fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).commit() }
     fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
 
     // 走行距離追跡（点呼連動）
-    fun isLocationTrackingEnabled(ctx: Context): Boolean = p(ctx).getBoolean("location_tracking_enabled", true)
-    fun setLocationTrackingEnabled(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("location_tracking_enabled", v).commit() }
+    fun isLocationTrackingEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("location_tracking_enabled", true)
+    fun setLocationTrackingEnabled(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean("location_tracking_enabled", v).commit() }
 
     // 到着通知（ジオフェンス）
-    fun isGeofenceEnabled(ctx: Context): Boolean = p(ctx).getBoolean("geofence_enabled", false)
-    fun setGeofenceEnabled(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("geofence_enabled", v).commit() }
+    fun isGeofenceEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("geofence_enabled", false)
+    fun setGeofenceEnabled(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean("geofence_enabled", v).commit() }
 
     // セキュリティ
-    fun isAppLockEnabled(ctx: Context): Boolean = p(ctx).getBoolean("app_lock_enabled", false)
-    fun setAppLockEnabled(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("app_lock_enabled", v).apply()
+    fun isAppLockEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("app_lock_enabled", false)
+    fun setAppLockEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("app_lock_enabled", v).apply()
 
-    fun getLockTimeoutMinutes(ctx: Context): Int = p(ctx).getInt("lock_timeout_min", 30)
-    fun setLockTimeoutMinutes(ctx: Context, v: Int) = p(ctx).edit().putInt("lock_timeout_min", v).apply()
+    fun getLockTimeoutMinutes(ctx: Context): Int = prefs(ctx).getInt("lock_timeout_min", 30)
+    fun setLockTimeoutMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("lock_timeout_min", v).apply()
 
     fun getBackupPassword(ctx: Context): String {
         // 初回移行: 平文に旧値があれば暗号化版に移してから削除
-        val plain = p(ctx)
+        val plain = prefs(ctx)
         val legacy = plain.getString("backup_password", null)
         if (legacy != null) {
-            ep(ctx).edit().putString("backup_password", legacy).apply()
+            encryptedPrefs(ctx).edit().putString("backup_password", legacy).apply()
             plain.edit().remove("backup_password").apply()
         }
-        return ep(ctx).getString("backup_password", "") ?: ""
+        return encryptedPrefs(ctx).getString("backup_password", "") ?: ""
     }
-    fun setBackupPassword(ctx: Context, v: String) = ep(ctx).edit().putString("backup_password", v).apply()
+    fun setBackupPassword(ctx: Context, v: String) = encryptedPrefs(ctx).edit().putString("backup_password", v).apply()
+
+    // ── オンボーディング ──────────────────────────────────────────
+    fun isOnboardingDone(ctx: Context): Boolean = prefs(ctx).getBoolean("onboarding_done", false)
+    fun setOnboardingDone(ctx: Context) = prefs(ctx).edit().putBoolean("onboarding_done", true).apply()
 
     // ── ライセンス管理 ─────────────────────────────────────────
 
@@ -261,13 +265,13 @@ object AppSettings {
 
     // 初回起動日を記録（一度セットしたら変わらない）
     fun ensureInstallDate(ctx: Context) {
-        val p = p(ctx)
+        val p = prefs(ctx)
         if (!p.contains(KEY_INSTALL_DATE)) {
             p.edit().putLong(KEY_INSTALL_DATE, System.currentTimeMillis()).apply()
         }
     }
 
-    fun getInstallDate(ctx: Context): Long = p(ctx).getLong(KEY_INSTALL_DATE, System.currentTimeMillis())
+    fun getInstallDate(ctx: Context): Long = prefs(ctx).getLong(KEY_INSTALL_DATE, System.currentTimeMillis())
 
     // 試用期間内かどうか
     fun isInTrial(ctx: Context): Boolean {
@@ -283,12 +287,12 @@ object AppSettings {
     }
 
     // ライセンスキー（EncryptedSharedPreferencesに保存）
-    fun getLicenseKey(ctx: Context): String = try { ep(ctx).getString(KEY_LICENSE_KEY, "") ?: "" } catch (_: Exception) { "" }
-    fun setLicenseKey(ctx: Context, key: String) { try { ep(ctx).edit().putString(KEY_LICENSE_KEY, key).apply() } catch (_: Exception) {} }
+    fun getLicenseKey(ctx: Context): String = try { encryptedPrefs(ctx).getString(KEY_LICENSE_KEY, "") ?: "" } catch (_: Exception) { "" }
+    fun setLicenseKey(ctx: Context, key: String) { try { encryptedPrefs(ctx).edit().putString(KEY_LICENSE_KEY, key).apply() } catch (_: Exception) {} }
 
     // ライセンス有効期限（エポック秒）
-    fun getLicenseExpiry(ctx: Context): Long = try { ep(ctx).getLong(KEY_LICENSE_EXPIRY, 0L) } catch (_: Exception) { 0L }
-    fun setLicenseExpiry(ctx: Context, expiry: Long) { try { ep(ctx).edit().putLong(KEY_LICENSE_EXPIRY, expiry).apply() } catch (_: Exception) {} }
+    fun getLicenseExpiry(ctx: Context): Long = try { encryptedPrefs(ctx).getLong(KEY_LICENSE_EXPIRY, 0L) } catch (_: Exception) { 0L }
+    fun setLicenseExpiry(ctx: Context, expiry: Long) { try { encryptedPrefs(ctx).edit().putLong(KEY_LICENSE_EXPIRY, expiry).apply() } catch (_: Exception) {} }
 
     // ライセンスが有効かどうか（期限内）
     fun isLicenseValid(ctx: Context): Boolean {
