@@ -63,12 +63,12 @@ object BackupManager {
     }
 
     suspend fun createBackup(context: Context): File {
-        val db       = AppDatabase.getInstance(context)
-        val dao      = db.workRecordDao()
-        val records  = dao.getAll()
-        val patterns = PatternStorage.getAll(context)
-        val activeId = PatternStorage.getActiveId(context)
-        val groups   = db.deliveryGroupDao().getAll()
+        val db         = AppDatabase.getInstance(context)
+        val records    = db.workRecordDao().getAll()
+        val tenkoList  = db.tenkoDao().getAll()
+        val patterns   = PatternStorage.getAll(context)
+        val activeId   = PatternStorage.getActiveId(context)
+        val groups     = db.deliveryGroupDao().getAll()
         val deliveries = db.deliveryDao().getAll()
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPANESE).format(Date())
@@ -77,6 +77,7 @@ object BackupManager {
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.utf8Entry("version.txt", FORMAT_VERSION)
             zos.utf8Entry("records.json",    recordsToJson(records).toString())
+            zos.utf8Entry("tenko.json",      tenkoToJson(tenkoList).toString())
             zos.utf8Entry("patterns.json",   patternsToJson(patterns, activeId).toString())
             zos.utf8Entry("groups.json",     groupsToJson(groups).toString())
             zos.utf8Entry("deliveries.json", deliveriesToJson(deliveries).toString())
@@ -129,6 +130,15 @@ object BackupManager {
                         dao.deleteAll()
                         for (i in 0 until arr.length()) {
                             try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { Log.w("BackupManager", "記録の復元失敗: item $i", e) }
+                        }
+                    }
+                    "tenko.json" -> {
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        db.tenkoDao().deleteAll()
+                        for (i in 0 until arr.length()) {
+                            try {
+                                db.tenkoDao().insert(tenkoFromJson(arr.getJSONObject(i)))
+                            } catch (e: Exception) { Log.w("BackupManager", "点呼記録の復元失敗: item $i", e) }
                         }
                     }
                     "patterns.json" -> {
@@ -267,6 +277,61 @@ object BackupManager {
             put("patterns",  arr)
         }
     }
+
+    private fun tenkoToJson(list: List<com.rodgers.routist.model.TenkoRecord>): JSONArray {
+        val arr = JSONArray()
+        for (r in list) {
+            arr.put(JSONObject().apply {
+                put("id",                r.id)
+                put("date",              r.date)
+                put("assignmentId",      r.assignmentId)
+                put("beforeMethod",      r.beforeMethod ?: "")
+                put("beforeTime",        r.beforeTime ?: "")
+                put("beforeHealth",      r.beforeHealth)
+                put("beforeFatigue",     r.beforeFatigue)
+                put("beforeAlcohol",     r.beforeAlcohol)
+                put("beforeInspection",  r.beforeInspection)
+                put("beforeInstruction", r.beforeInstruction ?: "")
+                put("beforeChecker",     r.beforeChecker ?: "")
+                put("afterMethod",       r.afterMethod ?: "")
+                put("afterTime",         r.afterTime ?: "")
+                put("afterHealth",       r.afterHealth)
+                put("afterFatigue",      r.afterFatigue)
+                put("afterAlcohol",      r.afterAlcohol)
+                put("afterAccident",     r.afterAccident)
+                put("afterVehicle",      r.afterVehicle)
+                put("afterInstruction",  r.afterInstruction ?: "")
+                put("afterChecker",      r.afterChecker ?: "")
+                put("note",              r.note ?: "")
+                put("vehicleNumber",     r.vehicleNumber ?: "")
+            })
+        }
+        return arr
+    }
+
+    private fun tenkoFromJson(j: JSONObject) = com.rodgers.routist.model.TenkoRecord(
+        date              = j.getString("date"),
+        assignmentId      = j.optString("assignmentId", ""),
+        beforeMethod      = j.optString("beforeMethod").ifBlank { null },
+        beforeTime        = j.optString("beforeTime").ifBlank { null },
+        beforeHealth      = if (j.isNull("beforeHealth")) null else j.optBoolean("beforeHealth"),
+        beforeFatigue     = if (j.isNull("beforeFatigue")) null else j.optBoolean("beforeFatigue"),
+        beforeAlcohol     = if (j.isNull("beforeAlcohol")) null else j.optDouble("beforeAlcohol"),
+        beforeInspection  = if (j.isNull("beforeInspection")) null else j.optBoolean("beforeInspection"),
+        beforeInstruction = j.optString("beforeInstruction").ifBlank { null },
+        beforeChecker     = j.optString("beforeChecker").ifBlank { null },
+        afterMethod       = j.optString("afterMethod").ifBlank { null },
+        afterTime         = j.optString("afterTime").ifBlank { null },
+        afterHealth       = if (j.isNull("afterHealth")) null else j.optBoolean("afterHealth"),
+        afterFatigue      = if (j.isNull("afterFatigue")) null else j.optBoolean("afterFatigue"),
+        afterAlcohol      = if (j.isNull("afterAlcohol")) null else j.optDouble("afterAlcohol"),
+        afterAccident     = if (j.isNull("afterAccident")) null else j.optBoolean("afterAccident"),
+        afterVehicle      = if (j.isNull("afterVehicle")) null else j.optBoolean("afterVehicle"),
+        afterInstruction  = j.optString("afterInstruction").ifBlank { null },
+        afterChecker      = j.optString("afterChecker").ifBlank { null },
+        note              = j.optString("note").ifBlank { null },
+        vehicleNumber     = j.optString("vehicleNumber").ifBlank { null }
+    )
 
     private fun groupsToJson(groups: List<com.rodgers.routist.db.DeliveryGroupEntity>): JSONArray {
         val arr = JSONArray()

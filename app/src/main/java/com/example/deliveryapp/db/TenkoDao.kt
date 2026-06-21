@@ -34,6 +34,9 @@ interface TenkoDao {
     @Query("SELECT * FROM tenko_records WHERE date LIKE :monthPrefix || '%' ORDER BY date ASC")
     suspend fun getAllByMonth(monthPrefix: String): List<TenkoRecord>
 
+    @Query("SELECT * FROM tenko_records ORDER BY date ASC")
+    suspend fun getAll(): List<TenkoRecord>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: TenkoRecord)
 
