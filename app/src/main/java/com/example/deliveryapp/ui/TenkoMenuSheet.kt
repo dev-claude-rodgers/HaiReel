@@ -36,8 +36,7 @@ internal fun TenkoFragment.showTenkoMenu() {
 
     fun divider() = root.addMenuDivider(dp, outlineVariant)
 
-    row("⚙️", "点呼設定", "乗務員名・確認者名・事業者名・使用車両・表示設定") { showTenkoSettings() }
-    row("🔔", "点呼リマインダー", "乗務前後の通知時刻を設定") { showReminderDialog() }
+    // ── よく使う操作
     val timerState = AppSettings.getDriveTimerState(ctx)
     val timerLabel = when (timerState) {
         "DRIVING"  -> "🚗 運転中 — タップで状態確認"
@@ -46,12 +45,18 @@ internal fun TenkoFragment.showTenkoMenu() {
     }
     row("⏱", "連続運転タイマー", timerLabel) { sheet.dismiss(); show430TimerDialog() }
     divider()
-    row("📊", "点呼簿を出力", "表示月をExcelで保存・共有") { exportTenko() }
-    row("📄", "PDFで出力", "表示月をPDFで保存・共有") { exportTenkoPdf() }
+    // ── 出力
+    row("📊", "Excel出力", "表示月の点呼簿をExcelで保存・共有") { exportTenko() }
+    row("📄", "PDF出力", "表示月の点呼簿をPDFで保存・共有") { exportTenkoPdf() }
     row("📈", "表示月の集計", "完了率・乗務時間・アルコール検知") { showMonthSummary() }
     row("📤", "テキストで共有", "LINEやメールで表示月を送信") { shareMonthText() }
     divider()
-    row("💾", "バックアップ", "データをzipファイルで保存") { backupData() }
+    // ── 設定
+    row("⚙️", "点呼設定", "乗務員名・確認者名・車両・表示設定") { showTenkoSettings() }
+    row("🔔", "点呼リマインダー", "乗務前後の通知時刻を設定") { showReminderDialog() }
+    divider()
+    // ── バックアップ
+    row("💾", "バックアップを作成", "データをzipファイルで保存") { backupData() }
     row("📂", "バックアップから復元", "以前のデータを読み込む") {
         restoreLauncher.launch(arrayOf("application/zip", "*/*"))
     }

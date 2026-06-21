@@ -34,16 +34,21 @@ internal fun DailyReportFragment.showReportMenu() {
 
     row("📅", "今日の日報を記録", "今日の行を開いて入力する") { openTodayDialog() }
     divider()
-    row("📈", "案件別サマリー", "表示月の案件ごとの稼働・収入を一覧表示") { showAssignmentSummarySheet() }
+    // ── 出力
+    row("📊", "Excel出力", "集計期間の稼働報告書を保存・共有") { exportExcel() }
+    row("📄", "PDF出力", "表示月の日報をPDFで保存・共有") { exportReportPdf() }
     divider()
+    // ── 帳票設定
     val currentPatternName = currentPattern().title
-    row("📄", "帳票を切り替え", "現在: $currentPatternName") { showPatternListDialog() }
-    row("🖊️", "作業者署名", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
-    row("🤝", "取引先署名", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
+    row("📋", "帳票パターンを選択", "現在: $currentPatternName") { showPatternListDialog() }
+    row("🖊️", "作業者署名を設定", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
+    row("🤝", "取引先署名を設定", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
     divider()
-    row("📊", "Excelを出力", "集計期間の稼働報告書を保存・共有") { exportExcel() }
-    row("📄", "PDFを出力", "表示月の日報をPDFで保存・共有") { exportReportPdf() }
-    row("💾", "バックアップ", "データをzipファイルで保存") { backupData() }
+    // ── 集計
+    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
+    divider()
+    // ── バックアップ
+    row("💾", "バックアップを作成", "データをzipファイルで保存") { backupData() }
     row("📂", "バックアップから復元", "以前のデータを読み込む") {
         restoreLauncher.launch(arrayOf("application/zip", "*/*"))
     }

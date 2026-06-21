@@ -151,27 +151,27 @@ internal fun DeliveryListFragment.showListActions() {
             setBackgroundColor(outlineVariant)
         })
 
-        // ── データ追加
-        row("☑️", "選択モード", "複数の${"配達先"}を選んで操作する") {
-            if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
-        }
-        row("📷", "伝票からスキャン", "カメラで伝票を撮影して住所を読み取る") { launchScanActivity() }
-        row("📥", "住所をインポート", "テキスト・CSV・Excelファイルから追加する") {
+        // ── 追加・取り込み
+        row("📥", "名前・住所を追加", "テキスト・CSV・ファイルから追加する") {
             inputLauncher.launch(Intent(requireContext(), InputActivity::class.java))
+        }
+        row("📷", "伝票からスキャン", "カメラで伝票を撮影して読み取る") { launchScanActivity() }
+        row("☑️", "選択モード", "複数の配達先を選んで一括操作する") {
+            if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
         }
         divider()
         // ── ルート管理
-        row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
         row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
-        row("📄", "ルートを複製", "同じ内容で新しいルートを作成する") {
+        row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
+        row("📄", "ルートを複製", "同じ内容で別ルートを作成する") {
             val groupId = viewModel.currentGroupId.value
             viewModel.copyGroup(groupId)
         }
-        row("📤", "ルートを共有", "LINE・SMS等で送る") { shareList() }
+        row("📤", "ルートを共有", "LINE・メール等で送る") { shareList() }
         divider()
-        // ── 状態・設定
-        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
+        // ── 完了操作
         row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
+        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
         divider()
         // ── 危険操作
         row("🗑", "このルートを削除", "削除後は元に戻せません", redColor) { confirmDeleteGroup() }
