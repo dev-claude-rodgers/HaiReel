@@ -92,6 +92,12 @@ class SettingsFragment : Fragment() {
                 handleRestoreUri(uri)
             }
         }
+        // ライセンス状態を表示
+        updateLicenseStatus()
+        binding.rowLicense.setOnClickListener {
+            (activity as? com.rodgers.routist.MainActivity)?.showLicenseInputDialog()
+            updateLicenseStatus()
+        }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
         binding.rowHelp.setOnClickListener { showHelpDialog() }
         binding.rowAbout.setOnClickListener {
@@ -531,6 +537,23 @@ class SettingsFragment : Fragment() {
             } catch (e: Exception) {
                 Toast.makeText(ctx, "バックアップに失敗しました", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    private fun updateLicenseStatus() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        binding.tvLicenseStatus.text = when {
+            com.rodgers.routist.util.AppSettings.isLicenseValid(ctx) -> {
+                val expiry = java.text.SimpleDateFormat("yyyy年MM月dd日", java.util.Locale.JAPAN)
+                    .format(java.util.Date(com.rodgers.routist.util.AppSettings.getLicenseExpiry(ctx)))
+                "ライセンス有効（期限: $expiry）"
+            }
+            com.rodgers.routist.util.AppSettings.isInTrial(ctx) -> {
+                val days = com.rodgers.routist.util.AppSettings.trialDaysLeft(ctx)
+                "試用期間中（残り${days}日）"
+            }
+            else -> "試用期間終了 → タップしてライセンスを入力"
         }
     }
 

@@ -251,4 +251,51 @@ object AppSettings {
         return ep(ctx).getString("backup_password", "") ?: ""
     }
     fun setBackupPassword(ctx: Context, v: String) = ep(ctx).edit().putString("backup_password", v).apply()
+
+    // ── ライセンス管理 ─────────────────────────────────────────
+
+    private const val TRIAL_DAYS = 7L
+    private const val KEY_INSTALL_DATE = "install_date"
+    private const val KEY_LICENSE_KEY  = "license_key"
+    private const val KEY_LICENSE_EXPIRY = "license_expiry"
+
+    // 初回起動日を記録（一度セットしたら変わらない）
+    fun ensureInstallDate(ctx: Context) {
+        val p = p(ctx)
+        if (!p.contains(KEY_INSTALL_DATE)) {
+            p.edit().putLong(KEY_INSTALL_DATE, System.currentTimeMillis()).apply()
+        }
+    }
+
+    fun getInstallDate(ctx: Context): Long = p(ctx).getLong(KEY_INSTALL_DATE, System.currentTimeMillis())
+
+    // 試用期間内かどうか
+    fun isInTrial(ctx: Context): Boolean {
+        val elapsed = System.currentTimeMillis() - getInstallDate(ctx)
+        return elapsed < TRIAL_DAYS * 24 * 60 * 60 * 1000L
+    }
+
+    // 試用残り日数
+    fun trialDaysLeft(ctx: Context): Int {
+        val elapsed = System.currentTimeMillis() - getInstallDate(ctx)
+        val remaining = TRIAL_DAYS * 24 * 60 * 60 * 1000L - elapsed
+        return maxOf(0, (remaining / (24 * 60 * 60 * 1000L)).toInt())
+    }
+
+    // ライセンスキー（EncryptedSharedPreferencesに保存）
+    fun getLicenseKey(ctx: Context): String = try { ep(ctx).getString(KEY_LICENSE_KEY, "") ?: "" } catch (_: Exception) { "" }
+    fun setLicenseKey(ctx: Context, key: String) { try { ep(ctx).edit().putString(KEY_LICENSE_KEY, key).apply() } catch (_: Exception) {} }
+
+    // ライセンス有効期限（エポック秒）
+    fun getLicenseExpiry(ctx: Context): Long = try { ep(ctx).getLong(KEY_LICENSE_EXPIRY, 0L) } catch (_: Exception) { 0L }
+    fun setLicenseExpiry(ctx: Context, expiry: Long) { try { ep(ctx).edit().putLong(KEY_LICENSE_EXPIRY, expiry).apply() } catch (_: Exception) {} }
+
+    // ライセンスが有効かどうか（期限内）
+    fun isLicenseValid(ctx: Context): Boolean {
+        val expiry = getLicenseExpiry(ctx)
+        return expiry > 0L && System.currentTimeMillis() < expiry
+    }
+
+    // アプリを使えるかどうか（試用中 or ライセンス有効）
+    fun canUseApp(ctx: Context): Boolean = isInTrial(ctx) || isLicenseValid(ctx)
 }

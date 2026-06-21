@@ -62,6 +62,8 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(AppSettings.getDarkMode(this))
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // 初回起動日を記録
+        AppSettings.ensureInstallDate(this)
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         isAuthenticated = savedInstanceState?.getBoolean("isAuthenticated") ?: false
         backgroundedAtMs = savedInstanceState?.getLong("backgroundedAtMs") ?: 0L
@@ -88,6 +90,20 @@ class MainActivity : AppCompatActivity() {
         binding.toolbar.setOnClickListener { showGroupDropdown() }
 
         setupTabs()
+
+        // ライセンス・試用期間チェック
+        if (!AppSettings.canUseApp(this)) {
+            showLicenseExpiredDialog()
+        } else if (AppSettings.isInTrial(this)) {
+            val days = AppSettings.trialDaysLeft(this)
+            if (days <= 2) {
+                // 試用期間残り2日以下で通知
+                com.google.android.material.snackbar.Snackbar
+                    .make(binding.root, "試用期間残り${days}日です。", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                    .setAction("ライセンスを入力") { showLicenseInputDialog() }
+                    .show()
+            }
+        }
 
         lifecycleScope.launch {
             viewModel.deliveries.collectLatest { _ ->
@@ -375,6 +391,56 @@ class MainActivity : AppCompatActivity() {
                 "ジオコーディング: Google Geocoding API"
             )
             .setPositiveButton("OK", null)
+            .show()
+    }
+
+    // ── ライセンス関連 ────────────────────────────────────────────
+
+    internal fun showLicenseExpiredDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("試用期間が終了しました")
+            .setMessage(
+                "7日間の無料試用期間が終了しました。\n\n" +
+                "引き続きご利用いただくには、ライセンスキーが必要です。\n\n" +
+                "ご購入はランディングページからお申し込みください。"
+            )
+            .setPositiveButton("ライセンスキーを入力") { _, _ -> showLicenseInputDialog() }
+            .setNegativeButton("閉じる") { _, _ -> finishAffinity() }
+            .setCancelable(false)
+            .show()
+    }
+
+    internal fun showLicenseInputDialog() {
+        val input = android.widget.EditText(this).apply {
+            hint = "RJ-2027-XXXXXXXX-XXXXXXXX"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setPadding(60, 32, 60, 16)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("🔑 ライセンスキーを入力")
+            .setMessage("購入後にメールでお送りしたライセンスキーを入力してください。")
+            .setView(input)
+            .setPositiveButton("認証する") { _, _ ->
+                val key = input.text.toString().trim()
+                if (com.rodgers.routist.util.LicenseManager.activate(this, key)) {
+                    val expiry = java.text.SimpleDateFormat("yyyy年MM月dd日", java.util.Locale.JAPAN)
+                        .format(java.util.Date(AppSettings.getLicenseExpiry(this)))
+                    AlertDialog.Builder(this)
+                        .setTitle("✅ 認証完了")
+                        .setMessage("ライセンスが有効化されました。\n有効期限: $expiry")
+                        .setPositiveButton("OK", null)
+                        .show()
+                } else {
+                    AlertDialog.Builder(this)
+                        .setTitle("❌ 認証失敗")
+                        .setMessage("ライセンスキーが正しくありません。\nご購入メールをご確認ください。")
+                        .setPositiveButton("再入力") { _, _ -> showLicenseInputDialog() }
+                        .setNegativeButton("閉じる", null)
+                        .show()
+                }
+            }
+            .setNegativeButton("キャンセル", null)
             .show()
     }
 }
