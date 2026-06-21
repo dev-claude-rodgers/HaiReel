@@ -282,16 +282,23 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     })
 
     val isNew = (pattern == null)
-    MaterialAlertDialogBuilder(ctx)
+    val dlgPattern = MaterialAlertDialogBuilder(ctx)
         .setTitle(if (isNew) "パターンを追加" else "パターンを編集")
         .setView(scroll)
-        .setPositiveButton("保存") { _, _ ->
+        .setPositiveButton("保存", null)
+        .setNegativeButton("キャンセル", null)
+        .show()
+    dlgPattern.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val titleStr = titleIn.text.toString().trim()
+            val cd = closingIn.text.toString().toIntOrNull()
+            if (cd == null || cd !in 1..31) {
+                closingIn.error = "締め日は1〜31の数字で入力してください"; return@setOnClickListener
+            }
             val updated = base.copy(
                 title         = titleStr.ifBlank { "稼働報告書" },
                 driverName    = driverIn.text.toString().trim(),
                 clientName    = clientIn.text.toString().trim(),
-                closingDay    = closingIn.text.toString().toIntOrNull()?.coerceIn(1, 31) ?: 25,
+                closingDay    = cd,
                 deliveryLabel = delivLblIn.text.toString().trim().ifBlank { "配達件数" },
                 packageLabel  = pkgLblIn.text.toString().trim().ifBlank { "個数" },
                 showStartEndTime = chkStartEnd.isChecked,
@@ -320,7 +327,6 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
             }
             Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
             onSaved()
+            dlgPattern.dismiss()
         }
-        .setNegativeButton("キャンセル", null)
-        .show()
 }

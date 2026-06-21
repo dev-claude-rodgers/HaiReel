@@ -202,15 +202,18 @@ internal fun DeliveryListFragment.showRenameGroupDialog() {
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             filters = arrayOf(InputFilter.LengthFilter(20))
         }
-        AlertDialog.Builder(ctx)
+        val dlg = AlertDialog.Builder(ctx)
             .setTitle("ルート名を変更")
             .setView(input)
-            .setPositiveButton("変更") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotBlank()) viewModel.renameGroup(group.id, name)
-            }
+            .setPositiveButton("変更", null)
             .setNegativeButton("キャンセル", null)
             .show()
+        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val name = input.text.toString().trim()
+            if (name.isBlank()) { input.error = "ルート名を入力してください"; return@setOnClickListener }
+            viewModel.renameGroup(group.id, name)
+            dlg.dismiss()
+        }
         input.postDelayed({
             input.requestFocus()
             val imm = ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -225,18 +228,19 @@ internal fun DeliveryListFragment.showCreateGroupDialog() {
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             filters = arrayOf(InputFilter.LengthFilter(20))
         }
-        AlertDialog.Builder(ctx)
+        val dlg = AlertDialog.Builder(ctx)
             .setTitle("新しいルートを追加")
             .setView(input)
-            .setPositiveButton("作成") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotBlank()) {
-                    val group = viewModel.createGroup(name)
-                    viewModel.switchGroup(group.id)
-                }
-            }
+            .setPositiveButton("作成", null)
             .setNegativeButton("キャンセル", null)
             .show()
+        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val name = input.text.toString().trim()
+            if (name.isBlank()) { input.error = "ルート名を入力してください"; return@setOnClickListener }
+            val group = viewModel.createGroup(name)
+            viewModel.switchGroup(group.id)
+            dlg.dismiss()
+        }
     }
 
 internal fun DeliveryListFragment.showLinkPatternDialog(parentSheet: com.google.android.material.bottomsheet.BottomSheetDialog) {

@@ -194,6 +194,9 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
         .setNegativeButton("キャンセル", null).show()
 
     dlgBefore.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        if (etChecker.text.toString().trim().isBlank()) {
+            etChecker.error = "確認者名を入力してください"; return@setOnClickListener
+        }
         val alc = (etAlcohol.text.toString().toDoubleOrNull() ?: 0.0).coerceIn(0.0, 9.99)
         if (alc > 0.15) {
             MaterialAlertDialogBuilder(ctx)
@@ -385,6 +388,9 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
         .setNegativeButton("キャンセル", null).show()
 
     dlgAfter.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        if (etChecker.text.toString().trim().isBlank()) {
+            etChecker.error = "確認者名を入力してください"; return@setOnClickListener
+        }
         val alc = (etAlcohol.text.toString().toDoubleOrNull() ?: 0.0).coerceIn(0.0, 9.99)
         if (alc > 0.15) {
             MaterialAlertDialogBuilder(ctx)
