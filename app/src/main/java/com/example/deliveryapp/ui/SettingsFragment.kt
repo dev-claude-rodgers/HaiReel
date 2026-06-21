@@ -42,7 +42,13 @@ class SettingsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) { BackupManager.restoreBackup(ctx, uri) }
-                Toast.makeText(ctx, "バックアップを復元しました", Toast.LENGTH_LONG).show()
+                Toast.makeText(ctx, "復元しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
+                kotlinx.coroutines.delay(1500)
+                val intent = requireActivity().packageManager
+                    .getLaunchIntentForPackage(requireActivity().packageName)!!
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                requireActivity().finish()
             } catch (e: Exception) {
                 Toast.makeText(ctx, "復元に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
             }
