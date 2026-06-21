@@ -99,6 +99,16 @@ class SettingsFragment : Fragment() {
             updateLicenseStatus()
         }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
+        binding.rowContact.setOnClickListener {
+            val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                data = android.net.Uri.parse("mailto:proxyroutine777@gmail.com")
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "[RouteJin] お問い合わせ")
+                putExtra(android.content.Intent.EXTRA_TEXT,
+                    "アプリバージョン: ${requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName}\n\n")
+            }
+            try { startActivity(intent) }
+            catch (_: Exception) { android.widget.Toast.makeText(requireContext(), "メールアプリが見つかりません", android.widget.Toast.LENGTH_SHORT).show() }
+        }
         binding.rowTerms.setOnClickListener { showTermsDialog() }
         binding.rowSct.setOnClickListener { showSctDialog() }
         binding.rowHelp.setOnClickListener { showHelpDialog() }

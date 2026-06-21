@@ -216,17 +216,53 @@ class OnboardingActivity : AppCompatActivity() {
 
         fun completeOnboarding() {
             AppSettings.setOnboardingDone(this@OnboardingActivity)
+            AppSettings.setTermsAgreed(this@OnboardingActivity)
             startActivity(Intent(this@OnboardingActivity, MainActivity::class.java))
             this@OnboardingActivity.finish()
+        }
+
+        fun showTermsAndStart() {
+            val cb = android.widget.CheckBox(ctx).apply {
+                text = "利用規約・プライバシーポリシーに同意します"
+                textSize = 14f
+                setPadding((8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt())
+            }
+            val termsNote = android.widget.TextView(ctx).apply {
+                text = "「始める」を押すと利用規約・免責事項に同意したものとみなされます。\n設定 → 利用規約 で内容を確認できます。"
+                textSize = 12f
+                setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), (8 * dp).toInt())
+            }
+            val container = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+                addView(cb)
+                addView(termsNote)
+            }
+            val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("ご利用前に")
+                .setView(container)
+                .setPositiveButton("始める", null)
+                .setNegativeButton("キャンセル", null)
+                .create()
+            dlg.show()
+            dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                if (!cb.isChecked) {
+                    android.widget.Toast.makeText(ctx, "利用規約に同意してください", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                dlg.dismiss()
+                completeOnboarding()
+            }
         }
 
         btnNext.setOnClickListener {
             if (pager.currentItem < pages.size - 1) {
                 pager.currentItem++
             } else {
-                completeOnboarding()
+                showTermsAndStart()
             }
         }
-        btnSkip.setOnClickListener { completeOnboarding() }
+        btnSkip.setOnClickListener { showTermsAndStart() }
     }
 }

@@ -91,6 +91,11 @@ class MainActivity : AppCompatActivity() {
 
         setupTabs()
 
+        // 利用規約未同意の場合は同意を求める（デバッグビルドはスキップ）
+        if (!com.rodgers.routist.BuildConfig.DEBUG && !AppSettings.isTermsAgreed(this)) {
+            showTermsAgreementDialog()
+        }
+
         // ライセンス・試用期間チェック（デバッグビルドはスキップ）
         if (!com.rodgers.routist.BuildConfig.DEBUG) {
             if (!AppSettings.canUseApp(this)) {
@@ -384,15 +389,62 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("RouteJin")
             .setMessage(
-                "バージョン: $version\n\n" +
-                "開発者: imai kenichi\n\n" +
-                "© 2026 RODGERS\n" +
-                "All rights reserved.\n\n" +
-                "地図データ: © Google Maps\n" +
-                "ジオコーディング: Google Geocoding API"
+                "バージョン: $version\n" +
+                "開発者: imai kenichi\n" +
+                "お問い合わせ: proxyroutine777@gmail.com\n\n" +
+                "© 2026 RODGERS  All rights reserved.\n\n" +
+                "── 使用技術 ──\n" +
+                "地図: Google Maps SDK for Android\n" +
+                "住所変換: Google Geocoding API\n" +
+                "文字認識: Google ML Kit\n" +
+                "クラッシュ監視: Firebase Crashlytics\n\n" +
+                "── 更新履歴 ──\n" +
+                "v1.0.0\n" +
+                "・初回リリース\n" +
+                "・配達先管理・地図・ルート最適化\n" +
+                "・点呼記録・日報・帳票Excel/PDF出力\n" +
+                "・バックアップ・ライセンス認証\n" +
+                "・試用期間7日間"
             )
             .setPositiveButton("OK", null)
             .show()
+    }
+
+    // ── 利用規約同意 ─────────────────────────────────────────────
+
+    private fun showTermsAgreementDialog() {
+        val dp = resources.displayMetrics.density
+        val cb = android.widget.CheckBox(this).apply {
+            text = "利用規約・プライバシーポリシーに同意します"
+            textSize = 14f
+            setPadding((8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt())
+        }
+        val note = android.widget.TextView(this).apply {
+            text = "設定 → 利用規約 で内容を確認できます。\n同意しない場合はアプリを利用できません。"
+            textSize = 12f
+            setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), (8 * dp).toInt())
+        }
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            addView(cb); addView(note)
+        }
+        val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("利用規約への同意")
+            .setView(container)
+            .setCancelable(false)
+            .setPositiveButton("同意して利用する", null)
+            .setNegativeButton("同意しない") { _, _ -> finishAffinity() }
+            .create()
+        dlg.show()
+        dlg.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            if (!cb.isChecked) {
+                android.widget.Toast.makeText(this, "チェックを入れてください", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            AppSettings.setTermsAgreed(this)
+            dlg.dismiss()
+        }
     }
 
     // ── ライセンス関連 ────────────────────────────────────────────

@@ -256,6 +256,10 @@ object AppSettings {
     fun isOnboardingDone(ctx: Context): Boolean = prefs(ctx).getBoolean("onboarding_done", false)
     fun setOnboardingDone(ctx: Context) = prefs(ctx).edit().putBoolean("onboarding_done", true).apply()
 
+    // ── 利用規約同意 ──────────────────────────────────────────────
+    fun isTermsAgreed(ctx: Context): Boolean = prefs(ctx).getBoolean("terms_agreed", false)
+    fun setTermsAgreed(ctx: Context) = prefs(ctx).edit().putBoolean("terms_agreed", true).apply()
+
     // ── ライセンス管理 ─────────────────────────────────────────
 
     private const val TRIAL_DAYS = 7L
