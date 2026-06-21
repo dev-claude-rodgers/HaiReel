@@ -143,8 +143,9 @@ object PdfGenerator {
         else
             cols.map { "" }
 
-        val tableW = pageW - MARGIN * 2
-        val widths = autoWidths(headers, dataRows + listOf(totalRow), tableW)
+        val tableW  = pageW - MARGIN * 2
+        val dynMinW = (tableW / headers.size).coerceIn(8f, 14f)
+        val widths  = autoWidths(headers, dataRows + listOf(totalRow), tableW, dynMinW)
 
         val rowsPerPage = daysInMonth + 2
         val headerH = 64f
@@ -171,6 +172,99 @@ object PdfGenerator {
         file.outputStream().use { doc.writeTo(it) }
         doc.close()
         return file
+    }
+
+    // 任意の期間を指定して生成（月をまたぐ締め日対応）
+    fun generateReportPdfForPeriod(
+        context: Context,
+        records: List<WorkRecord>,
+        startDate: String,
+        endDate: String,
+        periodLabel: String,
+        portrait: Boolean = false,
+        pattern: ReportPattern = ReportPattern(id = -1)
+    ): File {
+        val pageW = if (portrait) 595 else 842
+        val pageH = if (portrait) 842 else 595
+        val start = LocalDate.parse(startDate)
+        val end   = LocalDate.parse(endDate)
+        val allDays   = generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
+        val daysCount = allDays.size
+        val recordMap = records.associateBy { it.date }
+        val companyName = AppSettings.getCompanyName(context)
+        val driverName  = pattern.driverName.ifBlank { AppSettings.getDriverName(context) }
+        val clientName  = pattern.clientName
+        val workingDays = records.sumOf { 1 + it.endDateOffset }
+
+        val cols: List<Triple<String, (WorkRecord?) -> String, String>> = buildList {
+            add(Triple("日付", { _: WorkRecord? -> "" }, "合計（${workingDays}日稼働）"))
+            add(Triple("曜",   { _: WorkRecord? -> "" }, ""))
+            if (pattern.showStartEndTime) {
+                add(Triple("開始時刻", { r: WorkRecord? -> r?.startTime ?: "" }, ""))
+                add(Triple("終了時刻", { r: WorkRecord? -> if (r == null) "" else if (r.endDateOffset > 0) "${r.endTime}(+${r.endDateOffset}日)" else r.endTime }, ""))
+            }
+            if (pattern.showWorkingHours) { val t = records.sumOf { it.workingMinutes }; add(Triple("稼働時間", { r: WorkRecord? -> r?.workingHoursText ?: "" }, if (t > 0) "%d時間%02d分".format(t / 60, t % 60) else "")) }
+            if (pattern.showDelivery) { val tot = records.sumOf { it.deliveryCount }; add(Triple(pattern.deliveryLabel.ifBlank { "件数" }, { r: WorkRecord? -> if ((r?.deliveryCount ?: 0) > 0) "${r!!.deliveryCount}件" else "" }, if (tot > 0) "${tot}件" else "")) }
+            if (pattern.showDistance) { val td = records.sumOf { it.distanceKm.toDouble() }; add(Triple("走行距離(km)", { r: WorkRecord? -> if ((r?.distanceKm ?: 0f) > 0f) "%.0fkm".format(r!!.distanceKm) else "" }, if (td > 0) "%.0fkm".format(td) else "")) }
+            if (pattern.showFuel) { val tf = records.sumOf { it.fuelCost }; add(Triple("燃料費", { r: WorkRecord? -> if ((r?.fuelCost ?: 0) > 0) "%,d円".format(r!!.fuelCost) else "" }, if (tf > 0) "%,d円".format(tf) else "")) }
+            val ti = records.sumOf { it.income }; if (pattern.showIncome || ti > 0) add(Triple("収入", { r: WorkRecord? -> if ((r?.income ?: 0) > 0) "%,d円".format(r!!.income) else "" }, if (ti > 0) "%,d円".format(ti) else ""))
+            if (pattern.showArea)    add(Triple("エリア", { r: WorkRecord? -> r?.area    ?: "" }, ""))
+            if (pattern.showRemarks) add(Triple("備考",   { r: WorkRecord? -> r?.remarks ?: "" }, ""))
+        }
+
+        val headers = cols.map { it.first }
+        val dataRows = allDays.map { ld ->
+            val dateStr = ld.toString()
+            val wd  = ld.dayOfWeek.value % 7
+            val rec = recordMap[dateStr]
+            cols.mapIndexed { idx, col ->
+                when (idx) {
+                    0 -> "${ld.monthValue}/${ld.dayOfMonth}"
+                    1 -> WEEKDAYS[wd]
+                    else -> col.second(rec)
+                }
+            }
+        }
+        val totalRow = if (pattern.showTotal) cols.mapIndexed { idx, col -> if (idx == 0) "合計(${workingDays}日)" else col.third } else cols.map { "" }
+
+        val tableW  = pageW - MARGIN * 2
+        val dynMinW = (tableW / headers.size).coerceIn(8f, 14f)
+        val widths  = autoWidths(headers, dataRows + listOf(totalRow), tableW, dynMinW)
+
+        val rowsPerPage = daysCount + 2
+        val headerH = 64f
+        val rowH    = (pageH - MARGIN - headerH - MARGIN) / rowsPerPage
+
+        val doc  = PdfDocument()
+        val page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, 1).create())
+        drawReportHeaderPeriod(page.canvas, periodLabel, companyName, driverName, clientName, pattern, pageW)
+        drawReportTable(page.canvas, headers, dataRows, totalRow, widths, rowH, MARGIN + headerH, daysCount, pattern.showTotal)
+        doc.finishPage(page)
+
+        val safePeriod = periodLabel.replace(Regex("[/〜\\\\:*?\"<>|]"), "_")
+        val ts   = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val file = File(context.getExternalFilesDir(null) ?: context.filesDir, "${safePeriod}_${ts}.pdf")
+        file.outputStream().use { doc.writeTo(it) }
+        doc.close()
+        return file
+    }
+
+    private fun drawReportHeaderPeriod(
+        canvas: Canvas, periodLabel: String,
+        company: String, driver: String, client: String,
+        pattern: ReportPattern, pageW: Int
+    ) {
+        val p  = Paint(Paint.ANTI_ALIAS_FLAG)
+        val cx = pageW / 2f
+        val tableW = pageW - MARGIN * 2
+        p.typeface = Typeface.DEFAULT_BOLD; p.textSize = 16f; p.textAlign = Paint.Align.CENTER
+        canvas.drawText("$periodLabel ${pattern.title}", cx, MARGIN + 16f, p)
+        canvas.drawLine(MARGIN, MARGIN + 22f, MARGIN + tableW, MARGIN + 22f, p.also { it.strokeWidth = 1f })
+        p.textSize = 9f; p.textAlign = Paint.Align.LEFT; p.typeface = Typeface.DEFAULT
+        if (company.isNotBlank()) { canvas.drawText("会社: $company", MARGIN, MARGIN + 34f, p) }
+        canvas.drawText("作業者: $driver", MARGIN, MARGIN + 46f, p)
+        if (client.isNotBlank()) canvas.drawText("取引先: $client", MARGIN + tableW * 0.5f, MARGIN + 46f, p)
+        canvas.drawLine(MARGIN, MARGIN + 62f, MARGIN + tableW, MARGIN + 62f, p.also { it.strokeWidth = 0.5f })
     }
 
     private fun drawReportHeader(

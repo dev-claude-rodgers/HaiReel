@@ -103,7 +103,7 @@ class ExcelGenerator(private val context: Context) {
         }
 
         val hasSig = driverSig != null || clientSig != null
-        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig, portrait)
+        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig, portrait, null)
 
         var relCount = 0
         val driverRelId = driverSig?.let { ++relCount }
@@ -123,6 +123,81 @@ class ExcelGenerator(private val context: Context) {
                     drawingXml(driverRelId, clientRelId, output))
                 zos.entry("xl/drawings/_rels/drawing1.xml.rels",
                     drawingRelsXml(driverRelId, clientRelId))
+                driverSig?.let { zos.entryBytes("xl/media/image${driverRelId}.png", it.readBytes()) }
+                clientSig?.let { zos.entryBytes("xl/media/image${clientRelId}.png", it.readBytes()) }
+            }
+        }
+        return file
+    }
+
+    // 任意の期間を指定して生成（月をまたぐ締め日対応）
+    fun generateForPeriod(
+        records: List<WorkRecord>,
+        startDate: String,
+        endDate: String,
+        periodLabel: String,
+        pattern: ReportPattern,
+        driverSig: File? = null,
+        clientSig: File? = null,
+        portrait: Boolean = false
+    ): File {
+        val start = LocalDate.parse(startDate)
+        val end   = LocalDate.parse(endDate)
+        val allDays   = generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
+        val recordMap = records.associateBy { it.date }
+
+        val totalMins   = records.sumOf { it.workingMinutes }
+        val totalDeliv  = records.sumOf { it.deliveryCount }
+        val totalPkg    = records.sumOf { it.packageCount }
+        val totalDist   = records.sumOf { it.distanceKm.toDouble() }
+        val totalHours  = "%d時間%02d分".format(totalMins / 60, totalMins % 60)
+        val workingDays = records.sumOf { 1 + it.endDateOffset }
+
+        val columns = buildList<ColDef> {
+            if (pattern.showStartEndTime) {
+                add(ColDef("開始時刻", { it?.startTime ?: "" }))
+                add(ColDef("終了時刻", { if (it == null) "" else if (it.endDateOffset > 0) "${it.endTime}(+${it.endDateOffset}日)" else it.endTime }))
+            }
+            if (pattern.showWorkingHours) add(ColDef("稼働時間", { it?.workingHoursText ?: "" }, totalHours))
+            if (pattern.showDelivery) add(ColDef(pattern.deliveryLabel, { if ((it?.deliveryCount ?: 0) > 0) "${it!!.deliveryCount}件" else "" }, if (totalDeliv > 0) "${totalDeliv}件" else ""))
+            if (pattern.showMeter) {
+                add(ColDef("開始メーター(km)", { if (it != null && it.startMeter > 0) "${it.startMeter}km" else "" }))
+                add(ColDef("終了メーター(km)", { if (it != null && it.endMeter > 0) "${it.endMeter}km" else "" }))
+            }
+            val totalIncome = records.sumOf { it.income }
+            if (pattern.showIncome || pattern.paymentType != 3 || totalIncome > 0)
+                add(ColDef("収入", { if ((it?.income ?: 0) > 0) "%,d円".format(it!!.income) else "" }, if (totalIncome > 0) "%,d円".format(totalIncome) else ""))
+            if (pattern.showPackage) add(ColDef(pattern.packageLabel, { if ((it?.packageCount ?: 0) > 0) "${it!!.packageCount}個" else "" }, if (totalPkg > 0) "${totalPkg}個" else ""))
+            if (pattern.showDistance) add(ColDef("走行距離(km)", { if (it != null && it.distanceKm > 0f) "%.0fkm".format(it.distanceKm) else "" }, if (totalDist > 0) "%.0fkm".format(totalDist) else ""))
+            if (pattern.showFuel) { val tf = records.sumOf { it.fuelCost }; add(ColDef("燃料費", { if ((it?.fuelCost ?: 0) > 0) "%,d円".format(it!!.fuelCost) else "" }, if (tf > 0) "%,d円".format(tf) else "")) }
+            if (pattern.showArea)    add(ColDef("エリア",   { it?.area    ?: "" }))
+            if (pattern.showRemarks) add(ColDef("備考",     { it?.remarks ?: "" }))
+        }
+
+        val safePeriod = periodLabel.replace(Regex("[/〜\\\\:*?\"<>|]"), "_")
+        val safeName   = pattern.title.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val dir  = context.getExternalFilesDir(null) ?: context.filesDir
+        val ts   = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val file = File(dir, "${safePeriod}_${safeName}_${ts}.xlsx")
+
+        val hasSig = driverSig != null || clientSig != null
+        val output = sheetXml(allDays, recordMap, columns, start.year, start.monthValue, pattern, workingDays, hasSig, portrait, periodLabel)
+
+        var relCount = 0
+        val driverRelId = driverSig?.let { ++relCount }
+        val clientRelId = clientSig?.let { ++relCount }
+
+        ZipOutputStream(FileOutputStream(file)).use { zos ->
+            zos.entry("[Content_Types].xml", contentTypesXml(hasSig))
+            zos.entry("_rels/.rels",          relsXml())
+            zos.entry("xl/workbook.xml",      workbookXml())
+            zos.entry("xl/_rels/workbook.xml.rels", workbookRelsXml())
+            zos.entry("xl/styles.xml",        stylesXml())
+            zos.entry("xl/worksheets/sheet1.xml", output.xml)
+            if (hasSig) {
+                zos.entry("xl/worksheets/_rels/sheet1.xml.rels", sheetRelsXml())
+                zos.entry("xl/drawings/drawing1.xml", drawingXml(driverRelId, clientRelId, output))
+                zos.entry("xl/drawings/_rels/drawing1.xml.rels", drawingRelsXml(driverRelId, clientRelId))
                 driverSig?.let { zos.entryBytes("xl/media/image${driverRelId}.png", it.readBytes()) }
                 clientSig?.let { zos.entryBytes("xl/media/image${clientRelId}.png", it.readBytes()) }
             }
@@ -161,7 +236,14 @@ class ExcelGenerator(private val context: Context) {
     internal fun calcWidth(header: String, values: List<String>): Double {
         var max = displayLen(header)
         for (v in values) { val l = displayLen(v); if (l > max) max = l }
-        return maxOf(8.0, (max + 4).toDouble())
+        return maxOf(8.0, minOf(24.0, (max + 4).toDouble()))
+    }
+
+    // 全列幅の合計がA4印刷幅を超える場合、比例縮小したスケールを返す
+    private fun calcColScale(dateWidth: Double, colWidths: List<Double>, portrait: Boolean): Double {
+        val maxPrintWidth = if (portrait) 74.0 else 108.0
+        val total = dateWidth + colWidths.sum()
+        return if (total > maxPrintWidth) maxPrintWidth / total else 1.0
     }
 
     private fun sc(col: String, row: Int, v: String, s: Int = 0): String {
@@ -177,7 +259,8 @@ class ExcelGenerator(private val context: Context) {
         pattern: ReportPattern,
         workingDays: Int,
         hasSig: Boolean = false,
-        portrait: Boolean = false
+        portrait: Boolean = false,
+        periodLabel: String? = null   // 非nullのときタイトルに期間を表示
     ): SheetOutput {
         val sb = StringBuilder()
         val numCols    = columns.size + 1
@@ -199,29 +282,34 @@ class ExcelGenerator(private val context: Context) {
             else
                 day.format(dateFmt)
         }
-        sb.append("""<col min="1" max="1" width="${calcWidth("日付", dateDisplays)}" bestFit="1" customWidth="1"/>""")
-        columns.forEachIndexed { idx, col ->
-            val vals = allDays.mapNotNull { day ->
-                recordMap[day.format(isoFmt)]?.let { col.getData(it) }
-            } + listOf(col.totalValue)
+        val dateW = calcWidth("日付", dateDisplays)
+        val colWs = columns.map { col ->
+            val vals = allDays.mapNotNull { day -> recordMap[day.format(isoFmt)]?.let { col.getData(it) } } + listOf(col.totalValue)
+            calcWidth(col.header, vals)
+        }
+        val scale = calcColScale(dateW, colWs, portrait)
+        sb.append("""<col min="1" max="1" width="${"%.2f".format(dateW * scale)}" bestFit="1" customWidth="1"/>""")
+        colWs.forEachIndexed { idx, w ->
             val n = idx + 2
-            sb.append("""<col min="$n" max="$n" width="${calcWidth(col.header, vals)}" bestFit="1" customWidth="1"/>""")
+            sb.append("""<col min="$n" max="$n" width="${"%.2f".format(maxOf(5.0, w * scale))}" bestFit="1" customWidth="1"/>""")
         }
         sb.append("</cols>")
 
         sb.append("<sheetData>")
 
+        val titleText  = if (periodLabel != null) "$periodLabel ${pattern.title}" else "${year}年${month}月 ${pattern.title}"
+        val periodText = periodLabel ?: "${year}年${month}月"
         merges.add("A1:${lastLetter}1")
         sb.append("""<row r="1" ht="26" customHeight="1">""")
-        sb.append(sc("A", 1, "${year}年${month}月 ${pattern.title}", s = 3))
+        sb.append(sc("A", 1, titleText, s = 3))
         sb.append("</row>")
 
         sb.append("""<row r="2">""")
         sb.append(sc("A", 2, "作業者", s = 8))
         sb.append(sc("B", 2, pattern.driverName))
         if (numCols >= 2) {
-            sb.append(sc(colLetter(numCols - 2), 2, "稼働月", s = 8))
-            sb.append(sc(lastLetter, 2, "${year}年${month}月"))
+            sb.append(sc(colLetter(numCols - 2), 2, "集計期間", s = 8))
+            sb.append(sc(lastLetter, 2, periodText))
         }
         sb.append("</row>")
 

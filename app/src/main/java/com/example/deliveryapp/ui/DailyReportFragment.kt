@@ -159,11 +159,18 @@ class DailyReportFragment : Fragment() {
             deliveryViewModel.groups.collectLatest { updateAssignmentBar() }
         }
 
-        // 月ラベル
+        // 月ラベル＋集計期間（yearMonth・closingDay どちらが変わっても更新）
         viewLifecycleOwner.lifecycleScope.launch {
-            reportViewModel.yearMonth.collect { ym ->
+            combine(
+                reportViewModel.yearMonth,
+                reportViewModel.closingDay
+            ) { ym, cd -> Pair(ym, cd) }.collect { (ym, cd) ->
                 val (y, m) = ym.split("-").map { it.toInt() }
                 binding.tvMonth.text = "${y}年${m}月"
+                val (start, end) = ReportViewModel.computePeriod(ym, cd)
+                val s = java.time.LocalDate.parse(start)
+                val e = java.time.LocalDate.parse(end)
+                binding.tvPeriod.text = "${s.monthValue}/${s.dayOfMonth}〜${e.monthValue}/${e.dayOfMonth}"
             }
         }
 
@@ -677,12 +684,15 @@ class DailyReportFragment : Fragment() {
         dlg.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener {
             val sm = startMeterIn.text.toString().toIntOrNull() ?: 0
             val em = endMeterIn.text.toString().toIntOrNull()   ?: 0
+            if (em > 0 && sm == 0) {
+                startMeterIn.error = "開始メーターも入力してください"; return@setOnClickListener
+            }
             if (sm > 0 && em > 0 && sm >= em) {
                 Toast.makeText(ctx, "終了メーターは開始メーターより大きい値にしてください", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val dist = distIn.text.toString().toFloatOrNull()
-                ?: if (em > sm) (em - sm).toFloat() else record.distanceKm
+                ?: if (em > sm && sm > 0) (em - sm).toFloat() else record.distanceKm
             val delivCount = delivCntIn.text.toString().toIntOrNull() ?: 0
             val workMins   = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
             val updated = record.copy(

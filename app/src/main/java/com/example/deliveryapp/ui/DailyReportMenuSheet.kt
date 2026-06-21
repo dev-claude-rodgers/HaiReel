@@ -3,8 +3,10 @@ package com.rodgers.routist.ui
 import android.view.View
 import android.widget.LinearLayout
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.rodgers.routist.util.PatternStorage
 import com.rodgers.routist.util.SignatureStorage
 import com.rodgers.routist.util.themeColor
+import com.rodgers.routist.viewmodel.ReportViewModel
 
 internal fun DailyReportFragment.showReportMenu() {
     val ctx = requireContext()
@@ -25,6 +27,14 @@ internal fun DailyReportFragment.showReportMenu() {
         ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
     }.resourceId
 
+    // 集計期間を計算してメニューのサブタイトルに使う
+    val ym = reportViewModel.yearMonth.value
+    val cd = reportViewModel.closingDay.value
+    val (pStart, pEnd) = ReportViewModel.computePeriod(ym, cd)
+    val ps = java.time.LocalDate.parse(pStart)
+    val pe = java.time.LocalDate.parse(pEnd)
+    val periodLabel = "${ps.monthValue}/${ps.dayOfMonth}〜${pe.monthValue}/${pe.dayOfMonth}"
+
     root.addMenuHeader("日報メニュー", dp, onSurfaceColor, onSurfaceVariant, outlineVariant) { sheet.dismiss() }
 
     fun row(emoji: String, title: String, sub: String, color: Int = onSurfaceColor, action: () -> Unit) =
@@ -41,8 +51,10 @@ internal fun DailyReportFragment.showReportMenu() {
     row("🤝", "取引先署名を設定", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
     divider()
     // ── 出力・集計
-    row("📊", "Excel出力", "集計期間の稼働報告書を保存・共有") { exportExcel() }
-    row("📄", "PDF出力", "表示月の日報をPDFで保存・共有") { exportReportPdf() }
+    row("📅", "期間を指定して出力", "日付を選んでテキスト・Excel・PDF出力") { showPeriodExportDialog() }
+    row("📊", "Excel出力", "集計期間: $periodLabel") { exportExcel() }
+    row("📄", "PDF出力", "集計期間: $periodLabel") { exportReportPdf() }
+    row("📤", "テキストで共有", "集計期間: $periodLabel") { shareReportText() }
     row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
 
     root.addView(View(ctx).apply {
