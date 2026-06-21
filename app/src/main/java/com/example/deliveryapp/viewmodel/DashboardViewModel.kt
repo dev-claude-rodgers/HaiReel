@@ -45,7 +45,7 @@ class DashboardViewModel @Inject constructor(
         dao.recordsForPeriodFlow(monday.format(fmt), today.format(fmt))
             .map { records ->
                 WeekSummary(
-                    workDays = records.size,
+                    workDays = records.distinctBy { it.date }.size,
                     income = records.sumOf { it.income },
                     deliveryCount = records.sumOf { it.deliveryCount },
                     distanceKm = records.sumOf { it.distanceKm.toDouble() }.toFloat()
