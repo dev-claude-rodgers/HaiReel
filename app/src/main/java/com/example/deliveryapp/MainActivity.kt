@@ -91,6 +91,11 @@ class MainActivity : AppCompatActivity() {
 
         setupTabs()
 
+        // ライセンス期限通知チェック（デバッグビルドはスキップ）
+        if (!com.rodgers.routist.BuildConfig.DEBUG) {
+            com.rodgers.routist.util.LicenseNotificationHelper.checkAndNotify(this)
+        }
+
         // 利用規約未同意の場合は同意を求める（デバッグビルドはスキップ）
         if (!com.rodgers.routist.BuildConfig.DEBUG && !AppSettings.isTermsAgreed(this)) {
             showTermsAgreementDialog()

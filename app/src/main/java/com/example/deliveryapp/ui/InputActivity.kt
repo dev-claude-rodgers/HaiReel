@@ -115,7 +115,9 @@ class InputActivity : AppCompatActivity() {
         val sharedStrings = ArrayList<String>()
         val fileContents = HashMap<String, ByteArray>()
 
-        java.util.zip.ZipInputStream(contentResolver.openInputStream(uri)!!).use { zip ->
+        val inputStream = contentResolver.openInputStream(uri)
+            ?: run { android.widget.Toast.makeText(this, "ファイルを開けませんでした", android.widget.Toast.LENGTH_SHORT).show(); return emptyList() }
+        java.util.zip.ZipInputStream(inputStream).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
                 if (entry.name == "xl/sharedStrings.xml" ||
