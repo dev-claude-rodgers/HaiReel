@@ -1,4 +1,4 @@
-package com.rodgers.routist.ui
+﻿package com.rodgers.routist.ui
 
 import android.content.Intent
 import android.widget.Toast
@@ -6,12 +6,19 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.routist.excel.ExcelGenerator
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.excel.TenkoExcelGenerator
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.pdf.PdfGenerator
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.util.BackupManager
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.util.PatternStorage
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.util.SignatureStorage
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.viewmodel.ReportViewModel
+import com.rodgers.routist.viewmodel.*
 import kotlinx.coroutines.launch
 
 internal fun DailyReportFragment.exportExcel() {

@@ -1,4 +1,4 @@
-package com.rodgers.routist.ui
+﻿package com.rodgers.routist.ui
 
 import android.Manifest
 import android.app.Activity
@@ -38,6 +38,7 @@ import com.rodgers.routist.util.PatternStorage
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.util.TimeSlotColor
 import com.rodgers.routist.viewmodel.DeliveryViewModel
+import com.rodgers.routist.viewmodel.*
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

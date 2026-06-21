@@ -1,4 +1,4 @@
-package com.rodgers.routist.ui
+﻿package com.rodgers.routist.ui
 
 import android.Manifest
 import android.content.Intent
@@ -29,6 +29,7 @@ import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.util.MarkerIconFactory
 import com.rodgers.routist.util.TimeSlotColor
 import com.rodgers.routist.viewmodel.DeliveryViewModel
+import com.rodgers.routist.viewmodel.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -236,6 +237,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         val visibleGroups = if (rawVisible != null && currentGroupId !in rawVisible) null else rawVisible
         val bounds = LatLngBounds.Builder()
         var hasAny = false
+
         val slotTemplates = com.rodgers.routist.util.AppSettings.getTimeSlotTemplatesWithColor(requireContext())
 
         groups.forEach outer@{ group ->

@@ -1,4 +1,4 @@
-package com.rodgers.routist.ui
+﻿package com.rodgers.routist.ui
 
 import android.graphics.Color
 import android.graphics.Typeface
@@ -13,8 +13,11 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.routist.util.AppSettings
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.util.SignatureStorage
+import com.rodgers.routist.viewmodel.*
 import com.rodgers.routist.util.themeColor
+import com.rodgers.routist.viewmodel.*
 import kotlinx.coroutines.launch
 
 internal fun DailyReportFragment.showPrivacyPolicyDialog() {
