@@ -214,19 +214,19 @@ class OnboardingActivity : AppCompatActivity() {
             }
         })
 
-        fun finish() {
+        fun completeOnboarding() {
             AppSettings.setOnboardingDone(this@OnboardingActivity)
             startActivity(Intent(this@OnboardingActivity, MainActivity::class.java))
-            finish()
+            this@OnboardingActivity.finish()
         }
 
         btnNext.setOnClickListener {
             if (pager.currentItem < pages.size - 1) {
                 pager.currentItem++
             } else {
-                finish()
+                completeOnboarding()
             }
         }
-        btnSkip.setOnClickListener { finish() }
+        btnSkip.setOnClickListener { completeOnboarding() }
     }
 }
