@@ -235,7 +235,7 @@ class DailyReportFragment : Fragment() {
         val totalIncome = records.sumOf { it.income }
         val totalFuel   = records.sumOf { it.fuelCost }
         val balance     = totalIncome - totalFuel
-        val trackIncome = pattern.showIncome || pattern.paymentType != 3
+        val trackIncome = pattern.showIncome || pattern.paymentType != 3 || totalIncome > 0
         if (trackIncome && totalIncome > 0) {
             binding.tvSummaryIncome.visibility = View.VISIBLE
             binding.tvSummaryIncome.text = "収入 %,d円".format(totalIncome)
@@ -597,8 +597,8 @@ class DailyReportFragment : Fragment() {
         startMeterIn.addTextChangedListener(meterWatcher)
         endMeterIn.addTextChangedListener(meterWatcher)
 
-        // ── 収入
-        val autoIncome = calcIncome(pattern, record.deliveryCount, 0, record.packageCount)
+        // ── 収入（既存レコードのworkingMinutesを使って時間制パターンでも正しく初期計算）
+        val autoIncome = calcIncome(pattern, record.deliveryCount, record.workingMinutes, record.packageCount)
         root.addView(label("収入（円）"))
         val incomeRow = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
