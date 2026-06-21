@@ -26,7 +26,7 @@ android {
         applicationId = "com.rodgers.routist"
         minSdk = 26
         targetSdk = 35
-        versionCode = 39
+        versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "com.rodgers.routist.HiltTestRunner"
 
