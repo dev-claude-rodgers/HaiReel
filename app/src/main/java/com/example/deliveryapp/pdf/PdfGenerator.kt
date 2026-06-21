@@ -73,11 +73,15 @@ object PdfGenerator {
 
         // 列定義: (ヘッダー, データ取得関数, 合計値)
         val cols: List<Triple<String, (WorkRecord?) -> String, String>> = buildList {
-            add(Triple("日付", { _: WorkRecord? -> "" }, "合計(${workingDays}日)"))
+            add(Triple("日付", { _: WorkRecord? -> "" }, "合計（${workingDays}日稼働）"))
             add(Triple("曜",   { _: WorkRecord? -> "" }, ""))
             if (pattern.showTime || pattern.showStartEndTime) {
-                add(Triple("開始", { r: WorkRecord? -> r?.startTime ?: "" }, ""))
-                add(Triple("終了", { r: WorkRecord? -> r?.endTime ?: "" }, ""))
+                add(Triple("開始時刻", { r: WorkRecord? -> r?.startTime ?: "" }, ""))
+                add(Triple("終了時刻", { r: WorkRecord? ->
+                    if (r == null) ""
+                    else if (r.endDateOffset > 0) "${r.endTime}(+${r.endDateOffset}日)"
+                    else r.endTime
+                }, ""))
             }
             if (pattern.showTime || pattern.showWorkingHours) {
                 val totalHours = records.sumOf { it.workingMinutes }.let { t ->
@@ -91,8 +95,8 @@ object PdfGenerator {
                 add(Triple(lbl, { r: WorkRecord? -> if ((r?.deliveryCount ?: 0) > 0) "${r!!.deliveryCount}件" else "" }, tot))
             }
             if (pattern.showMeter) {
-                add(Triple("開始メーター", { r: WorkRecord? -> if ((r?.startMeter ?: 0) > 0) "${r!!.startMeter}km" else "" }, ""))
-                add(Triple("終了メーター", { r: WorkRecord? -> if ((r?.endMeter ?: 0) > 0) "${r!!.endMeter}km" else "" }, ""))
+                add(Triple("開始メーター(km)", { r: WorkRecord? -> if ((r?.startMeter ?: 0) > 0) "${r!!.startMeter}km" else "" }, ""))
+                add(Triple("終了メーター(km)", { r: WorkRecord? -> if ((r?.endMeter ?: 0) > 0) "${r!!.endMeter}km" else "" }, ""))
             }
             if (pattern.showIncome) {
                 val tot = records.sumOf { it.income }.let { if (it > 0) "%,d円".format(it) else "" }
