@@ -191,7 +191,7 @@ internal fun DailyReportFragment.showAppSettingsDialog() {
     }
     root.addView(etLockTimeout)
     root.addView(TextView(ctx).apply {
-        text = "バックグラウンドや操作なしでこの時間が経過するとロックされます"
+        text = "バックグラウンド移行または無操作でこの時間が経過するとロックされます"
         textSize = 12f; setTextColor(colorOutline)
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     })
@@ -529,7 +529,7 @@ internal fun DailyReportFragment.showFareCalculationDialog() {
             fuelPricePerL = p; fuelEfficiencyKmL = e
             fuelPrefs.edit().putInt("fuel_price_yen", p).putFloat("fuel_eff_kml", e)
                 .putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName).apply()
-            Toast.makeText(ctx, "保存しました（${vehicleTypeName}・${fuelTypeName} ¥${p}/L・${e}km/L）", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, "保存しました（${vehicleTypeName} / ${fuelTypeName} / ¥${p}/L / ${e}km/L）", Toast.LENGTH_SHORT).show()
         }
     }
 

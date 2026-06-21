@@ -169,7 +169,7 @@ class MainActivity : AppCompatActivity() {
                 if (count > 0) {
                     Snackbar.make(
                         binding.root,
-                        "住所を特定できなかった件数: ${count}件",
+                        "${count}件の住所を特定できませんでした",
                         Snackbar.LENGTH_LONG
                     )
                         .setAction("再試行") { viewModel.retryGeocoding() }
@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
                 if (confirmation == null) return@collectLatest
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("元ファイルを上書きしますか？")
-                    .setMessage("インポートしたファイルの内容がリストと異なります。\n元のファイルを最新の状態に更新しますか？")
+                    .setMessage("リストを編集しました。インポート元のファイルにも変更を反映しますか？")
                     .setPositiveButton("上書き") { _, _ -> viewModel.confirmOverwrite() }
                     .setNegativeButton("キャンセル") { _, _ -> viewModel.cancelOverwrite() }
                     .show()

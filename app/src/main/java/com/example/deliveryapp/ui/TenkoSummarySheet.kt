@@ -108,7 +108,7 @@ internal fun TenkoFragment.showMonthSummary() {
     })
     banner.addView(TextView(ctx).apply {
         val suffix = if (isCurrentMonth) "（当日まで）" else ""
-        text = "${daysWithBoth}便 完了 ／ ${effectiveDays}日$suffix"; textSize = 14f
+        text = "${daysWithBoth}日完了 ／ ${effectiveDays}日$suffix"; textSize = 14f
         setTextColor(Color.parseColor("#DDEEEE")); gravity = Gravity.CENTER
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     })
@@ -174,7 +174,7 @@ internal fun TenkoFragment.showMonthSummary() {
             layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
         })
         hdr.addView(TextView(ctx).apply {
-            text = "${done} / ${total}日"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD
+            text = "${done}日 / ${total}日"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD
             setTextColor(barColor)
         })
         addView(hdr)
@@ -247,7 +247,7 @@ internal fun TenkoFragment.showMonthSummary() {
     }
 
     MaterialAlertDialogBuilder(ctx)
-        .setTitle("${y}年${m}月  点呼集計")
+        .setTitle("${y}年${m}月 点呼集計")
         .setView(scroll)
         .setPositiveButton("閉じる", null)
         .show()

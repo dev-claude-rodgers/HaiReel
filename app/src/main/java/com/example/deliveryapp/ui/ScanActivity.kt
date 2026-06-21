@@ -159,7 +159,7 @@ class ScanActivity : AppCompatActivity() {
                 if (address.isNotBlank()) {
                     etAddress.setText(address)
                     val msg = if (name.isNotBlank()) "氏名・住所を認識しました。" else "住所を認識しました。"
-                    tvStatus.text = "${msg}必要なら編集して「追加」してください。"
+                    tvStatus.text = "$msg\n必要なら編集して「追加」してください。"
                     btnAdd.isEnabled = true
                     btnSkip.isEnabled = true
                     btnDone.isEnabled = scannedList.isNotEmpty()
@@ -209,14 +209,14 @@ class ScanActivity : AppCompatActivity() {
     private fun clearResult() {
         etName.setText("")
         etAddress.setText("")
-        tvStatus.text = "撮影をタップして次の伝票を読み込む"
+        tvStatus.text = "「撮影」をタップして次の伝票を読み込んでください"
         btnAdd.isEnabled = false
         btnSkip.isEnabled = false
         btnDone.isEnabled = scannedList.isNotEmpty()
     }
 
     private fun updateCount() {
-        tvCount.text = "${scannedList.size} 件追加済み"
+        tvCount.text = "${scannedList.size}件追加済み"
         btnDone.isEnabled = true
     }
 }

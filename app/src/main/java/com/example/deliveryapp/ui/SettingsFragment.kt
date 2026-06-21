@@ -199,7 +199,7 @@ class SettingsFragment : Fragment() {
                     .setPositiveButton("再設定する") { _, _ -> showApiKeyWizard() }
                     .setNegativeButton("閉じる", null)
                     .show()
-                binding.tvApiKeyStatus.text = "設定済み・動作未確認（要確認）"
+                binding.tvApiKeyStatus.text = "設定済み・動作確認NG（要確認）"
             }
         }
     }
@@ -708,7 +708,7 @@ Android 8.0（API 26）以上"""
         note("→ Google APIキーが設定されていないか無効です。設定 → Google APIキー設定を確認してください。")
         item("Q. ルート最適化ができない")
         note("→ 住所のジオコーディング（緑マーク）が完了しているか確認してください。")
-        item("Q. 年収入が表示されない")
+        item("Q. 収入が表示されない")
         note("→ 日報の「収入（円）」欄に金額を入力して保存してください。")
         item("Q. データが消えた")
         note("→ 設定 → バックアップから復元できます。定期的なバックアップをおすすめします。")

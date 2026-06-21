@@ -48,7 +48,7 @@ internal fun TenkoFragment.show430TimerDialog() {
             val warnMs = (totalMin - 30) * 60_000L
             val intent = Intent(ctx, ReminderReceiver::class.java).apply {
                 putExtra(ReminderReceiver.EXTRA_TITLE,    "休憩の準備をしてください")
-                putExtra(ReminderReceiver.EXTRA_TEXT,     "連続運転${fmtHm(warnMs)}が経過しました。あと30分で休憩が必要です。")
+                putExtra(ReminderReceiver.EXTRA_TEXT,     "連続運転が${fmtHm(warnMs)}経過しました。あと30分で休憩が必要です。")
                 putExtra(ReminderReceiver.EXTRA_NOTIF_ID, 4301)
             }
             val pi = PendingIntent.getBroadcast(ctx, 4301, intent,
@@ -57,7 +57,7 @@ internal fun TenkoFragment.show430TimerDialog() {
         }
         val intent2 = Intent(ctx, ReminderReceiver::class.java).apply {
             putExtra(ReminderReceiver.EXTRA_TITLE,    "休憩してください")
-            putExtra(ReminderReceiver.EXTRA_TEXT,     "連続運転${fmtHm(totalMs)}が経過しました。休憩を取ってください。")
+            putExtra(ReminderReceiver.EXTRA_TEXT,     "連続運転が${fmtHm(totalMs)}経過しました。休憩を取ってください。")
             putExtra(ReminderReceiver.EXTRA_NOTIF_ID, 4302)
         }
         val pi2 = PendingIntent.getBroadcast(ctx, 4302, intent2,
@@ -72,7 +72,7 @@ internal fun TenkoFragment.show430TimerDialog() {
     }
 
     val message = when (state) {
-        "IDLE" -> "停車中\n設定時間: ${fmtHm(totalMs)}\n\n運転を開始すると、設定時間に通知します。"
+        "IDLE" -> "停車中\n設定時間: ${fmtHm(totalMs)}\n\n運転を開始すると、設定した時間に休憩を通知します。"
         "DRIVING" -> "運転中\n\n経過: ${fmtHm(elapsedMs)}\n残り: ${fmtHm((totalMs - elapsedMs).coerceAtLeast(0))}"
         "ON_BREAK" -> {
             val breakMs = AppSettings.getBreakAccumulatedMs(ctx) + (System.currentTimeMillis() - AppSettings.getBreakSegmentStartMs(ctx))
@@ -92,7 +92,7 @@ internal fun TenkoFragment.show430TimerDialog() {
                 AppSettings.setDriveAccumulatedMs(ctx, 0L)
                 AppSettings.setBreakAccumulatedMs(ctx, 0L)
                 scheduleAlarms(now)
-                Toast.makeText(ctx, "運転開始。${fmtHm(totalMs)}後に休憩通知します。", Toast.LENGTH_LONG).show()
+                Toast.makeText(ctx, "運転を開始しました。${fmtHm(totalMs)}後に休憩を通知します。", Toast.LENGTH_LONG).show()
             }
             builder.setNeutralButton("⚙ 時間を変更") { _, _ ->
                 showBreakAlarmSettingDialog()
@@ -168,7 +168,7 @@ internal fun TenkoFragment.showBreakAlarmSettingDialog() {
         .setPositiveButton("OK") { _, _ ->
             val totalMin = npHour.value * 60 + npMin.value * 5
             if (totalMin < 5) {
-                Toast.makeText(ctx, "連続運転アラーム時間は5分以上で設定してください", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, "連続運転のアラームは5分以上で設定してください", Toast.LENGTH_SHORT).show()
                 return@setPositiveButton
             }
             AppSettings.setBreakAlarmMinutes(ctx, totalMin)
@@ -370,7 +370,7 @@ internal fun TenkoFragment.showReminderDialog() {
                 parts.add("乗務前 %02d:%02d（%sから毎日）".format(beforeH, beforeM, dayLabel(beforeH, beforeM)))
             if (switchAfter.isChecked)
                 parts.add("乗務後 %02d:%02d（%sから毎日）".format(afterH, afterM, dayLabel(afterH, afterM)))
-            val msg = if (parts.isEmpty()) "通知をOFFにしました" else parts.joinToString("\n") + "\nに通知を設定しました"
+            val msg = if (parts.isEmpty()) "通知をOFFにしました" else "以下の時刻に通知を設定しました:\n" + parts.joinToString("\n")
             Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
         }
         .setNegativeButton("キャンセル", null)
@@ -381,7 +381,7 @@ internal fun TenkoFragment.applyReminder(ctx: Context, isBefore: Boolean, hour: 
     val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val reqCode = if (isBefore) 3001 else 3002
     val intent = Intent(ctx, ReminderReceiver::class.java).apply {
-        putExtra(ReminderReceiver.EXTRA_TITLE, if (isBefore) "乗務前点呼のお時間です" else "乗務後点呼のお時間です")
+        putExtra(ReminderReceiver.EXTRA_TITLE, if (isBefore) "乗務前点呼の時間です" else "乗務後点呼の時間です")
         putExtra(ReminderReceiver.EXTRA_TEXT,  if (isBefore) "出発前に点呼を記録してください" else "帰着後に点呼を記録してください")
         putExtra(ReminderReceiver.EXTRA_NOTIF_ID, if (isBefore) ReminderReceiver.NOTIF_BEFORE else ReminderReceiver.NOTIF_AFTER)
     }

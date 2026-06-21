@@ -669,7 +669,7 @@ class DailyReportFragment : Fragment() {
         root.addView(remarksIn)
 
         val dlg = MaterialAlertDialogBuilder(ctx)
-            .setTitle(if (record.id == 0L) "日報を記録（$selectedDate）" else "日報を修正（${record.date}）")
+            .setTitle(if (record.id == 0L) "日報を記録（$selectedDate）" else "日報を編集（${record.date}）")
             .setView(scroll)
             .setPositiveButton("保存", null)
             .setNegativeButton("キャンセル", null)
@@ -734,7 +734,7 @@ class DailyReportFragment : Fragment() {
                 appendLine("メーター: ${record.startMeter}→${record.endMeter}km")
             appendLine("配達: ${record.deliveryCount}件" + if (record.packageCount > 0) "  ${record.packageCount}個" else "")
             if (record.area.isNotBlank()) appendLine("エリア: ${record.area}")
-            if (record.alcCheck.isNotBlank()) appendLine("ALC: ${record.alcCheck}")
+            if (record.alcCheck.isNotBlank()) appendLine("アルコール: ${record.alcCheck}")
             if (record.remarks.isNotBlank()) appendLine("備考: ${record.remarks}")
         }
         startActivity(Intent.createChooser(

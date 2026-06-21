@@ -135,7 +135,7 @@ import kotlinx.coroutines.withContext
             if (geocodedCount < 2) {
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle("ルート最適化できません")
-                    .setMessage("住所が地図に配置されている件数が2件未満です。\nジオコーディングが完了してから実行してください。")
+                    .setMessage("地図に配置済みの住所が2件未満です。\nジオコーディングが完了してから実行してください。")
                     .setPositiveButton("OK", null).show()
                 return@row
             }

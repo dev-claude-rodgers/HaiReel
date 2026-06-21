@@ -584,7 +584,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="日報・配達先・帳票パターンをすべて削除する"
+                    android:text="日報・配達先・ルート・帳票パターン・署名をすべて削除する"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginTop="2dp" />

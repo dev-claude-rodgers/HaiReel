@@ -45,7 +45,7 @@ object LicenseNotificationHelper {
         when {
             daysLeft in 1..2 && shouldNotify(ctx, daysLeft + 1000) -> {
                 showNotification(ctx, "試用期間まもなく終了",
-                    "試用期間残り${daysLeft}日です。継続利用にはライセンスキーが必要です。")
+                    "試用期間の残り${daysLeft}日です。継続利用にはライセンスキーが必要です。")
                 saveNotifiedDay(ctx, daysLeft + 1000)
             }
         }

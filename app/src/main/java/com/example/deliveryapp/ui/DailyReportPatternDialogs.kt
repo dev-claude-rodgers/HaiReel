@@ -256,7 +256,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
             .also { it.topMargin = (14 * dp).toInt(); it.bottomMargin = (2 * dp).toInt() }
         typeface = android.graphics.Typeface.DEFAULT_BOLD
     })
-    val payLabels = listOf("個建て(個数×単価)", "車建て(日当制)", "時間制(時間×単価)", "なし(集計しない)")
+    val payLabels = listOf("個建て（個数×単価）", "車建て（日当制）", "時間制（時間×単価）", "なし（集計しない）")
     val payGroup  = android.widget.RadioGroup(ctx)
     var selectedPayType = base.paymentType
     payLabels.forEachIndexed { i, lbl ->
@@ -276,7 +276,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     }
     root.addView(unitPriceIn)
     root.addView(TextView(ctx).apply {
-        text = "個建て(個数×単価) / 車建て(日当制) / 時間制(時間×単価)"
+        text = "個建て（個数×単価）/ 車建て（日当制）/ 時間制（時間×単価）"
         textSize = 11f; setTextColor(Color.GRAY)
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     })
@@ -314,7 +314,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
                 reportViewModel.setClosingDay(updated.closingDay)
             }
             val msg = when {
-                titleStr.isBlank() -> "パターン名が未入力のため「稼働報告書」を使用します"
+                titleStr.isBlank() -> "帳票タイトルが未入力のため「稼働報告書」を使用します"
                 isNew -> "パターンを追加しました"
                 else  -> "保存しました"
             }

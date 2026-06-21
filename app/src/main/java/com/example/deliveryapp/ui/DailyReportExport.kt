@@ -84,7 +84,7 @@ internal fun DailyReportFragment.shareExcel(ctx: android.content.Context, file: 
             type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }, "Excelを共有"))
+        }, "稼働報告書Excelを共有"))
 }
 
 internal fun DailyReportFragment.exportReportPdf() {

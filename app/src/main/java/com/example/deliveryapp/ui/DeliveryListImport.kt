@@ -213,7 +213,7 @@ internal fun DeliveryListFragment.importListToCurrentGroup(toAdd: List<Delivery>
             // ── Step B: 追加 or 置き換え
             AlertDialog.Builder(ctx)
                 .setTitle("${toAdd.size}件をインポート")
-                .setMessage("「$routeName」にはすでに${existingCount}件あります。\nどちらで処理しますか？")
+                .setMessage("「$routeName」にはすでに${existingCount}件あります。\nどのように処理しますか？")
                 .setPositiveButton("追加する") { _, _ -> proceedWithImport(toAdd, replace = false) }
                 .setNeutralButton("置き換える") { _, _ -> proceedWithImport(toAdd, replace = true) }
                 .setNegativeButton("キャンセル", null)

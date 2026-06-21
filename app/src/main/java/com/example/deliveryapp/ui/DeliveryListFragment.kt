@@ -303,7 +303,7 @@ class DeliveryListFragment : Fragment() {
         val prefs = requireContext().getSharedPreferences("ui_hints", android.content.Context.MODE_PRIVATE)
         if (!prefs.getBoolean("select_mode_hint_shown", false)) {
             prefs.edit().putBoolean("select_mode_hint_shown", true).apply()
-            Snackbar.make(binding.root, "長押しで複数選択・ハンドルをドラッグで並べ替えができます", Snackbar.LENGTH_LONG).show()
+            Snackbar.make(binding.root, "長押しで複数選択、ハンドルのドラッグで並べ替えができます", Snackbar.LENGTH_LONG).show()
         }
     }
 
@@ -387,7 +387,7 @@ class DeliveryListFragment : Fragment() {
         binding.textEmpty.visibility = View.GONE
         binding.chipIncomplete.visibility = View.GONE
         binding.buttonListMenu.visibility = View.GONE
-        binding.buttonMapToggle.text = "${"配達先"}リストへ戻る"
+        binding.buttonMapToggle.text = "配達先リストへ戻る"
         if (childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
                 .add(R.id.mapContainer, MapFragment(), "map")

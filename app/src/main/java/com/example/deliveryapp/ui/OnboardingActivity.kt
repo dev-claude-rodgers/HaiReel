@@ -143,7 +143,7 @@ class OnboardingActivity : AppCompatActivity() {
 
         // 次へ/始めるボタン
         val btnNext = com.google.android.material.button.MaterialButton(ctx).apply {
-            text = "次へ →"
+            text = "次へ"
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             isAllCaps = false
         }
@@ -210,7 +210,7 @@ class OnboardingActivity : AppCompatActivity() {
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 updateDots(position)
-                btnNext.text = if (position == pages.size - 1) "始める 🚀" else "次へ →"
+                btnNext.text = if (position == pages.size - 1) "始める" else "次へ"
             }
         })
 

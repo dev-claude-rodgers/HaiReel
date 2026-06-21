@@ -68,7 +68,7 @@ class InputActivity : AppCompatActivity() {
             .map { it.split(",").firstOrNull()?.trim()?.trim('"') ?: "" }
             .filter { it.isNotBlank() }
         binding.editTextAddresses.setText(addresses.joinToString("\n"))
-        Toast.makeText(this, "ファイルから ${addresses.size}件の住所を読み込みました", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "ファイルから${addresses.size}件の住所を読み込みました", Toast.LENGTH_SHORT).show()
     }
 
     // ── Excel (.xlsx) ────────────────────────────────────────────────
@@ -264,7 +264,7 @@ class InputActivity : AppCompatActivity() {
         binding.buttonImport.setOnClickListener {
             val text = binding.editTextAddresses.text.toString().trim()
             if (text.isBlank()) {
-                Toast.makeText(this, "住所またはお店の名前を入力してください", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "配達先の住所または名称を入力してください", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val result = Intent().apply {
@@ -280,7 +280,7 @@ class InputActivity : AppCompatActivity() {
             if (clip != null && clip.itemCount > 0) {
                 binding.editTextAddresses.setText(clip.getItemAt(0).coerceToText(this).toString())
                 selectedFileUri = null
-            } else Toast.makeText(this, "コピーした文字がありません", Toast.LENGTH_SHORT).show()
+            } else Toast.makeText(this, "クリップボードに内容がありません", Toast.LENGTH_SHORT).show()
         }
 
         binding.buttonCsv.setOnClickListener {
