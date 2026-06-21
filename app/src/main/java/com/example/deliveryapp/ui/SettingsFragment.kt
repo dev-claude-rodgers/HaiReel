@@ -255,7 +255,7 @@ class SettingsFragment : Fragment() {
         })
 
         val inputField = android.widget.EditText(ctx).apply {
-            hint = "AIza...（コピーしたキーを貼り付け）"
+            hint = "AIza... を貼り付け"
             setText(AppSettings.getUserApiKey(ctx))
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)

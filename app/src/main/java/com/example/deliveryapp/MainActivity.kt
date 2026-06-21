@@ -413,7 +413,8 @@ class MainActivity : AppCompatActivity() {
 
     internal fun showLicenseInputDialog() {
         val input = android.widget.EditText(this).apply {
-            hint = "RJ-2027-XXXXXXXX-XXXXXXXX"
+            hint = "RJ-YYYY-XXXXXXXX-XXXXXXXX"
+            textSize = 13f
             inputType = android.text.InputType.TYPE_CLASS_TEXT or
                         android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
             setPadding(60, 32, 60, 16)
