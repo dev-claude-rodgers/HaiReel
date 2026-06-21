@@ -301,7 +301,7 @@ class SettingsFragment : Fragment() {
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1*dp).toInt())
                 .also { it.setMargins((84*dp).toInt(), (4*dp).toInt(), 0, (4*dp).toInt()) }
         }
-        binding.settingsRoot.addView(divider, 3)
+        binding.settingsRoot.addView(divider, 7)
 
         val row = android.widget.LinearLayout(ctx).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
@@ -336,7 +336,7 @@ class SettingsFragment : Fragment() {
         col.addView(subTv)
         row.addView(col)
         row.setOnClickListener { showBackgroundSettingsSheet { subTv.text = buildBackgroundSummary(ctx) } }
-        binding.settingsRoot.addView(row, 4)
+        binding.settingsRoot.addView(row, 8)
     }
 
     private fun buildBackgroundSummary(ctx: android.content.Context): String {

@@ -128,6 +128,7 @@ import kotlinx.coroutines.withContext
             setBackgroundColor(outlineVariant)
         })
 
+        // ── ルート操作
         row("🗺", "ルート最適化", "現在地から最短順に並び替える") {
             val geocodedCount = viewModel.deliveries.value.count { it.hasLocation }
             if (geocodedCount < 2) {
@@ -147,25 +148,28 @@ import kotlinx.coroutines.withContext
                 .setNegativeButton("キャンセル", null).show()
         }
         val routeEmoji = if (showRouteLines) "🔵" else "⚫"
-        val routeSub   = if (showRouteLines) "現在 ON → タップで非表示" else "現在 OFF → タップで表示"
+        val routeSub   = if (showRouteLines) "経路線 ON → タップで非表示" else "経路線 OFF → タップで表示"
         row(routeEmoji, "経路線の表示切替", routeSub) {
             showRouteLines = !showRouteLines
             updateAllMarkers(viewModel.allDeliveries.value)
         }
         row("👁", "他のルートも表示", "複数ルートを地図に重ねて表示する") { showGroupVisibilityDialog() }
         divider()
+        // ── 周辺情報
         row("🔍", "近くの施設を探す", "コンビニ・パーキング・道の駅など") { showNearbyFacilitiesDialog(sheet) }
         if (facilityMarkers.isNotEmpty()) {
-            row("✕", "施設マーカーを消す", "${facilityMarkers.size}件の施設ピンを地図から削除") {
+            row("✕", "施設マーカーを消す", "${facilityMarkers.size}件の施設ピンを削除") {
                 facilityMarkers.forEach { it.remove() }
                 facilityMarkers.clear()
             }
         }
         divider()
-        row("📞", "SOS連絡先を設定", "緊急時の連絡先電話番号を登録する") { showSosContactDialog() }
+        // ── 緊急
         row("🆘", "SOS送信", "緊急連絡先にSMSを送信する",
             ContextCompat.getColor(ctx, R.color.colorSosDanger)) { showSosDialog() }
+        row("📞", "SOS連絡先を設定", "緊急時の連絡先電話番号を登録する") { showSosContactDialog() }
         divider()
+        // ── 削除
         row("🗑", "ピンをすべて削除", "現在のルートの全ピンを削除する",
             ContextCompat.getColor(ctx, R.color.colorActionRed)) {
             val group = viewModel.currentGroup() ?: return@row
