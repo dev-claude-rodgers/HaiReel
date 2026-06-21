@@ -604,12 +604,16 @@ class DailyReportFragment : Fragment() {
                     incomeIn.setText(calc.toString())
                 } else {
                     val msg = when (pattern.paymentType) {
-                        3    -> "帳票設定の「報酬タイプ」を「個建て」「車建て」「時間制」のいずれかに設定してください"
+                        3    -> "帳票設定の「報酬タイプ」を\n・個建て(個数×単価)\n・車建て(日当制)\n・時間制(時間×単価)\nのいずれかに設定してください"
                         0    -> if (pc == 0) "個数を入力してください" else "帳票設定の「単価」を設定してください"
                         2    -> if (wm == 0) "開始・終了時刻を入力してください" else "帳票設定の「単価」を設定してください"
                         else -> "帳票設定の「単価」を設定してください"
                     }
-                    Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle("自動計算できません")
+                        .setMessage(msg)
+                        .setPositiveButton("閉じる", null)
+                        .show()
                 }
             }
         }
@@ -639,12 +643,16 @@ class DailyReportFragment : Fragment() {
                     fuelIn.setText(cost.toString())
                 } else {
                     val msg = when {
-                        fuelPrice <= 0 && fuelEff <= 0f -> "設定でガソリン単価と燃費（km/L）を入力してください"
-                        fuelPrice <= 0                  -> "設定でガソリン単価（円/L）を入力してください"
-                        fuelEff   <= 0f                 -> "設定で燃費（km/L）を入力してください"
+                        fuelPrice <= 0 && fuelEff <= 0f -> "設定でガソリン単価と燃費(km/L)を入力してください"
+                        fuelPrice <= 0                  -> "設定でガソリン単価(円/L)を入力してください"
+                        fuelEff   <= 0f                 -> "設定で燃費(km/L)を入力してください"
                         else                            -> "走行距離を先に入力してください"
                     }
-                    Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+                    com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                        .setTitle("自動計算できません")
+                        .setMessage(msg)
+                        .setPositiveButton("閉じる", null)
+                        .show()
                 }
             }
         }

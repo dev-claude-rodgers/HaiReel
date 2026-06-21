@@ -161,6 +161,10 @@ internal fun DeliveryListFragment.showListActions() {
             if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
         }
         divider()
+        // ── 完了操作
+        row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
+        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
+        divider()
         // ── ルート管理
         row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
         row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
@@ -169,10 +173,6 @@ internal fun DeliveryListFragment.showListActions() {
             viewModel.copyGroup(groupId)
         }
         row("📤", "ルートを共有", "LINE・メール等で送る") { shareList() }
-        divider()
-        // ── 完了操作
-        row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
-        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
         divider()
         // ── 危険操作
         row("🗑", "このルートを削除", "削除後は元に戻せません", redColor) { confirmDeleteGroup() }
