@@ -250,7 +250,7 @@ class DeliveryListFragment : Fragment() {
             viewModel.deliveries.collectLatest { deliveries ->
                 applyFilter()
                 val ctx = context ?: return@collectLatest
-                if (!AppSettings.isDriverMode(ctx) && AppSettings.isGeofenceEnabled(ctx)) {
+                if (AppSettings.isGeofenceEnabled(ctx)) {
                     GeofenceManager.sync(ctx, deliveries)
                 }
             }

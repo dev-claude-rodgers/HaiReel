@@ -37,7 +37,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     val viewModel: DeliveryViewModel by viewModels()
     private var suppressNavSync = false
-    private val isDriverMode = true
 
     // バックアップ復元ファイルピッカー（Hilt Fragment内では動かないためActivity側で管理）
     private var restoreCallback: ((android.net.Uri?) -> Unit)? = null
@@ -244,7 +243,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateToolbarForTab(position: Int) {
-        val listPos = if (isDriverMode) 1 else 0
+        val listPos = 1
         if (position == listPos) {
             binding.appBarLayout.visibility = View.VISIBLE
             binding.contentFrame.updatePadding(top = 0)
@@ -257,9 +256,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun switchToList()   { binding.viewPager.currentItem = if (isDriverMode) 1 else 0 }
-    fun switchToTenko()  { if (isDriverMode) binding.viewPager.currentItem = 0 }
-    fun switchToReport() { if (isDriverMode) binding.viewPager.currentItem = 2 }
+    fun switchToList()   { binding.viewPager.currentItem = 1 }
+    fun switchToTenko()  { binding.viewPager.currentItem = 0 }
+    fun switchToReport() { binding.viewPager.currentItem = 2 }
 
     override fun onResume() {
         super.onResume()

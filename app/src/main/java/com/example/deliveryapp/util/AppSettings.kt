@@ -3,22 +3,6 @@
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
-
-// Hilt経由で@Injectできるクラス版（新規コードはこちらを使う）
-@Singleton
-class AppSettingsManager @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    fun getUserApiKey(): String = AppSettings.getUserApiKey(context)
-    fun setUserApiKey(key: String) = AppSettings.setUserApiKey(context, key)
-    fun hasUserApiKey(): Boolean = AppSettings.hasUserApiKey(context)
-    fun isDriverMode(): Boolean = AppSettings.isDriverMode(context)
-    fun getCompanyName(): String = AppSettings.getCompanyName(context)
-}
-
 object AppSettings {
     private const val PREFS = "kado_settings"
     private const val ENCRYPTED_PREFS = "kado_secure"
@@ -236,17 +220,6 @@ object AppSettings {
     fun getDarkMode(ctx: Context): Int = p(ctx).getInt("dark_mode", -1)
     fun setDarkMode(ctx: Context, v: Int) = p(ctx).edit().putInt("dark_mode", v).apply()
 
-    // 利用モード (true=ドライバー向け, false=一般利用)
-    fun isDriverMode(ctx: Context): Boolean = p(ctx).getBoolean("driver_mode", true)
-    fun setDriverMode(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("driver_mode", v).commit() }
-    fun isAppModeSet(ctx: Context): Boolean = p(ctx).contains("driver_mode")
-
-    // モード別用語ヘルパー
-    fun termDest(ctx: Context): String  = if (isDriverMode(ctx)) "配達先" else "目的地"
-    fun termList(ctx: Context): String  = if (isDriverMode(ctx)) "配達リスト" else "目的地リスト"
-    fun termDone(ctx: Context): String  = if (isDriverMode(ctx)) "配達" else "訪問"
-    fun termAdd(ctx: Context): String   = if (isDriverMode(ctx)) "配達先を追加" else "目的地を追加"
-
     // ユーザー独自のGoogle APIキー（EncryptedSharedPreferencesに保存）
     fun getUserApiKey(ctx: Context): String = ep(ctx).getString("user_api_key", "") ?: ""
     fun setUserApiKey(ctx: Context, key: String) { ep(ctx).edit().putString("user_api_key", key).commit() }
@@ -259,10 +232,6 @@ object AppSettings {
     // 到着通知（ジオフェンス）
     fun isGeofenceEnabled(ctx: Context): Boolean = p(ctx).getBoolean("geofence_enabled", false)
     fun setGeofenceEnabled(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("geofence_enabled", v).commit() }
-
-    // 毎回起動時にモード選択を表示するか
-    fun isShowModeOnLaunch(ctx: Context): Boolean = p(ctx).getBoolean("show_mode_on_launch", true)
-    fun setShowModeOnLaunch(ctx: Context, v: Boolean) { p(ctx).edit().putBoolean("show_mode_on_launch", v).commit() }
 
     // セキュリティ
     fun isAppLockEnabled(ctx: Context): Boolean = p(ctx).getBoolean("app_lock_enabled", false)

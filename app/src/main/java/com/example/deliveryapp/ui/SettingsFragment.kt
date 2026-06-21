@@ -640,8 +640,6 @@ class SettingsFragment : Fragment() {
         note("→ 日報の「収入（円）」欄に金額を入力して保存してください。")
         item("Q. データが消えた")
         note("→ 設定 →「バックアップを作成」で定期的にバックアップを取ってください。")
-        item("Q. 利用モードを間違えた")
-        note("→ 設定 →「利用モードを切り替え」でドライバー向け/一般利用を変更できます。")
 
         val scroll = android.widget.ScrollView(ctx).apply { addView(root) }
         MaterialAlertDialogBuilder(ctx)
