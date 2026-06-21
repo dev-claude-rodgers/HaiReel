@@ -229,10 +229,17 @@ class InputActivity : AppCompatActivity() {
         binding = ActivityInputBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            view.updatePadding(bottom = maxOf(imeBottom, navBottom))
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val bars   = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime    = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            // Toolbar 上部にステータスバー分を追加
+            binding.toolbar.updatePadding(top = bars.top)
+            binding.toolbar.layoutParams = (binding.toolbar.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)
+                .apply { height = resources.getDimensionPixelSize(
+                    com.google.android.material.R.dimen.abc_action_bar_default_height_material) + bars.top }
+            // ボトムコントロールにナビバー/IME分を追加
+            binding.bottomControls.updatePadding(bottom = maxOf(ime, bars.bottom) +
+                resources.getDimensionPixelSize(com.google.android.material.R.dimen.abc_action_bar_default_height_material) / 4)
             insets
         }
 

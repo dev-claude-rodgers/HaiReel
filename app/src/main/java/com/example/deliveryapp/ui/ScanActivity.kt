@@ -15,6 +15,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.rodgers.routist.R
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -64,6 +67,18 @@ class ScanActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "伝票スキャン"
+
+        // ステータスバー・ナビゲーションバーの高さを反映
+        val rootView = findViewById<android.view.View>(android.R.id.content)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            toolbar.updatePadding(top = bars.top)
+            toolbar.layoutParams = (toolbar.layoutParams as android.widget.LinearLayout.LayoutParams)
+                .apply { height = resources.getDimensionPixelSize(
+                    com.google.android.material.R.dimen.abc_action_bar_default_height_material) + bars.top }
+            findViewById<android.widget.LinearLayout>(R.id.btnAreaLayout)?.updatePadding(bottom = bars.bottom)
+            insets
+        }
 
         tvCount   = findViewById(R.id.tvCount)
         tvStatus  = findViewById(R.id.tvStatus)
