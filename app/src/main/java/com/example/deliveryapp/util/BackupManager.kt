@@ -34,7 +34,7 @@ object BackupManager {
     private const val SALT_LEN = 16
     private const val IV_LEN = 12
 
-    private fun isEncryptedData(data: ByteArray): Boolean =
+    internal fun isEncryptedData(data: ByteArray): Boolean =
         data.size > ENC_HEADER.size && data.copyOfRange(0, ENC_HEADER.size).contentEquals(ENC_HEADER)
 
     private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec {

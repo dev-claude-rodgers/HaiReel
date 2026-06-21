@@ -40,30 +40,39 @@ class SettingsFragment : Fragment() {
         if (uri == null) return@registerForActivityResult
         val ctx = context ?: return@registerForActivityResult
 
-        // .rbe（暗号化）の場合はパスワード入力ダイアログを先に表示
-        val isEncrypted = uri.lastPathSegment?.endsWith(".rbe") == true
-        if (isEncrypted) {
-            val input = android.widget.EditText(ctx).apply {
-                hint = "バックアップパスワード"
-                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        // ファイルの先頭バイトで暗号化判定（URI形式に依存しない）
+        viewLifecycleOwner.lifecycleScope.launch {
+            val rawBytes = withContext(Dispatchers.IO) {
+                ctx.contentResolver.openInputStream(uri)?.readBytes()
             }
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle("パスワードを入力")
-                .setMessage("このバックアップはパスワードで暗号化されています。\n作成時に設定したパスワードを入力してください。")
-                .setView(input)
-                .setPositiveButton("復元") { _, _ ->
-                    val pw = input.text.toString()
-                    if (pw.isBlank()) {
-                        Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
-                        return@setPositiveButton
-                    }
-                    com.rodgers.routist.util.AppSettings.setBackupPassword(ctx, pw)
-                    doRestore(ctx, uri)
+            if (rawBytes == null) {
+                Toast.makeText(ctx, "ファイルを開けませんでした", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (com.rodgers.routist.util.BackupManager.isEncryptedData(rawBytes)) {
+                // 暗号化バックアップ → パスワード入力ダイアログ
+                val input = android.widget.EditText(ctx).apply {
+                    hint = "バックアップパスワード"
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
                 }
-                .setNegativeButton("キャンセル", null)
-                .show()
-        } else {
-            doRestore(ctx, uri)
+                MaterialAlertDialogBuilder(ctx)
+                    .setTitle("パスワードを入力")
+                    .setMessage("このバックアップはパスワードで暗号化されています。\n作成時に設定したパスワードを入力してください。")
+                    .setView(input)
+                    .setPositiveButton("復元") { _, _ ->
+                        val pw = input.text.toString()
+                        if (pw.isBlank()) {
+                            Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        com.rodgers.routist.util.AppSettings.setBackupPassword(ctx, pw)
+                        doRestore(ctx, uri)
+                    }
+                    .setNegativeButton("キャンセル", null)
+                    .show()
+            } else {
+                doRestore(ctx, uri)
+            }
         }
     }
 
