@@ -204,8 +204,9 @@ class DeliveryListFragment : Fragment() {
             if (selected.isEmpty()) return@setOnClickListener
             val count = selected.size
             exitSelectMode()
-            Snackbar.make(binding.root, "${count}件を削除しました", Snackbar.LENGTH_LONG)
-                .setAction("取り消す") { /* DISMISS_EVENT_ACTION で削除をスキップ */ }
+            val undoMs = AppSettings.getUndoSeconds(requireContext()) * 1000
+            Snackbar.make(binding.root, "${count}件を削除しました", undoMs)
+                .setAction("取り消す") { }
                 .addCallback(object : Snackbar.Callback() {
                     override fun onDismissed(snackbar: Snackbar?, event: Int) {
                         if (event != DISMISS_EVENT_ACTION && isAdded) viewModel.deleteDeliveries(selected)

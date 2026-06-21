@@ -830,6 +830,25 @@ RouteJin（以下「本アプリ」）は、ユーザーのプライバシーを
         }
         root.addView(etBackupPw)
 
+        // ── 操作設定
+        root.addView(section("── 操作設定"))
+        root.addView(field("削除後の取り消し可能時間（秒）"))
+        val undoRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+        val npUndo = android.widget.NumberPicker(ctx).apply {
+            minValue = 3; maxValue = 30
+            value = AppSettings.getUndoSeconds(ctx).coerceIn(3, 30)
+        }
+        undoRow.addView(npUndo)
+        undoRow.addView(TextView(ctx).apply {
+            text = " 秒（配達先・点呼・日報など削除全般に適用）"
+            textSize = 12f; setTextColor(colorOnSurfaceVariant)
+            layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+        })
+        root.addView(undoRow)
+
         MaterialAlertDialogBuilder(ctx)
             .setTitle("アプリ設定")
             .setView(scroll)
@@ -850,6 +869,7 @@ RouteJin（以下「本アプリ」）は、ユーザーのプライバシーを
                 AppSettings.setAppLockEnabled(ctx, swAppLock.isChecked)
                 AppSettings.setLockTimeoutMinutes(ctx, etLockTimeout.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 30)
                 AppSettings.setBackupPassword(ctx, etBackupPw.text.toString())
+                AppSettings.setUndoSeconds(ctx, npUndo.value)
                 Toast.makeText(ctx, "設定を保存しました", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("キャンセル", null)

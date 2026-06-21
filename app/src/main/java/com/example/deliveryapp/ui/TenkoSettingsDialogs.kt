@@ -239,25 +239,6 @@ internal fun TenkoFragment.showTenkoSettings() {
     }
     root.addView(rbGroup)
 
-    root.addView(label("削除後の取り消し可能時間"))
-    val undoRow = LinearLayout(ctx).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-    }
-    val npUndo = NumberPicker(ctx).apply {
-        minValue = 3; maxValue = 30
-        value = AppSettings.getUndoSeconds(ctx).coerceIn(3, 30)
-        layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
-    }
-    undoRow.addView(npUndo)
-    undoRow.addView(TextView(ctx).apply {
-        text = "秒"; textSize = 16f
-        layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
-            .also { it.marginStart = (8 * dp).toInt() }
-    })
-    root.addView(undoRow)
-
     MaterialAlertDialogBuilder(ctx)
         .setTitle("点呼設定")
         .setView(scroll)
@@ -272,7 +253,6 @@ internal fun TenkoFragment.showTenkoSettings() {
             ))
             val selectedIdx = radioButtons.indexOfFirst { it.isChecked }.coerceAtLeast(0)
             AppSettings.setTenkoRightDisplay(ctx, displayValues[selectedIdx])
-            AppSettings.setUndoSeconds(ctx, npUndo.value)
             adapter.notifyDataSetChanged()
             Toast.makeText(ctx, "設定を保存しました", Toast.LENGTH_SHORT).show()
         }
