@@ -144,8 +144,43 @@ class ReportViewModelTest {
     private fun makeVm(): ReportViewModel {
         val mockApp = io.mockk.mockk<android.app.Application>(relaxed = true)
         val mockDao = io.mockk.mockk<com.rodgers.routist.db.WorkRecordDao>(relaxed = true)
-        io.mockk.every { mockDao.recordsForMonthFlow(any(), any()) } returns
+        // recordsは締め日ベースのPeriodFlowを使用（relaxed=trueで自動stub）
+        io.mockk.every { mockDao.recordsForPeriodFlow(any(), any(), any()) } returns
             kotlinx.coroutines.flow.flowOf(emptyList())
         return ReportViewModel(mockApp, mockDao)
+    }
+
+    // ── computePeriod 追加境界値 ─────────────────────────────
+
+    @Test
+    fun `1日締めは前月2日から当月1日まで`() {
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 1)
+        assertEquals("2026-05-02", start)
+        assertEquals("2026-06-01", end)
+    }
+
+    @Test
+    fun `30日締めで前月が2月の場合は前月末から`() {
+        val (start, end) = ReportViewModel.computePeriod("2026-03", 30)
+        assertEquals("2026-02-28", start)  // 2月は28日まで → minOf(31, 28)
+        assertEquals("2026-03-30", end)
+    }
+
+    @Test
+    fun `月をまたいだ締め日の期間日数は正しい`() {
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 25)
+        val s = java.time.LocalDate.parse(start)
+        val e = java.time.LocalDate.parse(end)
+        val days = java.time.temporal.ChronoUnit.DAYS.between(s, e) + 1
+        assertEquals(31L, days)  // 5/26〜6/25 = 31日間
+    }
+
+    @Test
+    fun `月末締めの期間日数は当月の日数と一致する`() {
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 31)
+        val s = java.time.LocalDate.parse(start)
+        val e = java.time.LocalDate.parse(end)
+        val days = java.time.temporal.ChronoUnit.DAYS.between(s, e) + 1
+        assertEquals(30L, days)  // 6月は30日
     }
 }

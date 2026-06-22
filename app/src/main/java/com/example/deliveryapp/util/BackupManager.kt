@@ -44,13 +44,18 @@ object BackupManager {
         return SecretKeySpec(raw, "AES")
     }
 
-    private fun encryptBytes(data: ByteArray, password: String): ByteArray {
+    // ストリーミング暗号化: ZIPファイルをメモリに乗せずに直接暗号化ストリームへ書き込む
+    private fun encryptStream(input: File, output: File, password: String) {
         val salt   = ByteArray(SALT_LEN).also { SecureRandom().nextBytes(it) }
         val iv     = ByteArray(IV_LEN).also   { SecureRandom().nextBytes(it) }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(128, iv))
-        val enc = cipher.doFinal(data)
-        return ENC_HEADER + salt + iv + enc
+        java.io.FileOutputStream(output).use { fos ->
+            fos.write(ENC_HEADER); fos.write(salt); fos.write(iv)
+            javax.crypto.CipherOutputStream(fos, cipher).use { cos ->
+                input.inputStream().use { it.copyTo(cos) }
+            }  // CipherOutputStream.close() で GCM 認証タグが書き込まれる
+        }
     }
 
     private fun decryptBytes(data: ByteArray, password: String): ByteArray {
@@ -97,24 +102,38 @@ object BackupManager {
         val pw = AppSettings.getBackupPassword(context)
         if (pw.isBlank()) return zipFile
 
+        // ストリーミング暗号化でOOMを回避（ZIPをメモリに乗せない）
         val encFile = File(context.cacheDir, "RouteJin_backup_${timestamp}.rbe")
-        encFile.writeBytes(encryptBytes(zipFile.readBytes(), pw))
+        encryptStream(zipFile, encFile, pw)
         zipFile.delete()
         return encFile
     }
 
     suspend fun restoreBackup(context: Context, uri: Uri, password: String? = null) {
-        // OOM対策: 一度に全バイトを読まず先頭だけ読んで暗号化判定
-        val rawBytes = context.contentResolver.openInputStream(uri)?.readBytes()
+        val raw = context.contentResolver.openInputStream(uri)
             ?: error("ファイルを開けませんでした")
-        val inputStream = if (isEncryptedData(rawBytes)) {
+
+        // 先頭4バイトだけ読んで暗号化判定（非暗号化はそのままストリームを使用）
+        val headerBuf = ByteArray(ENC_HEADER.size)
+        val headerRead = raw.read(headerBuf)
+        val isEncrypted = headerRead == ENC_HEADER.size && headerBuf.contentEquals(ENC_HEADER)
+
+        val inputStream = if (isEncrypted) {
             val pw = password?.takeIf { it.isNotBlank() }
                 ?: AppSettings.getBackupPassword(context).takeIf { it.isNotBlank() }
                 ?: error("このバックアップはパスワードで暗号化されています。パスワードを入力してください。")
-            try { decryptBytes(rawBytes, pw).inputStream() }
+            // 暗号化ファイルは全体読み込みが必要（GCM認証タグ検証のため）
+            val remaining = raw.readBytes()
+            raw.close()
+            val fullData = headerBuf + remaining
+            try { decryptBytes(fullData, pw).inputStream() }
             catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
         } else {
-            rawBytes.inputStream()
+            // 非暗号化: 読んだヘッダーバイトをストリームの先頭に結合してそのまま使用
+            java.io.SequenceInputStream(
+                headerBuf.copyOf(headerRead).inputStream(),
+                raw
+            )
         }
         restoreFromStream(context, inputStream)
     }

@@ -38,7 +38,7 @@ class GeocodingManagerTest {
 
     @Test
     fun `キャッシュが有効な場合はAPIを呼ばずに返す`() = runTest {
-        val cached = GeocodingCacheEntity("東京都新宿区", 35.68, 139.70, recentTs)
+        val cached = GeocodingCacheEntity("東京都新宿区", 35.68, 139.70, cachedAt = recentTs)
         coEvery { mockCache.get("東京都新宿区") } returns cached
 
         val result = manager.geocode("東京都新宿区")
@@ -51,7 +51,7 @@ class GeocodingManagerTest {
 
     @Test
     fun `キャッシュが期限切れの場合はAPIを呼ぶ`() = runTest {
-        val expired = GeocodingCacheEntity("東京都新宿区", 35.68, 139.70, expiredTs)
+        val expired = GeocodingCacheEntity("東京都新宿区", 35.68, 139.70, cachedAt = expiredTs)
         coEvery { mockCache.get("東京都新宿区") } returns expired
         coEvery { mockClient.geocode("東京都新宿区") } returns
             GeocodingClient.GeoResult(35.69, 139.71, "東京都新宿区1-1-1")
@@ -137,6 +137,59 @@ class GeocodingManagerTest {
 
         assertNull(result)
         coVerify(exactly = 0) { mockClient.searchPlaces(any()) }
+    }
+
+    // ── formattedAddress キャッシュ保存・返却 ────────────────
+
+    @Test
+    fun `APIが返したformattedAddressがキャッシュに保存される`() = runTest {
+        coEvery { mockCache.get(any()) } returns null
+        coEvery { mockClient.geocode("東京都新宿区西新宿") } returns
+            GeocodingClient.GeoResult(35.69, 139.71, "東京都新宿区西新宿2丁目8−1")
+        coJustRun { mockCache.put(any()) }
+
+        manager.geocode("東京都新宿区西新宿")
+
+        coVerify {
+            mockCache.put(match {
+                it.address == "東京都新宿区西新宿" &&
+                it.formattedAddress == "東京都新宿区西新宿2丁目8−1"
+            })
+        }
+    }
+
+    @Test
+    fun `キャッシュヒット時はformattedAddressが返される`() = runTest {
+        val cached = GeocodingCacheEntity(
+            address          = "東京都新宿区",
+            lat              = 35.68,
+            lng              = 139.70,
+            formattedAddress = "東京都新宿区歌舞伎町1丁目",
+            cachedAt         = recentTs
+        )
+        coEvery { mockCache.get("東京都新宿区") } returns cached
+
+        val result = manager.geocode("東京都新宿区")
+
+        assertNotNull(result)
+        assertEquals("東京都新宿区歌舞伎町1丁目", result!!.formattedAddress)
+    }
+
+    @Test
+    fun `キャッシュのformattedAddressが空の場合は入力住所を返す`() = runTest {
+        val cached = GeocodingCacheEntity(
+            address          = "東京都新宿区",
+            lat              = 35.68,
+            lng              = 139.70,
+            formattedAddress = "",  // 旧バージョンのキャッシュ
+            cachedAt         = recentTs
+        )
+        coEvery { mockCache.get("東京都新宿区") } returns cached
+
+        val result = manager.geocode("東京都新宿区")
+
+        assertNotNull(result)
+        assertEquals("東京都新宿区", result!!.formattedAddress)  // 入力住所にフォールバック
     }
 
     // ── evictExpiredCache ─────────────────────────────────────

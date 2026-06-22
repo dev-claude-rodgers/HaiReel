@@ -45,7 +45,7 @@ class PatternStorageTest {
     fun `saveで全フラグが正しく保存される`() {
         val pattern = ReportPattern(
             id = 2,
-            showTime = false, showDelivery = false,
+            showDelivery = false,
             showPackage = false, showDistance = false,
             showFuel = false, showMeter = true,
             showIncome = true, showArea = false,
@@ -54,7 +54,6 @@ class PatternStorageTest {
         )
         PatternStorage.save(ctx, pattern)
         val got = PatternStorage.get(ctx, 2)!!
-        assertFalse(got.showTime)
         assertFalse(got.showDelivery)
         assertFalse(got.showPackage)
         assertFalse(got.showDistance)
