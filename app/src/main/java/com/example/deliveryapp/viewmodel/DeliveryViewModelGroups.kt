@@ -20,7 +20,8 @@ fun DeliveryViewModel.createGroup(name: String): DeliveryGroup {
     val group = DeliveryGroup(name = name, colorHex = colorForIndex(index))
     _groups.value = _groups.value + group
     normalizeGroupColors()
-    return _groups.value.last()
+    // last() の代わりに id で検索して競合状態を防ぐ
+    return _groups.value.find { it.id == group.id } ?: group
 }
 
 fun DeliveryViewModel.deleteGroup(groupId: String) {
@@ -61,7 +62,7 @@ fun DeliveryViewModel.copyGroup(sourceGroupId: String) {
     }.maxOrNull() ?: 1
     val newGroup = createGroup("$baseName ${maxNum + 1}")
     val copied = (_allDeliveries.value[sourceGroupId] ?: emptyList())
-        .mapIndexed { i, d -> d.copy(order = i + 1) }
+        .mapIndexed { i, d -> d.copy(id = java.util.UUID.randomUUID().toString(), order = i + 1) }
     if (copied.isNotEmpty()) {
         saveGroupDeliveries(newGroup.id, copied)
         val allMap = _allDeliveries.value.toMutableMap()

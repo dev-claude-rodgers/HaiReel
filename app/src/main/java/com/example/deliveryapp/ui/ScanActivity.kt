@@ -127,6 +127,15 @@ class ScanActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // 撮影一時ファイルを削除してキャッシュの肥大化を防ぐ
+        try {
+            cacheDir.listFiles { f -> f.name.startsWith("scan_") && f.name.endsWith(".jpg") }
+                ?.forEach { it.delete() }
+        } catch (_: Exception) {}
+    }
+
     private fun launchCamera() {
         val photo = File(cacheDir, "scan_${System.currentTimeMillis()}.jpg")
         val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photo)
@@ -173,6 +182,8 @@ class ScanActivity : AppCompatActivity() {
             .addOnFailureListener {
                 recognizer.close()
                 tvStatus.text = "文字認識に失敗しました。もう一度撮影してください。"
+                btnAdd.isEnabled = false
+                btnSkip.isEnabled = true  // スキップは常に使えるようにする
             }
     }
 

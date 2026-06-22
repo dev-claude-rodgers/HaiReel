@@ -91,7 +91,7 @@ class TenkoFragment : Fragment() {
         binding.btnNextMonth.setOnClickListener { viewModel.nextMonth() }
         binding.btnTenkoMenu.setOnClickListener { showTenkoMenu() }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.yearMonth.collect { ym ->
                 val (y, m) = ym.split("-").map { it.toInt() }
                 binding.tvMonth.text = "${y}年${m}月"
@@ -99,7 +99,7 @@ class TenkoFragment : Fragment() {
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.monthRecords.collect {
                 rebuildList(viewModel.yearMonth.value)
             }

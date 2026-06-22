@@ -27,10 +27,17 @@ class GeocodingManager @Inject constructor(
     suspend fun geocode(address: String): GeocodingClient.GeoResult? {
         val threshold = System.currentTimeMillis() - cacheTtlMs
         cache.get(address)?.takeIf { it.cachedAt >= threshold }?.let { cached ->
-            return GeocodingClient.GeoResult(cached.lat, cached.lng, address)
+            // formattedAddress が保存されていればそちらを返す（エリア判定の精度向上）
+            val formatted = cached.formattedAddress.ifBlank { address }
+            return GeocodingClient.GeoResult(cached.lat, cached.lng, formatted)
         }
         val result = client.geocode(address) ?: return null
-        cache.put(GeocodingCacheEntity(address = address, lat = result.lat, lng = result.lng))
+        cache.put(GeocodingCacheEntity(
+            address = address,
+            lat = result.lat,
+            lng = result.lng,
+            formattedAddress = result.formattedAddress
+        ))
         return result
     }
 
@@ -142,13 +149,17 @@ class GeocodingManager @Inject constructor(
             if (cur != null && centroidLats.size >= 2) {
                 val cLat = centroidLats.average()
                 val cLng = centroidLngs.average()
-                val distKm = Math.sqrt((cur.lat - cLat).let { it * it } + (cur.lng - cLng).let { it * it }) * 111.0
+                val dlat = cur.lat - cLat
+                val dlng = (cur.lng - cLng) * Math.cos(Math.toRadians(cLat))
+                val distKm = Math.sqrt(dlat * dlat + dlng * dlng) * 111.0
                 if (distKm > 150.0) {
                     val nearby = client.searchPlaces(delivery.address).firstOrNull()?.let {
                         GeocodingClient.GeoResult(it.lat, it.lng, it.address)
                     }
                     if (nearby != null) {
-                        val nDistKm = Math.sqrt((nearby.lat - cLat).let { it * it } + (nearby.lng - cLng).let { it * it }) * 111.0
+                        val ndlat = nearby.lat - cLat
+                        val ndlng = (nearby.lng - cLng) * Math.cos(Math.toRadians(cLat))
+                        val nDistKm = Math.sqrt(ndlat * ndlat + ndlng * ndlng) * 111.0
                         if (nDistKm < distKm) result = nearby
                     }
                 }

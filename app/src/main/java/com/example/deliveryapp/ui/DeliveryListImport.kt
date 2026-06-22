@@ -131,7 +131,8 @@ internal fun DeliveryListFragment.importList(text: String) {
                 }
             }
         } catch (e: Exception) {
-            android.widget.Toast.makeText(ctx, "読み込みに失敗しました", android.widget.Toast.LENGTH_SHORT).show()
+            android.util.Log.e("DeliveryImport", "パース失敗", e)
+            android.widget.Toast.makeText(ctx, "読み込みに失敗しました（形式を確認してください）", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         if (toAdd.isEmpty()) {

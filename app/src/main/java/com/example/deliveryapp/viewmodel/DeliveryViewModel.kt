@@ -297,12 +297,12 @@ class DeliveryViewModel @Inject constructor(
         commitDeliveries(groupId, newList)
         _pinAddedFromMap.tryEmit(PinLocation(lat, lng))
 
-        // 住所を非同期で取得して更新（DBではなくメモリ上の最新状態を参照）
+        // 住所を非同期で取得して更新（_deliveries.value で最新状態を参照）
         viewModelScope.launch {
             val result = geocodingApi.reverseGeocode(lat, lng) ?: return@launch
             val address = result.formattedAddress.ifBlank { return@launch }
-            val currentList = _allDeliveries.value[groupId] ?: return@launch
-            val updated = currentList.map { d ->
+            if (_currentGroupId.value != groupId) return@launch  // グループ切替後はスキップ
+            val updated = _deliveries.value.map { d ->
                 if (d.id == newDelivery.id) d.copy(address = address) else d
             }
             commitDeliveries(groupId, updated)
@@ -572,6 +572,7 @@ class DeliveryViewModel @Inject constructor(
                 onResult = { result ->
                     if (_currentGroupId.value == groupId) {
                         val current = _deliveries.value
+                        if (_currentGroupId.value != groupId) return@batchGeocode  // 二重チェック
                         val updated = current.map { d ->
                             if (d.id == result.deliveryId) d.copy(
                                 name = when {

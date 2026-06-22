@@ -287,7 +287,7 @@ class DailyReportFragment : Fragment() {
 
     // ─────── 任意の日付を編集 ───────
     private fun openEditForDate(date: String) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val existing = reportViewModel.recordForDate(date)
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.JAPAN).format(Date())
             val base = if (existing != null) existing
@@ -727,7 +727,7 @@ class DailyReportFragment : Fragment() {
                 }
                 if (!isAdded) return@launch
                 Toast.makeText(ctx, "保存しました（$selectedDate）", Toast.LENGTH_SHORT).show()
-                dlg.dismiss()
+                try { dlg.dismiss() } catch (_: Exception) {}
             }
         }
     }

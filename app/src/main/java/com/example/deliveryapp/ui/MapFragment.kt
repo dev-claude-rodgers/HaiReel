@@ -223,6 +223,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     internal fun updateAllMarkers(allMap: Map<String, List<Delivery>>) {
+        if (_binding == null) return  // onDestroyView後の呼び出しを安全にスキップ
         val map = googleMap ?: return
         map.clear()
         markers.clear()
@@ -332,6 +333,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onDestroyView() {
         super.onDestroyView()
         mapHandler.removeCallbacks(mapRefreshRunner)
+        googleMap?.setOnMyLocationChangeListener(null)  // 非推奨リスナーのメモリリーク解除
         _binding = null
     }
 
