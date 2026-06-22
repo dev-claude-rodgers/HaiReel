@@ -309,4 +309,21 @@ object AppSettings {
 
     // アプリを使えるかどうか（試用中 or ライセンス有効）
     fun canUseApp(ctx: Context): Boolean = isInTrial(ctx) || isLicenseValid(ctx)
+
+    // 暗号化設定の個別削除（clear()はKeyStore破壊の既知バグがあるため使わない）
+    fun clearSensitiveData(ctx: Context) {
+        try {
+            encryptedPrefs(ctx).edit()
+                .remove("user_api_key")
+                .remove("backup_password")
+                .remove(KEY_LICENSE_KEY)
+                .remove(KEY_LICENSE_EXPIRY)
+                .apply()
+        } catch (_: Exception) {}
+        // フォールバック側も念のためクリア
+        try {
+            ctx.getSharedPreferences(ENCRYPTED_PREFS + "_fallback", Context.MODE_PRIVATE)
+                .edit().clear().apply()
+        } catch (_: Exception) {}
+    }
 }

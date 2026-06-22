@@ -529,6 +529,8 @@ class SettingsFragment : Fragment() {
                             .edit().clear().apply()
                         appCtx2.getSharedPreferences("report_patterns", android.content.Context.MODE_PRIVATE)
                             .edit().clear().apply()
+                        // 暗号化設定をクリア（APIキー・ライセンスキー・バックアップパスワード）
+                        com.rodgers.routist.util.AppSettings.clearSensitiveData(appCtx2)
                         // 署名を削除
                         for (type in listOf(com.rodgers.routist.util.SignatureStorage.TYPE_DRIVER, com.rodgers.routist.util.SignatureStorage.TYPE_CLIENT)) {
                             com.rodgers.routist.util.SignatureStorage.fileFor(appCtx2, type).delete()
