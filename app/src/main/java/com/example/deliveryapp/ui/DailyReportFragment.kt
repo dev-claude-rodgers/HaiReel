@@ -187,19 +187,23 @@ class DailyReportFragment : Fragment() {
                 deliveryViewModel.groups
             ) { records, ym, cd, _ -> Triple(records, ym, cd) }
             .collect { (records, ym, cd) ->
-                val days = generateDayEntries(records, ym, cd)
-                adapter.submitList(days)
-                updateSummary(records)
-                binding.tvEmptyReport.visibility  = View.GONE
-                binding.recyclerReport.visibility = View.VISIBLE
-                val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                val nowYm    = todayStr.substring(0, 7)
-                if (ym == nowYm) {
-                    val todayIdx = days.indexOfFirst { it.date == todayStr }
-                    if (todayIdx >= 0) binding.recyclerReport.scrollToPosition(todayIdx)
-                    else binding.recyclerReport.scrollToPosition(0)
-                } else {
-                    binding.recyclerReport.scrollToPosition(0)
+                try {
+                    val days = generateDayEntries(records, ym, cd)
+                    adapter.submitList(days)
+                    updateSummary(records)
+                    binding.tvEmptyReport.visibility  = View.GONE
+                    binding.recyclerReport.visibility = View.VISIBLE
+                    val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                    val nowYm    = todayStr.substring(0, 7)
+                    if (ym == nowYm) {
+                        val todayIdx = days.indexOfFirst { it.date == todayStr }
+                        if (todayIdx >= 0) binding.recyclerReport.scrollToPosition(todayIdx)
+                        else binding.recyclerReport.scrollToPosition(0)
+                    } else {
+                        binding.recyclerReport.scrollToPosition(0)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("DailyReport", "日報リスト更新エラー", e)
                 }
             }
         }

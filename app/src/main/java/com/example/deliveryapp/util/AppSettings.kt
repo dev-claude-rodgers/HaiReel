@@ -169,7 +169,16 @@ object AppSettings {
     // 燃料費自動計算
     fun getFuelPricePerLiter(ctx: Context): Int = prefs(ctx).getInt("fuel_price_per_liter", 170)
     fun setFuelPricePerLiter(ctx: Context, v: Int) = prefs(ctx).edit().putInt("fuel_price_per_liter", v).apply()
-    fun getFuelEfficiencyKmPerL(ctx: Context): Float = prefs(ctx).getFloat("fuel_efficiency_km_per_l", 15f)
+    fun getFuelEfficiencyKmPerL(ctx: Context): Float {
+        return try {
+            prefs(ctx).getFloat("fuel_efficiency_km_per_l", 15f)
+        } catch (_: ClassCastException) {
+            // 旧バージョンで Integer として保存されていた場合の移行処理
+            val v = prefs(ctx).getInt("fuel_efficiency_km_per_l", 15).toFloat()
+            prefs(ctx).edit().putFloat("fuel_efficiency_km_per_l", v).apply()
+            v
+        }
+    }
     fun setFuelEfficiencyKmPerL(ctx: Context, v: Float) = prefs(ctx).edit().putFloat("fuel_efficiency_km_per_l", v).apply()
 
     // インボイス登録

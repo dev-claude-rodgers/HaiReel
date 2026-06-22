@@ -36,19 +36,32 @@ class SettingsFragment : Fragment() {
 
 
     private fun doRestore(ctx: android.content.Context, uri: android.net.Uri, password: String? = null) {
-        Toast.makeText(ctx, "復元中...", Toast.LENGTH_SHORT).show()
-        lifecycleScope.launch {
+        val appCtx = ctx.applicationContext  // Fragmentのライフサイクルに依存しないApplicationContextを使用
+        Toast.makeText(appCtx, "復元中...", Toast.LENGTH_SHORT).show()
+        // lifecycleScope ではなく GlobalScope を使い、Fragmentデタッチでキャンセルされないようにする
+        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
             try {
-                withContext(Dispatchers.IO) { BackupManager.restoreBackup(ctx, uri, password) }
-                Toast.makeText(ctx, "復元しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
+                BackupManager.restoreBackup(appCtx, uri, password)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(appCtx, "復元しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
+                }
                 kotlinx.coroutines.delay(1500)
-                val intent = requireActivity().packageManager
-                    .getLaunchIntentForPackage(requireActivity().packageName)!!
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                requireActivity().finish()
+                val intent = appCtx.packageManager.getLaunchIntentForPackage(appCtx.packageName)
+                if (intent != null) {
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    appCtx.startActivity(intent)
+                } else {
+                    // フォールバック: インテントが取れなくてもプロセスは終了（ランチャーから再起動）
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(appCtx, "アプリをランチャーから開いてください", Toast.LENGTH_LONG).show()
+                    }
+                    kotlinx.coroutines.delay(2000)
+                }
+                android.os.Process.killProcess(android.os.Process.myPid())
             } catch (e: Throwable) {
-                Toast.makeText(ctx, "復元に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(appCtx, "復元に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -500,36 +513,40 @@ class SettingsFragment : Fragment() {
             .setTitle("⚠️ データをすべて初期化")
             .setMessage("日報・配達先・ルート・帳票パターン・署名を含むすべてのデータを削除します。\n\nこの操作は元に戻せません。\n\n先にバックアップを作成することをおすすめします。")
             .setPositiveButton("初期化する") { _, _ ->
-                viewLifecycleOwner.lifecycleScope.launch {
+                val appCtx2 = ctx.applicationContext
+                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
                     try {
-                        val db = com.rodgers.routist.db.AppDatabase.getInstance(ctx)
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            db.workRecordDao().deleteAll()
-                            db.deliveryDao().deleteAll()
-                            db.deliveryGroupDao().deleteAll()
-                            db.tenkoDao().deleteAll()
-                            db.geocodingCacheDao().deleteAll()
-                        }
+                        val db = com.rodgers.routist.db.AppDatabase.getInstance(appCtx2)
+                        db.workRecordDao().deleteAll()
+                        db.deliveryDao().deleteAll()
+                        db.deliveryGroupDao().deleteAll()
+                        db.tenkoDao().deleteAll()
+                        db.geocodingCacheDao().deleteAll()
                         // SharedPreferences をクリア
-                        ctx.getSharedPreferences(com.rodgers.routist.util.AppSettings.PREFS, android.content.Context.MODE_PRIVATE)
+                        appCtx2.getSharedPreferences(com.rodgers.routist.util.AppSettings.PREFS, android.content.Context.MODE_PRIVATE)
                             .edit().clear().apply()
-                        ctx.getSharedPreferences("delivery_prefs", android.content.Context.MODE_PRIVATE)
+                        appCtx2.getSharedPreferences("delivery_prefs", android.content.Context.MODE_PRIVATE)
                             .edit().clear().apply()
-                        ctx.getSharedPreferences("report_patterns", android.content.Context.MODE_PRIVATE)
+                        appCtx2.getSharedPreferences("report_patterns", android.content.Context.MODE_PRIVATE)
                             .edit().clear().apply()
                         // 署名を削除
                         for (type in listOf(com.rodgers.routist.util.SignatureStorage.TYPE_DRIVER, com.rodgers.routist.util.SignatureStorage.TYPE_CLIENT)) {
-                            com.rodgers.routist.util.SignatureStorage.fileFor(ctx, type).delete()
+                            com.rodgers.routist.util.SignatureStorage.fileFor(appCtx2, type).delete()
                         }
-                        android.widget.Toast.makeText(ctx, "初期化が完了しました。アプリを再起動します。", android.widget.Toast.LENGTH_LONG).show()
+                        withContext(Dispatchers.Main) {
+                            android.widget.Toast.makeText(appCtx2, "初期化が完了しました。アプリを再起動します。", android.widget.Toast.LENGTH_LONG).show()
+                        }
                         kotlinx.coroutines.delay(1500)
-                        val intent = requireActivity().packageManager
-                            .getLaunchIntentForPackage(requireActivity().packageName)!!
-                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(intent)
-                        requireActivity().finish()
+                        val intent2 = appCtx2.packageManager.getLaunchIntentForPackage(appCtx2.packageName)
+                        if (intent2 != null) {
+                            intent2.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            appCtx2.startActivity(intent2)
+                        }
+                        android.os.Process.killProcess(android.os.Process.myPid())
                     } catch (e: Exception) {
-                        android.widget.Toast.makeText(ctx, "初期化に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", android.widget.Toast.LENGTH_LONG).show()
+                        withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(appCtx2, "初期化に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Log
 import android.net.Uri
+import androidx.room.withTransaction
 import com.rodgers.routist.db.AppDatabase
 import com.rodgers.routist.model.WorkRecord
 import org.json.JSONArray
@@ -103,24 +104,27 @@ object BackupManager {
     }
 
     suspend fun restoreBackup(context: Context, uri: Uri, password: String? = null) {
+        // OOM対策: 一度に全バイトを読まず先頭だけ読んで暗号化判定
         val rawBytes = context.contentResolver.openInputStream(uri)?.readBytes()
             ?: error("ファイルを開けませんでした")
-        val zipBytes = if (isEncryptedData(rawBytes)) {
+        val inputStream = if (isEncryptedData(rawBytes)) {
             val pw = password?.takeIf { it.isNotBlank() }
                 ?: AppSettings.getBackupPassword(context).takeIf { it.isNotBlank() }
                 ?: error("このバックアップはパスワードで暗号化されています。パスワードを入力してください。")
-            try { decryptBytes(rawBytes, pw) }
+            try { decryptBytes(rawBytes, pw).inputStream() }
             catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
         } else {
-            rawBytes
+            rawBytes.inputStream()
         }
-        restoreFromStream(context, zipBytes.inputStream())
+        restoreFromStream(context, inputStream)
     }
 
     private suspend fun restoreFromStream(context: Context, input: InputStream) {
         val db  = AppDatabase.getInstance(context)
         val dao = db.workRecordDao()
 
+        // トランザクションで囲むことで途中失敗時のDB半壊を防ぐ
+        db.withTransaction {
         ZipInputStream(input).use { zis ->
             var entry = zis.nextEntry
             while (entry != null) {
@@ -210,6 +214,7 @@ object BackupManager {
                 entry = zis.nextEntry
             }
         }
+        } // end withTransaction
     }
 
     private fun ZipOutputStream.utf8Entry(name: String, content: String) {
