@@ -45,8 +45,14 @@ class ExcelGenerator(private val context: Context) {
         val ts   = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val file = File(dir, "${prefix}_${ts}.xlsx")
 
-        val firstDay  = LocalDate.of(year, month, 1)
-        val allDays   = (1..firstDay.lengthOfMonth()).map { firstDay.withDayOfMonth(it) }
+        // 締め日ベースの集計期間でカレンダーを生成
+        val (periodStartStr, periodEndStr) = periodForPattern(yearMonth, pattern.closingDay)
+        val periodStart = LocalDate.parse(periodStartStr)
+        val periodEnd   = LocalDate.parse(periodEndStr)
+        val allDays = generateSequence(periodStart) { it.plusDays(1) }
+            .takeWhile { !it.isAfter(periodEnd) }
+            .toList()
+        val periodLabel = "${periodStart.monthValue}/${periodStart.dayOfMonth}〜${periodEnd.monthValue}/${periodEnd.dayOfMonth}"
         val recordMap = records.associateBy { it.date }
 
         val totalMins   = records.sumOf { it.workingMinutes }
@@ -103,7 +109,7 @@ class ExcelGenerator(private val context: Context) {
         }
 
         val hasSig = driverSig != null || clientSig != null
-        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig, portrait, null)
+        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig, portrait, periodLabel)
 
         var relCount = 0
         val driverRelId = driverSig?.let { ++relCount }
@@ -129,82 +135,6 @@ class ExcelGenerator(private val context: Context) {
         }
         return file
     }
-
-    // 任意の期間を指定して生成（月をまたぐ締め日対応）
-    fun generateForPeriod(
-        records: List<WorkRecord>,
-        startDate: String,
-        endDate: String,
-        periodLabel: String,
-        pattern: ReportPattern,
-        driverSig: File? = null,
-        clientSig: File? = null,
-        portrait: Boolean = false
-    ): File {
-        val start = LocalDate.parse(startDate)
-        val end   = LocalDate.parse(endDate)
-        val allDays   = generateSequence(start) { it.plusDays(1) }.takeWhile { !it.isAfter(end) }.toList()
-        val recordMap = records.associateBy { it.date }
-
-        val totalMins   = records.sumOf { it.workingMinutes }
-        val totalDeliv  = records.sumOf { it.deliveryCount }
-        val totalPkg    = records.sumOf { it.packageCount }
-        val totalDist   = records.sumOf { it.distanceKm.toDouble() }
-        val totalHours  = "%d時間%02d分".format(totalMins / 60, totalMins % 60)
-        val workingDays = records.sumOf { 1 + it.endDateOffset }
-
-        val columns = buildList<ColDef> {
-            if (pattern.showStartEndTime) {
-                add(ColDef("開始時刻", { it?.startTime ?: "" }))
-                add(ColDef("終了時刻", { if (it == null) "" else if (it.endDateOffset > 0) "${it.endTime}(+${it.endDateOffset}日)" else it.endTime }))
-            }
-            if (pattern.showWorkingHours) add(ColDef("稼働時間", { it?.workingHoursText ?: "" }, totalHours))
-            if (pattern.showDelivery) add(ColDef(pattern.deliveryLabel, { if ((it?.deliveryCount ?: 0) > 0) "${it!!.deliveryCount}件" else "" }, if (totalDeliv > 0) "${totalDeliv}件" else ""))
-            if (pattern.showMeter) {
-                add(ColDef("開始メーター(km)", { if (it != null && it.startMeter > 0) "${it.startMeter}km" else "" }))
-                add(ColDef("終了メーター(km)", { if (it != null && it.endMeter > 0) "${it.endMeter}km" else "" }))
-            }
-            val totalIncome = records.sumOf { it.income }
-            if (pattern.showIncome || pattern.paymentType != 3 || totalIncome > 0)
-                add(ColDef("収入", { if ((it?.income ?: 0) > 0) "%,d円".format(it!!.income) else "" }, if (totalIncome > 0) "%,d円".format(totalIncome) else ""))
-            if (pattern.showPackage) add(ColDef(pattern.packageLabel, { if ((it?.packageCount ?: 0) > 0) "${it!!.packageCount}個" else "" }, if (totalPkg > 0) "${totalPkg}個" else ""))
-            if (pattern.showDistance) add(ColDef("走行距離(km)", { if (it != null && it.distanceKm > 0f) "%.0fkm".format(it.distanceKm) else "" }, if (totalDist > 0) "%.0fkm".format(totalDist) else ""))
-            if (pattern.showFuel) { val tf = records.sumOf { it.fuelCost }; add(ColDef("燃料費", { if ((it?.fuelCost ?: 0) > 0) "%,d円".format(it!!.fuelCost) else "" }, if (tf > 0) "%,d円".format(tf) else "")) }
-            if (pattern.showArea)    add(ColDef("エリア",   { it?.area    ?: "" }))
-            if (pattern.showRemarks) add(ColDef("備考",     { it?.remarks ?: "" }))
-        }
-
-        val safePeriod = periodLabel.replace(Regex("[/〜\\\\:*?\"<>|]"), "_")
-        val safeName   = pattern.title.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        val dir  = context.getExternalFilesDir(null) ?: context.filesDir
-        val ts   = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
-        val file = File(dir, "${safePeriod}_${safeName}_${ts}.xlsx")
-
-        val hasSig = driverSig != null || clientSig != null
-        val output = sheetXml(allDays, recordMap, columns, start.year, start.monthValue, pattern, workingDays, hasSig, portrait, periodLabel)
-
-        var relCount = 0
-        val driverRelId = driverSig?.let { ++relCount }
-        val clientRelId = clientSig?.let { ++relCount }
-
-        ZipOutputStream(FileOutputStream(file)).use { zos ->
-            zos.entry("[Content_Types].xml", contentTypesXml(hasSig))
-            zos.entry("_rels/.rels",          relsXml())
-            zos.entry("xl/workbook.xml",      workbookXml())
-            zos.entry("xl/_rels/workbook.xml.rels", workbookRelsXml())
-            zos.entry("xl/styles.xml",        stylesXml())
-            zos.entry("xl/worksheets/sheet1.xml", output.xml)
-            if (hasSig) {
-                zos.entry("xl/worksheets/_rels/sheet1.xml.rels", sheetRelsXml())
-                zos.entry("xl/drawings/drawing1.xml", drawingXml(driverRelId, clientRelId, output))
-                zos.entry("xl/drawings/_rels/drawing1.xml.rels", drawingRelsXml(driverRelId, clientRelId))
-                driverSig?.let { zos.entryBytes("xl/media/image${driverRelId}.png", it.readBytes()) }
-                clientSig?.let { zos.entryBytes("xl/media/image${clientRelId}.png", it.readBytes()) }
-            }
-        }
-        return file
-    }
-
     private fun ZipOutputStream.entry(name: String, content: String) {
         putNextEntry(ZipEntry(name))
         write(content.toByteArray(Charsets.UTF_8))
@@ -219,6 +149,22 @@ class ExcelGenerator(private val context: Context) {
 
     private fun String.esc() =
         replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    // 締め日から集計期間の開始日・終了日を返す（ReportViewModelと同ロジック）
+    private fun periodForPattern(yearMonth: String, closingDay: Int): Pair<String, String> {
+        val parsed = java.time.YearMonth.parse(yearMonth)
+        val ym = LocalDate.of(parsed.year, parsed.monthValue, 1)
+        val lastDay = ym.lengthOfMonth()
+        val fmt = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE
+        return if (closingDay >= 31) {
+            ym.format(fmt) to ym.withDayOfMonth(lastDay).format(fmt)
+        } else {
+            val prev = ym.minusMonths(1)
+            val start = prev.withDayOfMonth(minOf(closingDay + 1, prev.lengthOfMonth()))
+            val end   = ym.withDayOfMonth(minOf(closingDay, lastDay))
+            start.format(fmt) to end.format(fmt)
+        }
+    }
 
     internal fun colLetter(idx: Int): String =
         if (idx < 26) ('A' + idx).toString()
@@ -317,8 +263,9 @@ class ExcelGenerator(private val context: Context) {
         sb.append(sc("A", 3, "取引先", s = 8))
         sb.append(sc("B", 3, pattern.clientName))
         if (numCols >= 2) {
+            val closingLabel = if (pattern.closingDay >= 31) "月末締め" else "${pattern.closingDay}日"
             sb.append(sc(colLetter(numCols - 2), 3, "締め日", s = 8))
-            sb.append(sc(lastLetter, 3, "${pattern.closingDay}日"))
+            sb.append(sc(lastLetter, 3, closingLabel))
         }
         sb.append("</row>")
 

@@ -33,6 +33,7 @@ internal fun DailyReportFragment.showReportMenu() {
     val (pStart, pEnd) = ReportViewModel.computePeriod(ym, cd)
     val ps = java.time.LocalDate.parse(pStart)
     val pe = java.time.LocalDate.parse(pEnd)
+    val cdLabel = if (cd >= 31) "月末締め" else "${cd}日締め"
     val periodLabel = "${ps.monthValue}/${ps.dayOfMonth}〜${pe.monthValue}/${pe.dayOfMonth}"
 
     root.addMenuHeader("日報メニュー", dp, onSurfaceColor, onSurfaceVariant, outlineVariant) { sheet.dismiss() }
@@ -42,19 +43,28 @@ internal fun DailyReportFragment.showReportMenu() {
 
     fun divider() = root.addMenuDivider(dp, outlineVariant)
 
+    fun sectionLabel(text: String) = root.addView(android.widget.TextView(ctx).apply {
+        this.text = text; textSize = 11f
+        setTextColor(onSurfaceVariant)
+        setPadding((84 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (2 * dp).toInt())
+    })
+
     row("📅", "今日の日報を記録", "今日の行を開いて入力する") { openTodayDialog() }
     divider()
     // ── 帳票設定
     val currentPatternName = currentPattern().title
     row("📋", "帳票パターンを選択", "現在: $currentPatternName") { showPatternListDialog() }
+    row("⛽", "燃料費設定", "車種・ガソリン単価・燃費を設定する") { showFareCalculationDialog() }
     row("🖊️", "作業者署名を設定", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
     row("🤝", "取引先署名を設定", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
     divider()
-    // ── 出力・集計
-    row("📅", "期間を指定して出力", "日付を選んでテキスト・Excel・PDF出力") { showPeriodExportDialog() }
-    row("📊", "Excel出力", "集計期間: $periodLabel") { exportExcel() }
-    row("📄", "PDF出力", "集計期間: $periodLabel") { exportReportPdf() }
-    row("📤", "テキストで共有", "集計期間: $periodLabel") { shareReportText() }
+    // ── 締め日ベース出力
+    sectionLabel("$cdLabel での出力（$periodLabel）")
+    row("📊", "Excel出力", "帳票パターンの締め日で集計して出力") { exportExcel() }
+    row("📄", "PDF出力", "帳票パターンの締め日で集計して出力") { exportReportPdf() }
+    row("📤", "テキストで共有", "帳票パターンの締め日で集計して共有") { shareReportText() }
+    divider()
+    // ── 集計
     row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
 
     root.addView(View(ctx).apply {
