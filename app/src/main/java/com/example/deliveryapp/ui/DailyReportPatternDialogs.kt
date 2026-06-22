@@ -211,12 +211,51 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     val clientIn  = field(base.clientName, "◯◯運輸")
     root.addView(clientIn)
 
-    root.addView(label("締め日（1〜31）"))
-    val closingIn = EditText(ctx).apply {
-        setText(base.closingDay.toString()); inputType = InputType.TYPE_CLASS_NUMBER
+    root.addView(label("締め日"))
+    val closingRow = LinearLayout(ctx).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = android.view.Gravity.CENTER_VERTICAL
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }
-    root.addView(closingIn)
+    var isMonthEnd = base.closingDay >= 31  // 月末ボタンが明示的に選択されているか
+    val closingIn = EditText(ctx).apply {
+        val display = if (base.closingDay >= 31) "" else base.closingDay.toString()
+        setText(display); inputType = InputType.TYPE_CLASS_NUMBER
+        hint = "例: 25"
+        layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+    }
+    val monthEndBtn = com.google.android.material.button.MaterialButton(
+        ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+    ).apply {
+        text = "月末"
+        isAllCaps = false; textSize = 13f
+        layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+            .also { it.marginStart = (8 * dp).toInt() }
+    }
+    val toggleColor = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
+    fun updateMonthEndStyle(active: Boolean) {
+        monthEndBtn.setTextColor(if (active) android.graphics.Color.WHITE else toggleColor)
+        monthEndBtn.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            if (active) toggleColor else android.graphics.Color.TRANSPARENT
+        )
+    }
+    updateMonthEndStyle(isMonthEnd)
+    closingIn.addTextChangedListener(object : android.text.TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+        override fun onTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {
+            if (!s.isNullOrEmpty()) { isMonthEnd = false; updateMonthEndStyle(false) }
+        }
+        override fun afterTextChanged(s: android.text.Editable?) {}
+    })
+    monthEndBtn.setOnClickListener {
+        isMonthEnd = true
+        closingIn.setText("")
+        closingIn.clearFocus()
+        updateMonthEndStyle(true)
+    }
+    closingRow.addView(closingIn)
+    closingRow.addView(monthEndBtn)
+    root.addView(closingRow)
 
     root.addView(label("配達件数 列ラベル"))
     val delivLblIn = field(base.deliveryLabel, "配達件数")
@@ -290,9 +329,21 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
         .show()
     dlgPattern.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val titleStr = titleIn.text.toString().trim()
-            val cd = closingIn.text.toString().toIntOrNull()
-            if (cd == null || cd !in 1..31) {
-                closingIn.error = "締め日は1〜31の数字で入力してください"; return@setOnClickListener
+            val closingText = closingIn.text.toString().trim()
+            val cd = when {
+                isMonthEnd -> 31
+                closingText.isEmpty() -> {
+                    closingIn.error = "締め日を入力するか「月末」を選んでください"
+                    return@setOnClickListener
+                }
+                else -> {
+                    val n = closingText.toIntOrNull()
+                    if (n == null || n !in 1..30) {
+                        closingIn.error = "締め日は1〜30の数字、または「月末」を選んでください"
+                        return@setOnClickListener
+                    }
+                    n
+                }
             }
             val updated = base.copy(
                 title         = titleStr.ifBlank { "稼働報告書" },

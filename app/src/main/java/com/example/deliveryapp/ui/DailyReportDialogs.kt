@@ -408,9 +408,10 @@ internal fun DailyReportFragment.showFareCalculationDialog() {
     val ctx = requireContext()
     val dp = ctx.resources.displayMetrics.density
 
+    // AppSettings から読み込む（自動計算ボタンと同じ設定を参照）
+    fuelPricePerL     = com.rodgers.routist.util.AppSettings.getFuelPricePerLiter(ctx)
+    fuelEfficiencyKmL = com.rodgers.routist.util.AppSettings.getFuelEfficiencyKmPerL(ctx)
     val fuelPrefs = ctx.getSharedPreferences("fuel_settings", android.content.Context.MODE_PRIVATE)
-    fuelPricePerL     = fuelPrefs.getInt("fuel_price_yen",    fuelPricePerL)
-    fuelEfficiencyKmL = fuelPrefs.getFloat("fuel_eff_kml",    fuelEfficiencyKmL)
     vehicleTypeName   = fuelPrefs.getString("vehicle_type",   vehicleTypeName) ?: vehicleTypeName
     fuelTypeName      = fuelPrefs.getString("fuel_type_name", fuelTypeName)    ?: fuelTypeName
 
@@ -516,8 +517,9 @@ internal fun DailyReportFragment.showFareCalculationDialog() {
             fuelPriceInput.setText(price.toString())
             updateFuelTypeBtns(fuelTypeName)
             fuelEfficiencyKmL = eff; fuelPricePerL = price
-            fuelPrefs.edit().putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName)
-                .putFloat("fuel_eff_kml", eff).putInt("fuel_price_yen", price).apply()
+            com.rodgers.routist.util.AppSettings.setFuelPricePerLiter(ctx, price)
+            com.rodgers.routist.util.AppSettings.setFuelEfficiencyKmPerL(ctx, eff)
+            fuelPrefs.edit().putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName).apply()
         }
         override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
     }
@@ -527,8 +529,9 @@ internal fun DailyReportFragment.showFareCalculationDialog() {
         val e = fuelEffInput.text.toString().toFloatOrNull() ?: return@setOnClickListener
         if (p > 0 && e > 0f) {
             fuelPricePerL = p; fuelEfficiencyKmL = e
-            fuelPrefs.edit().putInt("fuel_price_yen", p).putFloat("fuel_eff_kml", e)
-                .putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName).apply()
+            com.rodgers.routist.util.AppSettings.setFuelPricePerLiter(ctx, p)
+            com.rodgers.routist.util.AppSettings.setFuelEfficiencyKmPerL(ctx, e)
+            fuelPrefs.edit().putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName).apply()
             Toast.makeText(ctx, "保存しました（${vehicleTypeName} / ${fuelTypeName} / ¥${p}/L / ${e}km/L）", Toast.LENGTH_SHORT).show()
         }
     }

@@ -36,8 +36,13 @@ class ReportViewModel @Inject constructor(
     private val _assignmentId = MutableStateFlow("")
     val assignmentId: StateFlow<String> = _assignmentId
 
-    val records: StateFlow<List<WorkRecord>> = combine(_yearMonth, _assignmentId) { ym, aid -> ym to aid }
-        .flatMapLatest { (ym, aid) -> dao.recordsForMonthFlow(ym, aid) }
+    // _closingDay も含めて period ベースでリアルタイム取得
+    val records: StateFlow<List<WorkRecord>> =
+        combine(_yearMonth, _closingDay, _assignmentId) { ym, cd, aid -> Triple(ym, cd, aid) }
+        .flatMapLatest { (ym, cd, aid) ->
+            val (start, end) = computePeriod(ym, cd)
+            dao.recordsForPeriodFlow(start, end, aid)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setClosingDay(day: Int) { _closingDay.value = day }

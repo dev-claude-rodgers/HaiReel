@@ -75,8 +75,8 @@ class DailyReportFragment : Fragment() {
 
     private val monthFmt = DateTimeFormatter.ofPattern("yyyy-MM")
 
-    var fuelPricePerL:     Int    = 168
-    var fuelEfficiencyKmL: Float  = 12.0f
+    var fuelPricePerL:     Int    = 0
+    var fuelEfficiencyKmL: Float  = 0f
     var vehicleTypeName:   String = "軽自動車"
     var fuelTypeName:      String = "レギュラー"
 
@@ -89,6 +89,9 @@ class DailyReportFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // AppSettings から燃料費設定を読み込む（自動計算と設定ダイアログを同じ値で統一）
+        fuelPricePerL     = com.rodgers.routist.util.AppSettings.getFuelPricePerLiter(requireContext())
+        fuelEfficiencyKmL = com.rodgers.routist.util.AppSettings.getFuelEfficiencyKmPerL(requireContext())
 
         adapter = DayEntryAdapter(
             onTap    = { entry -> openEditForDate(entry.date) },
@@ -170,19 +173,21 @@ class DailyReportFragment : Fragment() {
                 val (start, end) = ReportViewModel.computePeriod(ym, cd)
                 val s = java.time.LocalDate.parse(start)
                 val e = java.time.LocalDate.parse(end)
-                binding.tvPeriod.text = "${s.monthValue}/${s.dayOfMonth}〜${e.monthValue}/${e.dayOfMonth}"
+                val cdLabel = if (cd >= 31) "月末締め" else "${cd}日締め"
+                binding.tvPeriod.text = "${s.monthValue}/${s.dayOfMonth}〜${e.monthValue}/${e.dayOfMonth}（$cdLabel）"
             }
         }
 
-        // 日報リスト更新（案件・月・グループ変化で再描画）
+        // 日報リスト更新（案件・月・締め日・グループ変化で再描画）
         viewLifecycleOwner.lifecycleScope.launch {
             combine(
                 reportViewModel.records,
                 reportViewModel.yearMonth,
+                reportViewModel.closingDay,
                 deliveryViewModel.groups
-            ) { records, ym, _ -> Pair(records, ym) }
-            .collect { (records, ym) ->
-                val days = generateDayEntries(records, ym, 0)
+            ) { records, ym, cd, _ -> Triple(records, ym, cd) }
+            .collect { (records, ym, cd) ->
+                val days = generateDayEntries(records, ym, cd)
                 adapter.submitList(days)
                 updateSummary(records)
                 binding.tvEmptyReport.visibility  = View.GONE
@@ -192,6 +197,7 @@ class DailyReportFragment : Fragment() {
                 if (ym == nowYm) {
                     val todayIdx = days.indexOfFirst { it.date == todayStr }
                     if (todayIdx >= 0) binding.recyclerReport.scrollToPosition(todayIdx)
+                    else binding.recyclerReport.scrollToPosition(0)
                 } else {
                     binding.recyclerReport.scrollToPosition(0)
                 }
@@ -202,11 +208,11 @@ class DailyReportFragment : Fragment() {
     }
 
     private fun generateDayEntries(
-        records: List<WorkRecord>, yearMonth: String, @Suppress("UNUSED_PARAMETER") closingDay: Int
+        records: List<WorkRecord>, yearMonth: String, closingDay: Int
     ): List<DayEntry> {
-        val (y, m) = yearMonth.split("-").map { it.toInt() }
-        val startDate = LocalDate.of(y, m, 1)
-        val endDate   = java.time.YearMonth.of(y, m).atEndOfMonth()
+        val (startStr, endStr) = ReportViewModel.computePeriod(yearMonth, closingDay)
+        val startDate = LocalDate.parse(startStr)
+        val endDate   = LocalDate.parse(endStr)
         val recordMap = records.associateBy { it.date }
         return generateSequence(startDate) { it.plusDays(1) }
             .takeWhile { !it.isAfter(endDate) }
