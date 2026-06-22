@@ -29,14 +29,18 @@ object BackupManager {
 
     private const val FORMAT_VERSION = "1"
 
-    // 暗号化ヘッダー (4 bytes)
-    private val ENC_HEADER = byteArrayOf(0x52, 0x53, 0x54, 0x42) // "RSTB"
+    // 暗号化ヘッダー
+    private val ENC_HEADER    = byteArrayOf(0x52, 0x53, 0x54, 0x42) // "RSTB" v1（全体GCM）
+    private val ENC_HEADER_V2 = byteArrayOf(0x52, 0x53, 0x54, 0x43) // "RSTC" v2（チャンクGCM）
     private const val PBKDF2_ITER = 100_000
-    private const val SALT_LEN = 16
-    private const val IV_LEN = 12
+    private const val SALT_LEN    = 16
+    private const val IV_LEN      = 12
+    private const val CHUNK_SIZE  = 65_536  // 64KB チャンク
 
     internal fun isEncryptedData(data: ByteArray): Boolean =
-        data.size > ENC_HEADER.size && data.copyOfRange(0, ENC_HEADER.size).contentEquals(ENC_HEADER)
+        data.size > ENC_HEADER.size &&
+            (data.copyOfRange(0, ENC_HEADER.size).contentEquals(ENC_HEADER) ||
+             data.copyOfRange(0, ENC_HEADER_V2.size).contentEquals(ENC_HEADER_V2))
 
     private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec {
         val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITER, 256)
@@ -44,20 +48,76 @@ object BackupManager {
         return SecretKeySpec(raw, "AES")
     }
 
-    // ストリーミング暗号化: ZIPファイルをメモリに乗せずに直接暗号化ストリームへ書き込む
-    private fun encryptStream(input: File, output: File, password: String) {
-        val salt   = ByteArray(SALT_LEN).also { SecureRandom().nextBytes(it) }
-        val iv     = ByteArray(IV_LEN).also   { SecureRandom().nextBytes(it) }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(128, iv))
-        java.io.FileOutputStream(output).use { fos ->
-            fos.write(ENC_HEADER); fos.write(salt); fos.write(iv)
-            javax.crypto.CipherOutputStream(fos, cipher).use { cos ->
-                input.inputStream().use { it.copyTo(cos) }
-            }  // CipherOutputStream.close() で GCM 認証タグが書き込まれる
+    // v2: チャンク方式ストリーミング暗号化
+    // フォーマット: [ENC_HEADER_V2][Salt:16B][チャンクループ: [IV:12B][サイズ:4B][暗号化データ+タグ]]
+    private fun encryptChunked(input: File, output: File, password: String) {
+        val salt = ByteArray(SALT_LEN).also { SecureRandom().nextBytes(it) }
+        val key  = deriveKey(password, salt)
+        java.io.FileOutputStream(output).buffered().use { fos ->
+            fos.write(ENC_HEADER_V2)
+            fos.write(salt)
+            val buf = ByteArray(CHUNK_SIZE)
+            input.inputStream().buffered().use { fis ->
+                var n = fis.read(buf)
+                while (n > 0) {
+                    val iv = ByteArray(IV_LEN).also { SecureRandom().nextBytes(it) }
+                    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                    cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
+                    val enc = cipher.doFinal(buf, 0, n)
+                    fos.write(iv)
+                    fos.write(enc.size.toByteArray4())
+                    fos.write(enc)
+                    n = fis.read(buf)
+                }
+            }
         }
     }
 
+    // v2: チャンク方式ストリーミング復号（各チャンクを独立して復号・認証）
+    // フォーマット: [Salt:16B][チャンクループ: [IV:12B][サイズ:4B][暗号化データ+タグ]]
+    private fun decryptChunkedToStream(raw: InputStream, password: String): InputStream {
+        val salt = ByteArray(SALT_LEN).also { raw.read(it) }
+        val key  = deriveKey(password, salt)
+        val pipe   = java.io.PipedOutputStream()
+        val pipeIn = java.io.PipedInputStream(pipe, CHUNK_SIZE + 512)
+        Thread {
+            try {
+                val iv      = ByteArray(IV_LEN)
+                val sizeBuf = ByteArray(4)
+                while (true) {
+                    // IV (12B) を読む
+                    val ivRead = raw.read(iv)
+                    if (ivRead < 0) break
+                    if (ivRead < IV_LEN) {
+                        raw.read(iv, ivRead, IV_LEN - ivRead)
+                    }
+                    // チャンクサイズ (4B) を読む
+                    if (raw.read(sizeBuf) < 4) break
+                    val encSize = sizeBuf.toInt4()
+                    // 暗号化データを読む（全部読めるまでループ）
+                    val enc = ByteArray(encSize)
+                    var total = 0
+                    while (total < encSize) {
+                        val r = raw.read(enc, total, encSize - total)
+                        if (r < 0) break
+                        total += r
+                    }
+                    // 復号・認証
+                    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                    cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv.copyOf()))
+                    pipe.write(cipher.doFinal(enc))
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BackupManager", "チャンク復号エラー", e)
+            } finally {
+                try { pipe.close() } catch (_: Exception) {}
+                try { raw.close()  } catch (_: Exception) {}
+            }
+        }.also { it.isDaemon = true }.start()
+        return pipeIn
+    }
+
+    // v1: 後方互換 全体読み込み復号
     private fun decryptBytes(data: ByteArray, password: String): ByteArray {
         val off    = ENC_HEADER.size
         val salt   = data.copyOfRange(off, off + SALT_LEN)
@@ -67,6 +127,14 @@ object BackupManager {
         cipher.init(Cipher.DECRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(128, iv))
         return cipher.doFinal(enc)
     }
+
+    private fun Int.toByteArray4() = byteArrayOf(
+        (this shr 24).toByte(), (this shr 16).toByte(),
+        (this shr 8).toByte(),   this.toByte()
+    )
+    private fun ByteArray.toInt4() =
+        ((this[0].toInt() and 0xFF) shl 24) or ((this[1].toInt() and 0xFF) shl 16) or
+        ((this[2].toInt() and 0xFF) shl 8)  or  (this[3].toInt() and 0xFF)
 
     suspend fun createBackup(context: Context): File {
         val db         = AppDatabase.getInstance(context)
@@ -102,9 +170,9 @@ object BackupManager {
         val pw = AppSettings.getBackupPassword(context)
         if (pw.isBlank()) return zipFile
 
-        // ストリーミング暗号化でOOMを回避（ZIPをメモリに乗せない）
+        // v2 チャンク方式ストリーミング暗号化でOOMを回避
         val encFile = File(context.cacheDir, "RouteJin_backup_${timestamp}.rbe")
-        encryptStream(zipFile, encFile, pw)
+        encryptChunked(zipFile, encFile, pw)
         zipFile.delete()
         return encFile
     }
@@ -118,16 +186,23 @@ object BackupManager {
         val headerRead = raw.read(headerBuf)
         val isEncrypted = headerRead == ENC_HEADER.size && headerBuf.contentEquals(ENC_HEADER)
 
-        val inputStream = if (isEncrypted) {
+        val isV2 = headerRead == ENC_HEADER_V2.size && headerBuf.contentEquals(ENC_HEADER_V2)
+        val inputStream = if (isEncrypted || isV2) {
             val pw = password?.takeIf { it.isNotBlank() }
                 ?: AppSettings.getBackupPassword(context).takeIf { it.isNotBlank() }
                 ?: error("このバックアップはパスワードで暗号化されています。パスワードを入力してください。")
-            // 暗号化ファイルは全体読み込みが必要（GCM認証タグ検証のため）
-            val remaining = raw.readBytes()
-            raw.close()
-            val fullData = headerBuf + remaining
-            try { decryptBytes(fullData, pw).inputStream() }
-            catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
+            if (isV2) {
+                // v2: チャンク方式ストリーミング復号（OOM回避）
+                try { decryptChunkedToStream(raw, pw) }
+                catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
+            } else {
+                // v1: 後方互換 全体読み込み復号
+                val remaining = raw.readBytes()
+                raw.close()
+                val fullData = headerBuf + remaining
+                try { decryptBytes(fullData, pw).inputStream() }
+                catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
+            }
         } else {
             // 非暗号化: 読んだヘッダーバイトをストリームの先頭に結合してそのまま使用
             java.io.SequenceInputStream(

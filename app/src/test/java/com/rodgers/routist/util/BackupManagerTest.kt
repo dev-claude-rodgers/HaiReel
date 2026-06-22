@@ -32,8 +32,15 @@ class BackupManagerTest {
     }
 
     @Test
-    fun `ヘッダーが1バイトだけ違う場合は非暗号化と判定される`() {
-        val data = byteArrayOf(0x52, 0x53, 0x54, 0x43) + ByteArray(100)  // 最後が0x42でなく0x43
+    fun `v2ヘッダーRSTCも暗号化済みと判定される`() {
+        val header = byteArrayOf(0x52, 0x53, 0x54, 0x43)  // "RSTC"
+        val data   = header + ByteArray(100)
+        assertTrue(BackupManager.isEncryptedData(data))
+    }
+
+    @Test
+    fun `ヘッダーが全く異なる場合は非暗号化と判定される`() {
+        val data = byteArrayOf(0x41, 0x42, 0x43, 0x44) + ByteArray(100)  // "ABCD"
         assertFalse(BackupManager.isEncryptedData(data))
     }
 }
