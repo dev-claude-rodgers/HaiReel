@@ -278,8 +278,13 @@ object BackupManager {
                 put("showPackage",   p.showPackage)
                 put("showDistance",  p.showDistance)
                 put("showFuel",      p.showFuel)
+                put("showMeter",     p.showMeter)
+                put("showIncome",    p.showIncome)
+                put("showTotal",     p.showTotal)
                 put("showArea",      p.showArea)
                 put("showRemarks",   p.showRemarks)
+                put("paymentType",   p.paymentType)
+                put("unitPrice",     p.unitPrice)
             })
         }
         return JSONObject().apply {
@@ -449,8 +454,13 @@ object BackupManager {
                 showPackage   = j.optBoolean("showPackage", true),
                 showDistance  = j.optBoolean("showDistance", true),
                 showFuel      = j.optBoolean("showFuel", true),
+                showMeter     = j.optBoolean("showMeter", false),
+                showIncome    = j.optBoolean("showIncome", false),
+                showTotal     = j.optBoolean("showTotal", true),
                 showArea      = j.optBoolean("showArea", true),
-                showRemarks   = j.optBoolean("showRemarks", true)
+                showRemarks   = j.optBoolean("showRemarks", true),
+                paymentType   = j.optInt("paymentType", 3),
+                unitPrice     = j.optInt("unitPrice", 0)
             )
             PatternStorage.save(context, pattern)
             if (pattern.id > maxId) maxId = pattern.id

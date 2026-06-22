@@ -366,7 +366,12 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
                 paymentType   = selectedPayType,
                 unitPrice     = unitPriceIn.text.toString().toIntOrNull() ?: 0
             )
-            PatternStorage.save(ctx, updated)
+            try {
+                PatternStorage.save(ctx, updated)
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "保存に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             if (isNew) PatternStorage.setActiveId(ctx, updated.id)
             if (PatternStorage.getActiveId(ctx) == updated.id) {
                 reportViewModel.setClosingDay(updated.closingDay)

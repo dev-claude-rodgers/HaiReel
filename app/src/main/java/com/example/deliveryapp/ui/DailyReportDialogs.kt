@@ -525,14 +525,18 @@ internal fun DailyReportFragment.showFareCalculationDialog() {
     }
 
     fuelSaveBtn.setOnClickListener {
-        val p = fuelPriceInput.text.toString().toIntOrNull() ?: return@setOnClickListener
-        val e = fuelEffInput.text.toString().toFloatOrNull() ?: return@setOnClickListener
-        if (p > 0 && e > 0f) {
-            fuelPricePerL = p; fuelEfficiencyKmL = e
-            com.rodgers.routist.util.AppSettings.setFuelPricePerLiter(ctx, p)
-            com.rodgers.routist.util.AppSettings.setFuelEfficiencyKmPerL(ctx, e)
-            fuelPrefs.edit().putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName).apply()
-            Toast.makeText(ctx, "保存しました（${vehicleTypeName} / ${fuelTypeName} / ¥${p}/L / ${e}km/L）", Toast.LENGTH_SHORT).show()
+        val p = fuelPriceInput.text.toString().toIntOrNull()
+        val e = fuelEffInput.text.toString().toFloatOrNull()
+        when {
+            p == null || p <= 0 -> fuelPriceInput.error = "ガソリン単価を入力してください（1円以上）"
+            e == null || e <= 0f -> fuelEffInput.error = "燃費を入力してください（0より大きい値）"
+            else -> {
+                fuelPricePerL = p; fuelEfficiencyKmL = e
+                com.rodgers.routist.util.AppSettings.setFuelPricePerLiter(ctx, p)
+                com.rodgers.routist.util.AppSettings.setFuelEfficiencyKmPerL(ctx, e)
+                fuelPrefs.edit().putString("vehicle_type", vehicleTypeName).putString("fuel_type_name", fuelTypeName).apply()
+                Toast.makeText(ctx, "保存しました（${vehicleTypeName} / ${fuelTypeName} / ¥${p}/L / ${e}km/L）", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

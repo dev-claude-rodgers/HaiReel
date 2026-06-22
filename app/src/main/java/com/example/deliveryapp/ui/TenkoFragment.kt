@@ -158,11 +158,12 @@ class TenkoMonthAdapter(
     private val items = mutableListOf<DayRow>()
 
     fun submitList(list: List<DayRow>) {
+        val oldList = items.toList()  // スナップショットで再入時の不整合を防ぐ
         val diff = androidx.recyclerview.widget.DiffUtil.calculateDiff(object : androidx.recyclerview.widget.DiffUtil.Callback() {
-            override fun getOldListSize() = items.size
+            override fun getOldListSize() = oldList.size
             override fun getNewListSize() = list.size
-            override fun areItemsTheSame(o: Int, n: Int) = items[o].date == list[n].date
-            override fun areContentsTheSame(o: Int, n: Int) = items[o] == list[n]
+            override fun areItemsTheSame(o: Int, n: Int) = oldList[o].date == list[n].date
+            override fun areContentsTheSame(o: Int, n: Int) = oldList[o] == list[n]
         })
         items.clear()
         items.addAll(list)

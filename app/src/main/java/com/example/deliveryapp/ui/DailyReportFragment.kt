@@ -809,11 +809,12 @@ class DayEntryAdapter(
     private val items = mutableListOf<DailyReportFragment.DayEntry>()
 
     fun submitList(list: List<DailyReportFragment.DayEntry>) {
+        val oldList = items.toList()  // スナップショットで再入時の不整合を防ぐ
         val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-            override fun getOldListSize() = items.size
+            override fun getOldListSize() = oldList.size
             override fun getNewListSize() = list.size
-            override fun areItemsTheSame(o: Int, n: Int) = items[o].date == list[n].date
-            override fun areContentsTheSame(o: Int, n: Int) = items[o] == list[n]
+            override fun areItemsTheSame(o: Int, n: Int) = oldList[o].date == list[n].date
+            override fun areContentsTheSame(o: Int, n: Int) = oldList[o] == list[n]
         })
         items.clear()
         items.addAll(list)
