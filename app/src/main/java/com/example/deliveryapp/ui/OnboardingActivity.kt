@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -30,7 +31,7 @@ class OnboardingActivity : AppCompatActivity() {
     private val pages = listOf(
         Page(
             "🚚",
-            "RouteJinへようこそ",
+            "HaiReelへようこそ",
             "軽貨物ドライバーのための\n業務管理アプリです。\n\n配達先の管理・ルート最適化・\n日報・点呼記録をまとめて管理できます。"
         ),
         Page(
@@ -51,6 +52,7 @@ class OnboardingActivity : AppCompatActivity() {
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         // オンボーディング済みならMainActivityに直接遷移
@@ -159,7 +161,7 @@ class OnboardingActivity : AppCompatActivity() {
                 val pageRoot = LinearLayout(ctx).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = android.view.Gravity.CENTER
-                    setPadding((40 * dp).toInt(), (60 * dp).toInt(), (40 * dp).toInt(), (20 * dp).toInt())
+                    setPadding((40 * dp).toInt(), (30 * dp).toInt(), (40 * dp).toInt(), (20 * dp).toInt())
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -229,7 +231,7 @@ class OnboardingActivity : AppCompatActivity() {
                 text = """利用規約
 
 第1条（目的）
-本規約は、RouteJin（以下「本アプリ」）の利用条件を定めるものです。
+本規約は、HaiReel（以下「本アプリ」）の利用条件を定めるものです。
 ご利用の前に必ずお読みください。
 
 第2条（利用対象）

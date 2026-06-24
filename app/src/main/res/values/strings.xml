@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RouteJin</string>
+    <string name="app_name">HaiReel</string>
 
     <!-- 点呼 -->
     <string name="label_before_duty">乗務前</string>

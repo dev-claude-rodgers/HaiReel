@@ -3,6 +3,7 @@
     <color name="colorPrimary">#0066CC</color>
     <color name="colorPrimaryDark">#004999</color>
     <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
     <color name="colorError">#CC0000</color>
     <!-- 背景 -->
     <color name="colorBackground">#F5F5F5</color>

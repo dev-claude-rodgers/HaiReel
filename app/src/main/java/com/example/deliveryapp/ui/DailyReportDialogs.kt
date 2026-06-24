@@ -30,7 +30,7 @@ internal fun DailyReportFragment.showPrivacyPolicyDialog() {
 最終更新：2026年6月
 
 1. 収集する情報
-本アプリ（RouteJin）は、以下の情報をお客様の端末内にのみ保存します。
+本アプリ（HaiReel）は、以下の情報をお客様の端末内にのみ保存します。
 ・入力された配達先住所・メモ
 ・日報（稼働日・件数・走行距離）
 ・アプリ設定（氏名・単価・事業者情報）

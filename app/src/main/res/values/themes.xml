@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.RouteJin" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HaiReel" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryDark</item>
         <item name="colorOnPrimary">@color/white</item>
     </style>
 
-    <style name="Theme.RouteJin.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#111111</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-        <item name="postSplashScreenTheme">@style/Theme.RouteJin</item>
+    <style name="Theme.HaiReel.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.HaiReel</item>
     </style>
 
     <style name="BottomNavText">

@@ -146,7 +146,7 @@ object BackupManager {
         val deliveries = db.deliveryDao().getAll()
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPANESE).format(Date())
-        val zipFile = File(context.cacheDir, "RouteJin_backup_$timestamp.zip")
+        val zipFile = File(context.cacheDir, "HaiReel_backup_$timestamp.zip")
 
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             zos.utf8Entry("version.txt", FORMAT_VERSION)
@@ -171,7 +171,7 @@ object BackupManager {
         if (pw.isBlank()) return zipFile
 
         // v2 チャンク方式ストリーミング暗号化でOOMを回避
-        val encFile = File(context.cacheDir, "RouteJin_backup_${timestamp}.rbe")
+        val encFile = File(context.cacheDir, "HaiReel_backup_${timestamp}.rbe")
         encryptChunked(zipFile, encFile, pw)
         zipFile.delete()
         return encFile

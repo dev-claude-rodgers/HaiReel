@@ -69,7 +69,7 @@ internal fun DeliveryViewModel.cleanupOrphanedDownloadFiles(activeGroups: List<D
                     while (cursor.moveToNext()) {
                         val fileId = cursor.getLong(0)
                         val fileName = cursor.getString(1) ?: continue
-                        if (!fileName.startsWith("RouteJin_") || !fileName.endsWith(".txt")) continue
+                        if (!fileName.startsWith("HaiReel_") || !fileName.endsWith(".txt")) continue
                         val hasGroup = activeGroups.any { g ->
                             val safe = g.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
                             "RouteJin_$safe.txt" == fileName

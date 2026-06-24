@@ -116,7 +116,7 @@ class SettingsFragment : Fragment() {
         binding.rowContact.setOnClickListener {
             val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
                 data = android.net.Uri.parse("mailto:proxyroutine777@gmail.com")
-                putExtra(android.content.Intent.EXTRA_SUBJECT, "[RouteJin] お問い合わせ")
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "[HaiReel] お問い合わせ")
                 putExtra(android.content.Intent.EXTRA_TEXT,
                     "アプリバージョン: ${requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName}\n\n")
             }
@@ -544,7 +544,7 @@ class SettingsFragment : Fragment() {
         val act = activity ?: return
 
         com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-            .setTitle("RouteJin プレミアム")
+            .setTitle("HaiReel プレミアム")
             .setMessage("7日間の無料試用後は、以下のプランをお選びください。")
             .setItems(arrayOf(
                 "月額プラン（¥300/月）",
@@ -624,7 +624,7 @@ class SettingsFragment : Fragment() {
             text = """利用規約
 
 第1条（目的）
-本規約は、RouteJin（以下「本アプリ」）の利用条件を定めるものです。
+本規約は、HaiReel（以下「本アプリ」）の利用条件を定めるものです。
 ご利用の前に必ずお読みください。
 
 第2条（利用対象）
@@ -810,7 +810,7 @@ Android 8.0（API 26）以上"""
             text = """プライバシーポリシー
 最終更新日：2026年6月
 
-RouteJin（以下「本アプリ」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。
+HaiReel（以下「本アプリ」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。
 
 ■ 収集する情報
 ・配達先情報（氏名・住所・備考など）

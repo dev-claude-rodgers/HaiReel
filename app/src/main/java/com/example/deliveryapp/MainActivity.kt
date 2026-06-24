@@ -352,7 +352,7 @@ class MainActivity : AppCompatActivity() {
         }
         isPromptShowing = true
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("RouteJin のロック解除")
+            .setTitle("HaiReel のロック解除")
             .setSubtitle("指紋・顔・PINで認証してください")
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -396,7 +396,7 @@ class MainActivity : AppCompatActivity() {
             packageManager.getPackageInfo(packageName, 0).versionName ?: "不明"
         } catch (_: Exception) { "不明" }
         AlertDialog.Builder(this)
-            .setTitle("RouteJin")
+            .setTitle("HaiReel")
             .setMessage(
                 "バージョン: $version\n" +
                 "開発者: imai kenichi\n" +
@@ -465,7 +465,7 @@ class MainActivity : AppCompatActivity() {
             "ライセンスキーを入力（購入済みの方）"
         )
         AlertDialog.Builder(this)
-            .setTitle("RouteJin プレミアム")
+            .setTitle("HaiReel プレミアム")
             .setMessage("7日間の無料試用期間が終了しました。\nプランを選んで続けてご利用ください。")
             .setItems(items) { _, which ->
                 when (which) {
