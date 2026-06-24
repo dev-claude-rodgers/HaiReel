@@ -493,77 +493,121 @@ class SettingsFragment : Fragment() {
     private fun updateLicenseStatus() {
         if (!isAdded) return
         val ctx = requireContext()
-        val appSettings = com.rodgers.routist.util.AppSettings
+        val s = com.rodgers.routist.util.AppSettings
         binding.tvLicenseStatus.text = when {
-            appSettings.isSubscriptionActive(ctx) ->
-                "サブスク有効（Google Play）"
-            appSettings.isLicenseValid(ctx) -> {
-                val expiry = java.text.SimpleDateFormat("yyyy年MM月dd日", java.util.Locale.JAPAN)
-                    .format(java.util.Date(appSettings.getLicenseExpiry(ctx)))
-                "ライセンス有効（期限: $expiry）"
+            s.isSubscriptionActive(ctx) -> "プレミアム会員（Google Play）"
+            s.isInTrial(ctx) -> {
+                val days = s.trialDaysLeft(ctx)
+                "無料体験中（残り${days}日）"
             }
-            appSettings.isInTrial(ctx) -> {
-                val days = appSettings.trialDaysLeft(ctx)
-                "試用期間中（残り${days}日）→ タップして購入"
-            }
-            else -> "試用期間終了 → タップして購入"
+            else -> "未登録 → タップしてプランを選ぶ"
         }
     }
 
     private fun showLicensePurchaseDialog() {
         if (!isAdded) return
         val ctx = requireContext()
-        val appSettings = com.rodgers.routist.util.AppSettings
-        // すでに有効な場合は状態を表示するだけ
-        if (appSettings.isSubscriptionActive(ctx)) {
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("Google Play サブスク")
-                .setMessage("サブスクリプションは有効です。\n\n解約する場合は Google Play → 定期購入 から操作してください。")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-        if (appSettings.isLicenseValid(ctx)) {
-            val expiry = java.text.SimpleDateFormat("yyyy年MM月dd日", java.util.Locale.JAPAN)
-                .format(java.util.Date(appSettings.getLicenseExpiry(ctx)))
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("ライセンス有効")
-                .setMessage("ライセンス有効期限: $expiry\n\nGoogle Play サブスクに切り替えることもできます（自動更新）")
-                .setPositiveButton("サブスクに切り替える") { _, _ -> showSubscriptionOptions() }
-                .setNegativeButton("このままでOK", null)
-                .show()
-            return
-        }
-        // 試用中 or 期限切れ → 購入オプション表示
-        showSubscriptionOptions()
-    }
-
-    private fun showSubscriptionOptions() {
-        if (!isAdded) return
-        val ctx = requireContext()
         val act = activity ?: return
+        val s = com.rodgers.routist.util.AppSettings
 
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-            .setTitle("HaiReel プレミアム")
-            .setMessage("7日間の無料試用後は、以下のプランをお選びください。")
-            .setItems(arrayOf(
-                "月額プラン（¥300/月）",
-                "年額プラン（¥2,980/年）← おすすめ・月換算¥248",
-                "ライセンスキーを入力（BOOTH等で購入済み）"
-            )) { _, which ->
-                when (which) {
-                    0 -> com.rodgers.routist.util.BillingManager
-                            .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_MONTHLY)
-                    1 -> com.rodgers.routist.util.BillingManager
-                            .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_YEARLY)
-                    2 -> {
-                        (act as? com.rodgers.routist.MainActivity)?.showLicenseInputDialog()
-                        updateLicenseStatus()
-                    }
+        if (s.isSubscriptionActive(ctx)) {
+            // 有効なサブスク → 管理画面へ
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("プレミアム会員")
+                .setMessage("現在プレミアムプランをご利用中です。\n\nプランの変更・解約は Google Play → 定期購入 から行えます。")
+                .setPositiveButton("Google Play で管理") { _, _ ->
+                    try {
+                        startActivity(android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+                        ))
+                    } catch (_: Exception) {}
                 }
+                .setNegativeButton("閉じる", null)
+                .show()
+            return
+        }
+
+        // 未登録 / 試用中 → プラン選択ダイアログ（一般アプリ水準）
+        val dp = ctx.resources.displayMetrics.density
+        val container = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((20 * dp).toInt(), (4 * dp).toInt(), (20 * dp).toInt(), (4 * dp).toInt())
+        }
+
+        // 年額カード
+        val cardYear = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.parseColor("#E3F2FD"))
+                cornerRadius = 10 * dp
+                setStroke((2 * dp).toInt(), android.graphics.Color.parseColor("#1565C0"))
             }
+            setPadding((14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt())
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.bottomMargin = (8 * dp).toInt() }
+        }
+        cardYear.addView(android.widget.TextView(ctx).apply {
+            text = "★ おすすめ　年額プラン"
+            textSize = 12f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.parseColor("#1565C0"))
+        })
+        cardYear.addView(android.widget.TextView(ctx).apply {
+            text = "¥2,980 / 年"
+            textSize = 20f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.parseColor("#0D47A1"))
+        })
+        cardYear.addView(android.widget.TextView(ctx).apply {
+            text = "月換算 ¥248 · 月額より年間¥624お得"
+            textSize = 11f; setTextColor(android.graphics.Color.parseColor("#1565C0"))
+        })
+        container.addView(cardYear)
+
+        // 月額カード
+        val cardMonth = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.parseColor("#FAFAFA"))
+                cornerRadius = 10 * dp
+                setStroke((1 * dp).toInt(), android.graphics.Color.parseColor("#BDBDBD"))
+            }
+            setPadding((14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt())
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.bottomMargin = (12 * dp).toInt() }
+        }
+        cardMonth.addView(android.widget.TextView(ctx).apply {
+            text = "月額プラン"
+            textSize = 12f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.parseColor("#424242"))
+        })
+        cardMonth.addView(android.widget.TextView(ctx).apply {
+            text = "¥300 / 月"
+            textSize = 20f; typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.parseColor("#212121"))
+        })
+        container.addView(cardMonth)
+
+        val dlg = androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle("プランを選ぶ")
+            .setView(container)
             .setNegativeButton("キャンセル", null)
-            .show()
+            .create()
+
+        cardYear.setOnClickListener {
+            dlg.dismiss()
+            com.rodgers.routist.util.BillingManager
+                .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_YEARLY)
+        }
+        cardMonth.setOnClickListener {
+            dlg.dismiss()
+            com.rodgers.routist.util.BillingManager
+                .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_MONTHLY)
+        }
+        dlg.show()
     }
 
     private fun showResetDataDialog() {

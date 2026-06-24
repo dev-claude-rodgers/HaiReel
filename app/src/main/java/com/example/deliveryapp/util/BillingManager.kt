@@ -26,8 +26,8 @@ object BillingManager {
     private const val TAG = "BillingManager"
 
     // Play Console で作成するサブスクリプションのID
-    const val PRODUCT_MONTHLY = "routejin_monthly"
-    const val PRODUCT_YEARLY  = "routejin_yearly"
+    const val PRODUCT_MONTHLY = "haireel_monthly"
+    const val PRODUCT_YEARLY  = "haireel_yearly"
 
     private var billingClient: BillingClient? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())

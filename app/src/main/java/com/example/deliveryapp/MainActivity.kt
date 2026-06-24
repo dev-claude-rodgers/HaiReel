@@ -459,24 +459,130 @@ class MainActivity : AppCompatActivity() {
     // ── ライセンス関連 ────────────────────────────────────────────
 
     internal fun showSubscriptionDialog() {
-        val items = arrayOf(
-            "月額プラン（¥300/月）",
-            "年額プラン（¥2,980/年）← おすすめ・月換算¥248",
-            "ライセンスキーを入力（購入済みの方）"
-        )
-        AlertDialog.Builder(this)
-            .setTitle("HaiReel プレミアム")
-            .setMessage("7日間の無料試用期間が終了しました。\nプランを選んで続けてご利用ください。")
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> BillingManager.launchSubscription(this, BillingManager.PRODUCT_MONTHLY)
-                    1 -> BillingManager.launchSubscription(this, BillingManager.PRODUCT_YEARLY)
-                    2 -> showLicenseInputDialog()
-                }
+        val dp = resources.displayMetrics.density
+
+        // プラン選択ダイアログ（一般アプリ水準のUI）
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt())
+        }
+
+        val msg = android.widget.TextView(this).apply {
+            text = "HaiReel を続けてご利用いただくには\nプランのご登録が必要です。"
+            textSize = 14f
+            setTextColor(android.graphics.Color.parseColor("#555555"))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 0, 0, (16 * dp).toInt())
+        }
+        container.addView(msg)
+
+        // 年額プラン（おすすめ）
+        val cardYear = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.parseColor("#E8F4FD"))
+                cornerRadius = 12 * dp
+                setStroke((2 * dp).toInt(), android.graphics.Color.parseColor("#1565C0"))
             }
+            setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (12 * dp).toInt())
+            val lp = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.bottomMargin = (10 * dp).toInt()
+            layoutParams = lp
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                (it.context as? android.app.AlertDialog)?.dismiss()
+                BillingManager.launchSubscription(this@MainActivity, BillingManager.PRODUCT_YEARLY)
+            }
+        }
+        cardYear.addView(android.widget.TextView(this).apply {
+            text = "★ おすすめ  年額プラン"
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#1565C0"))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        })
+        cardYear.addView(android.widget.TextView(this).apply {
+            text = "¥2,980 / 年"
+            textSize = 22f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.parseColor("#1A237E"))
+        })
+        cardYear.addView(android.widget.TextView(this).apply {
+            text = "月換算 ¥248 · 月額より ¥52 お得"
+            textSize = 12f
+            setTextColor(android.graphics.Color.parseColor("#1565C0"))
+        })
+        container.addView(cardYear)
+
+        // 月額プラン
+        val cardMonth = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.parseColor("#F5F5F5"))
+                cornerRadius = 12 * dp
+                setStroke((1 * dp).toInt(), android.graphics.Color.parseColor("#BDBDBD"))
+            }
+            setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (12 * dp).toInt())
+            val lp = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.bottomMargin = (16 * dp).toInt()
+            layoutParams = lp
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                (it.context as? android.app.AlertDialog)?.dismiss()
+                BillingManager.launchSubscription(this@MainActivity, BillingManager.PRODUCT_MONTHLY)
+            }
+        }
+        cardMonth.addView(android.widget.TextView(this).apply {
+            text = "月額プラン"
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#424242"))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        })
+        cardMonth.addView(android.widget.TextView(this).apply {
+            text = "¥300 / 月"
+            textSize = 22f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.parseColor("#212121"))
+        })
+        container.addView(cardMonth)
+
+        // 特典リスト
+        val features = android.widget.TextView(this).apply {
+            text = "✓ 配達先リスト管理（Google マップ連携）\n" +
+                   "✓ 日報・収支の自動計算\n" +
+                   "✓ 点呼記録のデジタル化\n" +
+                   "✓ Excel / PDF 出力\n" +
+                   "✓ AES暗号化バックアップ"
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#424242"))
+            setLineSpacing(0f, 1.5f)
+        }
+        container.addView(features)
+
+        val dlg = AlertDialog.Builder(this)
+            .setTitle("HaiReel プレミアム")
+            .setView(container)
             .setNegativeButton("閉じる") { _, _ -> finishAffinity() }
             .setCancelable(false)
-            .show()
+            .create()
+
+        // カードのクリックにダイアログ参照を渡す
+        cardYear.setOnClickListener {
+            dlg.dismiss()
+            BillingManager.launchSubscription(this, BillingManager.PRODUCT_YEARLY)
+        }
+        cardMonth.setOnClickListener {
+            dlg.dismiss()
+            BillingManager.launchSubscription(this, BillingManager.PRODUCT_MONTHLY)
+        }
+        dlg.show()
     }
 
     // 旧メソッド: 後方互換のため残す
