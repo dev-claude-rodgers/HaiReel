@@ -107,9 +107,10 @@ class SettingsFragment : Fragment() {
         }
         // ライセンス状態を表示
         updateLicenseStatus()
-        binding.rowLicense.setOnClickListener {
-            (activity as? com.rodgers.routist.MainActivity)?.showLicenseInputDialog()
-            updateLicenseStatus()
+        binding.rowLicense.setOnClickListener { showLicensePurchaseDialog() }
+        // サブスク状態が変化したら表示を更新
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.rodgers.routist.util.BillingManager.subscriptionState.collect { updateLicenseStatus() }
         }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
         binding.rowContact.setOnClickListener {
@@ -492,18 +493,77 @@ class SettingsFragment : Fragment() {
     private fun updateLicenseStatus() {
         if (!isAdded) return
         val ctx = requireContext()
+        val appSettings = com.rodgers.routist.util.AppSettings
         binding.tvLicenseStatus.text = when {
-            com.rodgers.routist.util.AppSettings.isLicenseValid(ctx) -> {
+            appSettings.isSubscriptionActive(ctx) ->
+                "サブスク有効（Google Play）"
+            appSettings.isLicenseValid(ctx) -> {
                 val expiry = java.text.SimpleDateFormat("yyyy年MM月dd日", java.util.Locale.JAPAN)
-                    .format(java.util.Date(com.rodgers.routist.util.AppSettings.getLicenseExpiry(ctx)))
+                    .format(java.util.Date(appSettings.getLicenseExpiry(ctx)))
                 "ライセンス有効（期限: $expiry）"
             }
-            com.rodgers.routist.util.AppSettings.isInTrial(ctx) -> {
-                val days = com.rodgers.routist.util.AppSettings.trialDaysLeft(ctx)
-                "試用期間中（残り${days}日）"
+            appSettings.isInTrial(ctx) -> {
+                val days = appSettings.trialDaysLeft(ctx)
+                "試用期間中（残り${days}日）→ タップして購入"
             }
-            else -> "試用期間終了 → タップしてライセンスを入力"
+            else -> "試用期間終了 → タップして購入"
         }
+    }
+
+    private fun showLicensePurchaseDialog() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val appSettings = com.rodgers.routist.util.AppSettings
+        // すでに有効な場合は状態を表示するだけ
+        if (appSettings.isSubscriptionActive(ctx)) {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("Google Play サブスク")
+                .setMessage("サブスクリプションは有効です。\n\n解約する場合は Google Play → 定期購入 から操作してください。")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+        if (appSettings.isLicenseValid(ctx)) {
+            val expiry = java.text.SimpleDateFormat("yyyy年MM月dd日", java.util.Locale.JAPAN)
+                .format(java.util.Date(appSettings.getLicenseExpiry(ctx)))
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("ライセンス有効")
+                .setMessage("ライセンス有効期限: $expiry\n\nGoogle Play サブスクに切り替えることもできます（自動更新）")
+                .setPositiveButton("サブスクに切り替える") { _, _ -> showSubscriptionOptions() }
+                .setNegativeButton("このままでOK", null)
+                .show()
+            return
+        }
+        // 試用中 or 期限切れ → 購入オプション表示
+        showSubscriptionOptions()
+    }
+
+    private fun showSubscriptionOptions() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val act = activity ?: return
+
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle("RouteJin プレミアム")
+            .setMessage("7日間の無料試用後は、以下のプランをお選びください。")
+            .setItems(arrayOf(
+                "月額プラン（¥300/月）",
+                "年額プラン（¥2,980/年）← おすすめ・月換算¥248",
+                "ライセンスキーを入力（BOOTH等で購入済み）"
+            )) { _, which ->
+                when (which) {
+                    0 -> com.rodgers.routist.util.BillingManager
+                            .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_MONTHLY)
+                    1 -> com.rodgers.routist.util.BillingManager
+                            .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_YEARLY)
+                    2 -> {
+                        (act as? com.rodgers.routist.MainActivity)?.showLicenseInputDialog()
+                        updateLicenseStatus()
+                    }
+                }
+            }
+            .setNegativeButton("キャンセル", null)
+            .show()
     }
 
     private fun showResetDataDialog() {

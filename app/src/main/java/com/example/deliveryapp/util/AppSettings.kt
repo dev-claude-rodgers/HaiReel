@@ -307,8 +307,32 @@ object AppSettings {
         return expiry > 0L && System.currentTimeMillis() < expiry
     }
 
-    // アプリを使えるかどうか（試用中 or ライセンス有効）
-    fun canUseApp(ctx: Context): Boolean = isInTrial(ctx) || isLicenseValid(ctx)
+    // ─── Google Play IAP サブスクリプション ──────────────────────
+    // Play Billing で購入確認済みのとき true を保存する
+    // ネットワーク不要でオフラインでも機能するようにローカルにキャッシュする
+    private const val KEY_SUBSCRIPTION_ACTIVE = "iap_subscription_active"
+    private const val KEY_SUBSCRIPTION_CHECKED_AT = "iap_subscription_checked_at"
+
+    fun isSubscriptionActive(ctx: Context): Boolean =
+        prefs(ctx).getBoolean(KEY_SUBSCRIPTION_ACTIVE, false)
+
+    fun setSubscriptionActive(ctx: Context, active: Boolean) {
+        prefs(ctx).edit()
+            .putBoolean(KEY_SUBSCRIPTION_ACTIVE, active)
+            .putLong(KEY_SUBSCRIPTION_CHECKED_AT, System.currentTimeMillis())
+            .apply()
+    }
+
+    // サブスク確認が古すぎる場合は再確認を促す（7日以内なら信頼）
+    fun isSubscriptionCheckStale(ctx: Context): Boolean {
+        val checkedAt = prefs(ctx).getLong(KEY_SUBSCRIPTION_CHECKED_AT, 0L)
+        val sevenDays = 7L * 24 * 60 * 60 * 1000
+        return System.currentTimeMillis() - checkedAt > sevenDays
+    }
+
+    // アプリを使えるかどうか（試用中 or ライセンス有効 or IAPサブスク有効）
+    fun canUseApp(ctx: Context): Boolean =
+        isInTrial(ctx) || isLicenseValid(ctx) || isSubscriptionActive(ctx)
 
     // 暗号化設定の個別削除（clear()はKeyStore破壊の既知バグがあるため使わない）
     fun clearSensitiveData(ctx: Context) {

@@ -26,6 +26,7 @@ import com.rodgers.routist.ui.DailyReportFragment
 import com.rodgers.routist.ui.DeliveryListFragment
 import com.rodgers.routist.ui.TenkoFragment
 import com.rodgers.routist.util.AppSettings
+import com.rodgers.routist.util.BillingManager
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.viewmodel.DeliveryViewModel
 import com.rodgers.routist.viewmodel.*
@@ -65,6 +66,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         // 初回起動日を記録
         AppSettings.ensureInstallDate(this)
+        // Google Play サブスク状態をバックグラウンドで確認・更新
+        BillingManager.init(this)
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         isAuthenticated = savedInstanceState?.getBoolean("isAuthenticated") ?: false
         backgroundedAtMs = savedInstanceState?.getLong("backgroundedAtMs") ?: 0L
@@ -105,13 +108,13 @@ class MainActivity : AppCompatActivity() {
         // ライセンス・試用期間チェック（デバッグビルドはスキップ）
         if (!com.rodgers.routist.BuildConfig.DEBUG) {
             if (!AppSettings.canUseApp(this)) {
-                showLicenseExpiredDialog()
+                showSubscriptionDialog()
             } else if (AppSettings.isInTrial(this)) {
                 val days = AppSettings.trialDaysLeft(this)
                 if (days <= 2) {
                     com.google.android.material.snackbar.Snackbar
-                        .make(binding.root, "試用期間残り${days}日です。", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
-                        .setAction("ライセンスを入力") { showLicenseInputDialog() }
+                        .make(binding.root, "無料試用期間 残り${days}日です", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                        .setAction("プランを選ぶ") { showSubscriptionDialog() }
                         .show()
                 }
             }
@@ -455,19 +458,29 @@ class MainActivity : AppCompatActivity() {
 
     // ── ライセンス関連 ────────────────────────────────────────────
 
-    internal fun showLicenseExpiredDialog() {
+    internal fun showSubscriptionDialog() {
+        val items = arrayOf(
+            "月額プラン（¥300/月）",
+            "年額プラン（¥2,980/年）← おすすめ・月換算¥248",
+            "ライセンスキーを入力（購入済みの方）"
+        )
         AlertDialog.Builder(this)
-            .setTitle("試用期間が終了しました")
-            .setMessage(
-                "7日間の無料試用期間が終了しました。\n\n" +
-                "引き続きご利用いただくには、ライセンスキーが必要です。\n\n" +
-                "ご購入はランディングページからお申し込みください。"
-            )
-            .setPositiveButton("ライセンスキーを入力") { _, _ -> showLicenseInputDialog() }
+            .setTitle("RouteJin プレミアム")
+            .setMessage("7日間の無料試用期間が終了しました。\nプランを選んで続けてご利用ください。")
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> BillingManager.launchSubscription(this, BillingManager.PRODUCT_MONTHLY)
+                    1 -> BillingManager.launchSubscription(this, BillingManager.PRODUCT_YEARLY)
+                    2 -> showLicenseInputDialog()
+                }
+            }
             .setNegativeButton("閉じる") { _, _ -> finishAffinity() }
             .setCancelable(false)
             .show()
     }
+
+    // 旧メソッド: 後方互換のため残す
+    internal fun showLicenseExpiredDialog() = showSubscriptionDialog()
 
     internal fun showLicenseInputDialog() {
         val input = android.widget.EditText(this).apply {
