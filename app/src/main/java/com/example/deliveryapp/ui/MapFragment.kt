@@ -94,6 +94,25 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             ?: return
         mapFragment.getMapAsync(this)
 
+        // APIキー未設定時にダイアログで案内
+        val ctx = requireContext()
+        if (!com.rodgers.routist.util.AppSettings.hasUserApiKey(ctx)) {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("🗺 Google APIキーが必要です")
+                .setMessage(
+                    "地図・住所変換には Google APIキーの設定が必要です。\n\n" +
+                    "【設定手順】\n" +
+                    "1. Google Cloud Console で APIキーを取得\n" +
+                    "2. 設定タブ → Google APIキー設定 から登録\n\n" +
+                    "APIキーは個人利用の範囲では\n通常無料枠内に収まります。"
+                )
+                .setPositiveButton("設定タブへ") { _, _ ->
+                    (activity as? com.rodgers.routist.MainActivity)?.navigateToSettings()
+                }
+                .setNegativeButton("後で", null)
+                .show()
+        }
+
         binding.buttonMenu.setOnClickListener { showMapMenu() }
         binding.buttonZoomIn.setOnClickListener {
             googleMap?.animateCamera(CameraUpdateFactory.zoomIn())

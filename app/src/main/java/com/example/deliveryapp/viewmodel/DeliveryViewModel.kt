@@ -202,10 +202,10 @@ class DeliveryViewModel @Inject constructor(
     data class GeocodingProgress(val current: Int, val total: Int, val isRunning: Boolean, val successCount: Int = 0)
 
     init {
+        // ユーザーが設定したAPIキーのみ使用（フォールバックなし）
+        // 未設定の場合は空文字のまま → ジオコーディングは REQUEST_DENIED になりUIで案内
         val userKey = try { AppSettings.getUserApiKey(getApplication()) } catch (_: Exception) { "" }
-        val effectiveKey = if (userKey.isNotBlank()) userKey
-                           else com.rodgers.routist.BuildConfig.GEOCODING_API_KEY
-        geocodingApi.configure(effectiveKey)
+        geocodingApi.configure(userKey)
         viewModelScope.launch {
             loadAll()
             val groupId = _currentGroupId.value
@@ -234,7 +234,6 @@ class DeliveryViewModel @Inject constructor(
 
     fun importAddresses(text: String, fileUriStr: String? = null) {
         val groupId = _currentGroupId.value
-        // ファイルURIを記憶（自動書き戻し用）
         if (fileUriStr != null) repo.saveFileUri(groupId, fileUriStr)
         val entries = AddressParser.parse(text)
         if (entries.isEmpty()) return
@@ -242,6 +241,13 @@ class DeliveryViewModel @Inject constructor(
             Delivery(order = i + 1, name = entry.name.ifBlank { null }, address = entry.address)
         }
         commitDeliveries(groupId, list)
+
+        // APIキー未設定の場合はジオコーディングをスキップして警告
+        val hasKey = com.rodgers.routist.util.AppSettings.hasUserApiKey(getApplication())
+        if (!hasKey) {
+            _errorMessage.value = "Google APIキーが未設定のため地図に表示できません。\n設定タブからAPIキーを登録してください。"
+            return
+        }
         startGeocoding(groupId)
     }
 

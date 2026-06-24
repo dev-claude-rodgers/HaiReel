@@ -528,86 +528,15 @@ class SettingsFragment : Fragment() {
             return
         }
 
-        // 未登録 / 試用中 → プラン選択ダイアログ（一般アプリ水準）
-        val dp = ctx.resources.displayMetrics.density
-        val container = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding((20 * dp).toInt(), (4 * dp).toInt(), (20 * dp).toInt(), (4 * dp).toInt())
-        }
-
-        // 年額カード
-        val cardYear = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(android.graphics.Color.parseColor("#E3F2FD"))
-                cornerRadius = 10 * dp
-                setStroke((2 * dp).toInt(), android.graphics.Color.parseColor("#1565C0"))
-            }
-            setPadding((14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt())
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).also { it.bottomMargin = (8 * dp).toInt() }
-        }
-        cardYear.addView(android.widget.TextView(ctx).apply {
-            text = "★ おすすめ　年額プラン"
-            textSize = 12f; typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(android.graphics.Color.parseColor("#1565C0"))
-        })
-        cardYear.addView(android.widget.TextView(ctx).apply {
-            text = "¥2,980 / 年"
-            textSize = 20f; typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(android.graphics.Color.parseColor("#0D47A1"))
-        })
-        cardYear.addView(android.widget.TextView(ctx).apply {
-            text = "月換算 ¥248 · 月額より年間¥624お得"
-            textSize = 11f; setTextColor(android.graphics.Color.parseColor("#1565C0"))
-        })
-        container.addView(cardYear)
-
-        // 月額カード
-        val cardMonth = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(android.graphics.Color.parseColor("#FAFAFA"))
-                cornerRadius = 10 * dp
-                setStroke((1 * dp).toInt(), android.graphics.Color.parseColor("#BDBDBD"))
-            }
-            setPadding((14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt())
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).also { it.bottomMargin = (12 * dp).toInt() }
-        }
-        cardMonth.addView(android.widget.TextView(ctx).apply {
-            text = "月額プラン"
-            textSize = 12f; typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(android.graphics.Color.parseColor("#424242"))
-        })
-        cardMonth.addView(android.widget.TextView(ctx).apply {
-            text = "¥300 / 月"
-            textSize = 20f; typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(android.graphics.Color.parseColor("#212121"))
-        })
-        container.addView(cardMonth)
-
-        val dlg = androidx.appcompat.app.AlertDialog.Builder(ctx)
-            .setTitle("プランを選ぶ")
-            .setView(container)
-            .setNegativeButton("キャンセル", null)
-            .create()
-
-        cardYear.setOnClickListener {
-            dlg.dismiss()
-            com.rodgers.routist.util.BillingManager
-                .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_YEARLY)
-        }
-        cardMonth.setOnClickListener {
-            dlg.dismiss()
-            com.rodgers.routist.util.BillingManager
-                .launchSubscription(act, com.rodgers.routist.util.BillingManager.PRODUCT_MONTHLY)
-        }
-        dlg.show()
+        // 未登録 / 試用中 → MainActivity の共通購入ダイアログを使用
+        val bm = com.rodgers.routist.util.BillingManager
+        (act as? com.rodgers.routist.MainActivity)
+            ?.buildSubscriptionDialog(
+                ctx,
+                onYearly  = { bm.launchSubscription(act, bm.PRODUCT_YEARLY) },
+                onMonthly = { bm.launchSubscription(act, bm.PRODUCT_MONTHLY) }
+            )
+            ?.show()
     }
 
     private fun showResetDataDialog() {
@@ -676,7 +605,7 @@ class SettingsFragment : Fragment() {
 
 第3条（禁止事項）
 ・逆コンパイル・リバースエンジニアリング
-・ライセンスキーの第三者への譲渡・共有
+・サブスクリプションの第三者への譲渡・アカウント共有
 ・違法な目的での使用
 ・本アプリを利用した迷惑行為
 
@@ -691,7 +620,8 @@ class SettingsFragment : Fragment() {
 
 第6条（料金）
 試用期間（7日間）は無料でご利用いただけます。
-継続利用にはライセンスキーの購入が必要です。
+継続利用には Google Play のサブスクリプション登録が必要です。
+月額プラン（¥300/月）または年額プラン（¥2,980/年）をお選びください。
 
 第7条（準拠法・管轄）
 本規約は日本法に準拠し、紛争は開発者所在地の裁判所を第一審管轄とします。
@@ -720,7 +650,7 @@ class SettingsFragment : Fragment() {
             text = """特定商取引法に基づく表記
 
 ■ 販売業者
-imai kenichi
+RODGERS
 
 ■ 所在地
 個人情報保護のため非公開
@@ -734,22 +664,22 @@ imai kenichi
 proxyroutine777@gmail.com
 
 ■ 販売価格
-ライセンスキー（1年間有効）
-詳細は販売ページをご確認ください。
+月額プラン：¥300（税込）/月
+年額プラン：¥2,980（税込）/年
 
 ■ 支払方法
-クレジットカード・その他決済（Stripe経由）
+Google Play を通じた決済（クレジットカード等）
 
 ■ 支払時期
-ご注文と同時にお支払いいただきます。
+サブスクリプション登録時および各更新時に自動決済されます。
 
 ■ 提供時期
-お支払い確認後、メールにてライセンスキーをお送りします。
+決済完了後、即時ご利用いただけます。
 
-■ 返品・キャンセルポリシー
-デジタルコンテンツ（ライセンスキー）の性質上、
-発行後の返金・キャンセルは原則お受けできません。
-ただし、キーが正常に機能しない場合はご対応いたします。
+■ 解約・返金ポリシー
+Google Play の定期購入管理からいつでも解約できます。
+解約後は次回更新日まで引き続きご利用いただけます。
+既払い分の返金は Google Play の規約に準じます。
 
 ■ 動作環境
 Android 8.0（API 26）以上"""
@@ -824,7 +754,7 @@ Android 8.0（API 26）以上"""
         item("伝票スキャン: カメラで伝票を撮影して住所を自動読み取り")
         item("帳票パターン: 取引先ごとに帳票の設定を切り替えられます")
         item("バックアップ: 定期的に設定 → バックアップを作成してください")
-        item("ライセンス: 設定 → ライセンスから購入・認証できます")
+        item("プラン: 設定 → プランから月額・年額プランに登録できます")
 
         section("❓ よくある質問")
         item("Q. 地図が白くなる")
@@ -835,8 +765,8 @@ Android 8.0（API 26）以上"""
         note("→ 日報の「収入（円）」欄に金額を入力して保存してください。")
         item("Q. データが消えた")
         note("→ 設定 → バックアップから復元できます。定期的なバックアップをおすすめします。")
-        item("Q. ライセンスキーを紛失した")
-        note("→ ご購入時のメールをご確認ください。見つからない場合は proxyroutine777@gmail.com にお問い合わせください。")
+        item("Q. サブスクが有効にならない")
+        note("→ 設定 → プランをタップし Google Play での購入状況を確認してください。解決しない場合は proxyroutine777@gmail.com にお問い合わせください。")
 
         val scroll = android.widget.ScrollView(ctx).apply { addView(root) }
         MaterialAlertDialogBuilder(ctx)
