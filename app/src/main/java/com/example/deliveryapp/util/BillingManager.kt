@@ -120,12 +120,7 @@ object BillingManager {
     // ─── 購入フロー起動 ────────────────────────────────────────
 
     fun launchSubscription(activity: Activity, productId: String) {
-        // デバッグ: 呼び出し確認
-        android.widget.Toast.makeText(activity, "購入処理を開始します...", android.widget.Toast.LENGTH_SHORT).show()
-        Log.d(TAG, "launchSubscription called: productId=$productId")
-
         val client = billingClient
-        Log.d(TAG, "billingClient: ${if (client == null) "null" else "ready=${client.isReady}"}")
         if (client == null || !client.isReady) {
             Log.w(TAG, "Billing 未接続 - 再初期化")
             init(activity.applicationContext)
@@ -186,8 +181,9 @@ object BillingManager {
     }
 
     private fun showBillingError(activity: Activity) {
+        // ActivityではなくapplicationContextを使うことでActivity破棄時のクラッシュを防ぐ
         android.widget.Toast.makeText(
-            activity,
+            activity.applicationContext,
             "Google Play への接続に失敗しました。\nPlay Store アプリが最新か確認してください。",
             android.widget.Toast.LENGTH_LONG
         ).show()
