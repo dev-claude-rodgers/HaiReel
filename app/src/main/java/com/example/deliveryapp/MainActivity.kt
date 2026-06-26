@@ -25,8 +25,13 @@ import com.rodgers.routist.databinding.ActivityMainBinding
 import com.rodgers.routist.ui.DailyReportFragment
 import com.rodgers.routist.ui.DeliveryListFragment
 import com.rodgers.routist.ui.TenkoFragment
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
 import com.rodgers.routist.util.AppSettings
 import com.rodgers.routist.util.BillingManager
+import com.rodgers.routist.util.TtsManager
 import com.rodgers.routist.util.themeColor
 import com.rodgers.routist.viewmodel.DeliveryViewModel
 import com.rodgers.routist.viewmodel.*
@@ -60,12 +65,48 @@ class MainActivity : AppCompatActivity() {
     private lateinit var lockOverlay: View
 
     // タブ順序: 点呼=0, 配達=1, 記録=2, 設定=3
+    private val bgLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* granted/denied は自動で GeofenceManager が判定 */ }
+
+    private fun requestBackgroundLocationIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) return
+
+        AlertDialog.Builder(this)
+            .setTitle("📦 到着通知を有効にする")
+            .setMessage(
+                "配達先に近づくと自動で通知が届き、\n" +
+                "「✅ 配達完了」をタップするだけで記録できます。\n\n" +
+                "この機能を使うには「常に許可」の位置情報権限が必要です。\n" +
+                "次の画面で「常に許可」を選択してください。"
+            )
+            .setPositiveButton("設定する") { _, _ ->
+                bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+            .setNegativeButton("後で", null)
+            .show()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppSettings.getDarkMode(this))
         installSplashScreen()
         super.onCreate(savedInstanceState)
         // 初回起動日を記録
         AppSettings.ensureInstallDate(this)
+        // TTS初期化
+        TtsManager.init(this)
+        // TTS読み上げイベントを監視
+        lifecycleScope.launch {
+            viewModel.ttsNextAddress.collect { text ->
+                if (AppSettings.isTtsEnabled(this@MainActivity)) {
+                    TtsManager.speak(text, this@MainActivity)
+                }
+            }
+        }
+        // 到着通知用バックグラウンド位置情報権限をリクエスト
+        Handler(Looper.getMainLooper()).postDelayed({ requestBackgroundLocationIfNeeded() }, 2000)
         // Google Play サブスク状態をバックグラウンドで確認・更新
         BillingManager.init(this)
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)

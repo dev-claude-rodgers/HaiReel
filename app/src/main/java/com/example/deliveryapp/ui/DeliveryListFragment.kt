@@ -73,7 +73,8 @@ class DeliveryListFragment : Fragment() {
 
     enum class ProgressDisplay { COUNT, PERCENT, REMAINING, HIDDEN }
 
-    internal var isMapVisible = false
+    enum class ViewMode { LIST, MAP, VAN }
+    internal var viewMode = ViewMode.LIST
 
     internal var pendingPhotoDeliveryId: String? = null
     internal var pendingPhotoFilePath: String? = null
@@ -101,13 +102,6 @@ class DeliveryListFragment : Fragment() {
 
     internal val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) pendingPhotoDeliveryId?.let { launchCamera(it) }
-    }
-
-    internal val scanLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val text = result.data?.getStringExtra(ScanActivity.EXTRA_SCANNED_TEXT) ?: return@registerForActivityResult
-            if (text.isNotBlank()) importList(text)
-        }
     }
 
     internal val inputLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -197,6 +191,21 @@ class DeliveryListFragment : Fragment() {
         }
 
         binding.buttonSelect.visibility = View.GONE
+        // 「✕ キャンセル」ボタン → 選択モードを直接解除
+        binding.buttonSelect.setOnClickListener { exitSelectMode() }
+
+        // 「戻る」ボタンで選択モードを解除
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner,
+            object : androidx.activity.OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (::adapter.isInitialized && adapter.isSelectMode) {
+                        exitSelectMode()
+                    } else {
+                        isEnabled = false
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            })
 
         // 選択削除ボタン（Undo 付き）
         binding.buttonDeleteSelected.setOnClickListener {
@@ -233,7 +242,7 @@ class DeliveryListFragment : Fragment() {
             updateSelectionUI()
         }
 
-        binding.buttonMapToggle.setOnClickListener { toggleMapView() }
+        binding.buttonMapToggle.setOnClickListener { cycleViewMode() }
 
         binding.buttonListMenu.setOnClickListener { showListActions() }
 
@@ -291,10 +300,8 @@ class DeliveryListFragment : Fragment() {
     internal fun enterSelectMode() {
         adapter.isSelectMode = true
         adapter.notifyDataSetChanged()
-        binding.buttonSelect.text = "✕ キャンセル"
-        binding.buttonSelect.backgroundTintList =
-            android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#C62828"))
-        binding.buttonSelect.strokeWidth = 0
+        binding.buttonSelect.text = "✕ 解除"
+        binding.buttonSelect.visibility = View.VISIBLE   // ← ボタンを表示
         binding.layoutSelectionBar.visibility = View.VISIBLE
         viewModel.setSelectMode(true)
         updateSelectionUI()
@@ -311,13 +318,7 @@ class DeliveryListFragment : Fragment() {
         adapter.isSelectMode = false
         adapter.clearSelection()
         adapter.notifyDataSetChanged()
-        binding.buttonSelect.text = "選択"
-        binding.buttonSelect.backgroundTintList =
-            android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-        val dp = resources.displayMetrics.density
-        binding.buttonSelect.strokeWidth = (1.5f * dp).toInt()
-        binding.buttonSelect.strokeColor =
-            android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+        binding.buttonSelect.visibility = View.GONE      // ← ボタンを非表示に戻す
         binding.layoutSelectionBar.visibility = View.GONE
         viewModel.setSelectMode(false)
     }
@@ -378,38 +379,64 @@ class DeliveryListFragment : Fragment() {
         }
     }
 
-    internal fun showMapView() {
-        isMapVisible = true
-        binding.layoutProgress.isClickable = false
-        binding.mapContainer.visibility = View.VISIBLE
-        binding.recyclerView.visibility = View.GONE
-        binding.layoutProgress.visibility = View.GONE
-        binding.textEmpty.visibility = View.GONE
-        binding.chipIncomplete.visibility = View.GONE
-        binding.buttonListMenu.visibility = View.GONE
-        binding.buttonMapToggle.text = "配達先リストへ戻る"
-        if (childFragmentManager.findFragmentByTag("map") == null) {
-            childFragmentManager.beginTransaction()
-                .add(R.id.mapContainer, MapFragment(), "map")
-                .commit()
+    /** リスト→地図→荷室→リスト と順番に切り替え */
+    internal fun cycleViewMode() {
+        viewMode = when (viewMode) {
+            ViewMode.LIST -> ViewMode.MAP
+            ViewMode.MAP  -> ViewMode.VAN
+            ViewMode.VAN  -> ViewMode.LIST
         }
+        applyViewMode()
     }
 
+    internal fun applyViewMode() {
+        val isMap = viewMode == ViewMode.MAP
+        val isVan = viewMode == ViewMode.VAN
+        val isList = viewMode == ViewMode.LIST
+
+        binding.mapContainer.visibility  = if (isMap) View.VISIBLE else View.GONE
+        binding.vanContainer.visibility  = if (isVan) View.VISIBLE else View.GONE
+        binding.recyclerView.visibility  = if (isList) View.VISIBLE else View.GONE
+        binding.layoutProgress.isClickable = isList
+        binding.layoutProgress.visibility  = if (isList) View.VISIBLE else View.GONE
+        binding.textEmpty.visibility     = if (isList) View.VISIBLE else View.GONE
+        binding.chipIncomplete.visibility = if (isList) View.VISIBLE else View.GONE
+        binding.buttonListMenu.visibility = if (isList) View.VISIBLE else View.GONE
+
+        binding.buttonMapToggle.text = when (viewMode) {
+            ViewMode.LIST -> getString(R.string.btn_map_toggle)
+            ViewMode.MAP  -> "🚐 荷室"
+            ViewMode.VAN  -> "リスト"
+        }
+
+        if (isMap && childFragmentManager.findFragmentByTag("map") == null) {
+            childFragmentManager.beginTransaction()
+                .add(R.id.mapContainer, MapFragment(), "map")
+                .commitAllowingStateLoss()
+        }
+        if (isVan && childFragmentManager.findFragmentByTag("van") == null) {
+            try {
+                childFragmentManager.beginTransaction()
+                    .add(R.id.vanContainer, VanLayoutFragment(), "van")
+                    .commitAllowingStateLoss()
+            } catch (e: Exception) {
+                android.util.Log.e("VanLayout", "Fragment追加エラー", e)
+            }
+        }
+        if (isList) applyFilter()
+    }
+
+    // 既存コードとの互換性のために残す
+    internal fun showMapView() {
+        viewMode = ViewMode.MAP; applyViewMode()
+    }
     internal fun switchToListView() {
-        isMapVisible = false
-        binding.layoutProgress.isClickable = true
-        binding.mapContainer.visibility = View.GONE
-        binding.recyclerView.visibility = View.VISIBLE
-        binding.chipIncomplete.visibility = View.VISIBLE
-        binding.buttonListMenu.visibility = View.VISIBLE
-        binding.buttonMapToggle.text = getString(R.string.btn_map_toggle)
-        applyFilter()
+        viewMode = ViewMode.LIST; applyViewMode()
     }
 
     override fun onResume() {
         super.onResume()
-        // タブ復帰時にビューが再生成された場合、地図表示状態を復元する
-        if (isMapVisible) showMapView()
+        if (viewMode != ViewMode.LIST) applyViewMode()
     }
 
     override fun onStop() {

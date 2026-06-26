@@ -20,9 +20,12 @@ import com.rodgers.routist.model.Delivery
 import com.rodgers.routist.model.DeliveryGroup
 import com.rodgers.routist.model.Room
 import com.rodgers.routist.model.colorForIndex
+import com.rodgers.routist.db.KnownAddressDao
+import com.rodgers.routist.db.KnownAddressEntity
 import com.rodgers.routist.repository.DeliveryRepository
 import com.rodgers.routist.util.AddressParser
 import com.rodgers.routist.util.AppSettings
+import com.rodgers.routist.util.DeliveryGeofenceManager
 import com.rodgers.routist.util.GeocodingApi
 import com.rodgers.routist.util.GeocodingClient
 import com.rodgers.routist.util.GeocodingManager
@@ -41,8 +44,69 @@ class DeliveryViewModel @Inject constructor(
     app: Application,
     internal val repo: DeliveryRepository,
     private val geocodingManager: GeocodingManager,
-    private val geocodingApi: GeocodingApi
+    private val geocodingApi: GeocodingApi,
+    private val knownAddressDao: KnownAddressDao,
+    internal val geofenceManager: DeliveryGeofenceManager
 ) : AndroidViewModel(app) {
+
+    private val prefs = app.getSharedPreferences("haireel_prefs", android.content.Context.MODE_PRIVATE)
+
+    // ─── バン荷室レイアウト（複数ビュー対応）─────────────────────
+    private val _vanLayout = MutableStateFlow(com.rodgers.routist.model.VanLayout())
+    val vanLayout: StateFlow<com.rodgers.routist.model.VanLayout> = _vanLayout.asStateFlow()
+
+    fun loadVanLayout(groupId: String) {
+        val json = prefs.getString("van_layout2_$groupId", null) ?: return
+        runCatching {
+            val arr = org.json.JSONArray(json)
+            val views = (0 until arr.length()).map { vi ->
+                val v = arr.getJSONObject(vi)
+                val pinsArr = v.optJSONArray("pins")
+                val pins = if (pinsArr != null) (0 until pinsArr.length()).map { pi ->
+                    val p = pinsArr.getJSONObject(pi)
+                    com.rodgers.routist.model.VanLayoutPin(
+                        id = p.getString("id"),
+                        xPercent = p.getDouble("x").toFloat(),
+                        yPercent = p.getDouble("y").toFloat(),
+                        deliveryId = p.getString("deliveryId"),
+                        orderLabel = p.getInt("orderLabel")
+                    )
+                } else emptyList()
+                com.rodgers.routist.model.VanView(
+                    id = v.getString("id"),
+                    name = v.getString("name"),
+                    photoUri = v.optString("photoUri", ""),
+                    pins = pins
+                )
+            }
+            _vanLayout.value = com.rodgers.routist.model.VanLayout(views)
+        }
+    }
+
+    fun saveVanLayout(groupId: String, layout: com.rodgers.routist.model.VanLayout) {
+        _vanLayout.value = layout
+        val arr = org.json.JSONArray()
+        layout.views.forEach { view ->
+            val pinsArr = org.json.JSONArray()
+            view.pins.forEach { pin ->
+                pinsArr.put(org.json.JSONObject().apply {
+                    put("id", pin.id); put("x", pin.xPercent.toDouble())
+                    put("y", pin.yPercent.toDouble()); put("deliveryId", pin.deliveryId)
+                    put("orderLabel", pin.orderLabel)
+                })
+            }
+            arr.put(org.json.JSONObject().apply {
+                put("id", view.id); put("name", view.name)
+                put("photoUri", view.photoUri); put("pins", pinsArr)
+            })
+        }
+        prefs.edit().putString("van_layout2_$groupId", arr.toString()).apply()
+    }
+
+    fun clearVanLayout(groupId: String) {
+        _vanLayout.value = com.rodgers.routist.model.VanLayout()
+        prefs.edit().remove("van_layout2_$groupId").apply()
+    }
 
     companion object {
         private const val TAG = "DeliveryViewModel"
@@ -173,6 +237,10 @@ class DeliveryViewModel @Inject constructor(
             getApplication(), groupName,
             list.count { it.isCompleted }, list.size
         )
+        // 未完了配達先のジオフェンスを再登録（全グループ対象）
+        val allUncompleted = _allDeliveries.value.values.flatten()
+            .filter { it.hasLocation && !it.isCompleted }
+        geofenceManager.register(allUncompleted)
     }
 
     internal val _mapFilter = MutableStateFlow<Set<String>?>(null)
@@ -211,6 +279,25 @@ class DeliveryViewModel @Inject constructor(
             val groupId = _currentGroupId.value
             repo.migrateGlobalAreaHint(groupId)
             applyAreaHintForGroup(groupId)
+        }
+        // 既存配達先を住所履歴に一括登録（v2: DBスキーマ修正後に再実行されるよう番号管理）
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!prefs.getBoolean("known_addr_backfill_v2", false)) {
+                try {
+                    repo.getAllDeliveries()
+                        .filter { it.address.isNotBlank() }
+                        .distinctBy { it.address.trim() }
+                        .forEach { d ->
+                            knownAddressDao.insertIfNew(KnownAddressEntity(
+                                address         = d.address.trim(),
+                                name            = d.name,
+                                deliveryCount   = 1,
+                                lastDeliveredAt = System.currentTimeMillis()
+                            ))
+                        }
+                    prefs.edit().putBoolean("known_addr_backfill_v2", true).apply()
+                } catch (_: Exception) { }
+            }
         }
     }
 
@@ -252,10 +339,46 @@ class DeliveryViewModel @Inject constructor(
     }
 
 
+    // TTS: 配達完了後に次の住所を読み上げるためのイベント
+    private val _ttsNextAddress = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val ttsNextAddress: SharedFlow<String> = _ttsNextAddress.asSharedFlow()
+
     fun toggleCompleted(id: String) {
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { d ->
             if (d.id == id) d.copy(isCompleted = !d.isCompleted) else d
+        }
+        commitDeliveries(groupId, updated)
+
+        // 完了マークをつけた場合のみ次の住所を読み上げ
+        val justCompleted = updated.find { it.id == id }
+        if (justCompleted?.isCompleted == true) {
+            val next = updated.filter { !it.isCompleted }.minByOrNull { it.order }
+            val text = when {
+                next != null -> buildString {
+                    append("次は")
+                    // ふりがながあればそちらを読む、なければ名前をそのまま読む
+                    val readName = next.nameKana?.ifBlank { null } ?: next.name
+                    if (!readName.isNullOrBlank()) append("${readName}、")
+                    append(next.address)
+                }
+                else -> "全件配達完了です"
+            }
+            viewModelScope.launch { _ttsNextAddress.emit(text) }
+        }
+    }
+
+    /** 全グループの住所・名前を全角に一括変換（既存データ対応） */
+    fun normalizeAllAddresses() = viewModelScope.launch(Dispatchers.IO) {
+        repo.normalizeAllAddressesToFullWidth()
+        withContext(Dispatchers.Main) { loadAll() }
+    }
+
+    /** ふりがなのみ更新（ジオコーディング不要） */
+    fun updateNameKana(id: String, kana: String?) {
+        val groupId = _currentGroupId.value
+        val updated = _deliveries.value.map { d ->
+            if (d.id == id) d.copy(nameKana = kana) else d
         }
         commitDeliveries(groupId, updated)
     }
@@ -383,6 +506,7 @@ class DeliveryViewModel @Inject constructor(
         val reordered = newItems.mapIndexed { i, d -> d.copy(order = startOrder + i) }
         commitDeliveries(groupId, existing + reordered)
         startGeocoding(groupId)
+        saveKnownAddresses(newItems)
     }
 
     fun replaceDeliveries(newItems: List<Delivery>) {
@@ -390,6 +514,77 @@ class DeliveryViewModel @Inject constructor(
         val reordered = newItems.mapIndexed { i, d -> d.copy(order = i + 1) }
         commitDeliveries(groupId, reordered)
         startGeocoding(groupId)
+        saveKnownAddresses(newItems)
+    }
+
+    /** 追加・置換時に住所をknown_addressesに自動保存する */
+    private fun saveKnownAddresses(items: List<Delivery>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            items.forEach { d ->
+                val addr = d.address.trim()
+                if (addr.isBlank()) return@forEach
+                val existing = knownAddressDao.findByAddress(addr)
+                if (existing != null) {
+                    knownAddressDao.incrementCount(addr, d.name, System.currentTimeMillis())
+                } else {
+                    knownAddressDao.insertIfNew(KnownAddressEntity(
+                        address = addr,
+                        name = d.name,
+                        deliveryCount = 1,
+                        lastDeliveredAt = System.currentTimeMillis()
+                    ))
+                }
+            }
+        }
+    }
+
+    /** 住所履歴から1件削除 */
+    fun deleteKnownAddress(entity: com.rodgers.routist.db.KnownAddressEntity) =
+        viewModelScope.launch(Dispatchers.IO) { knownAddressDao.delete(entity) }
+
+    // ─── 住所履歴 設定・クリーンアップ ──────────────────────────
+
+    data class HistorySettings(
+        val maxCount: Int,      // 上限件数（0 = 無制限）
+        val deleteDays: Int     // 自動削除期間（0 = 削除しない）
+    )
+
+    fun getHistorySettings(): HistorySettings = HistorySettings(
+        maxCount   = prefs.getInt("history_max_count", 500),
+        deleteDays = prefs.getInt("history_delete_days", 90)
+    )
+
+    fun saveHistorySettings(maxCount: Int, deleteDays: Int) {
+        prefs.edit()
+            .putInt("history_max_count", maxCount)
+            .putInt("history_delete_days", deleteDays)
+            .apply()
+    }
+
+    /** 設定に従って住所履歴をクリーンアップ（ダイアログ開封時に呼ぶ） */
+    fun cleanupAddressHistory() = viewModelScope.launch(Dispatchers.IO) {
+        try {
+            val s = getHistorySettings()
+            // 期間超え & 回数少ない（3回未満）を削除
+            if (s.deleteDays > 0) {
+                val cutoff = System.currentTimeMillis() - s.deleteDays * 24 * 60 * 60 * 1000L
+                knownAddressDao.deleteOldLowCount(cutoff, protectMinCount = 3)
+            }
+            // 上限超えを削除
+            if (s.maxCount > 0) {
+                knownAddressDao.deleteOverLimit(s.maxCount)
+            }
+        } catch (_: Exception) { }
+    }
+
+    /** 住所の候補を返す（オートコンプリート用）
+     *  空文字 → 最近の配達先15件
+     *  入力あり → 前方一致 → ゼロなら部分一致 */
+    suspend fun searchKnownAddresses(prefix: String): List<KnownAddressEntity> {
+        if (prefix.isBlank()) return knownAddressDao.getRecent()
+        val byPrefix = knownAddressDao.searchByPrefix(prefix)
+        if (byPrefix.isNotEmpty()) return byPrefix
+        return if (prefix.length >= 2) knownAddressDao.searchByKeyword(prefix) else emptyList()
     }
 
     // 複数件削除

@@ -369,6 +369,15 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
 
+        val kanaInput = EditText(ctx).apply {
+            hint = "ふりがな（任意・音声案内で使用）例: やまだたろう"
+            setText(delivery.nameKana ?: "")
+            inputType = InputType.TYPE_CLASS_TEXT
+            textSize = 13f
+            setTextColor(colorOnSurfaceVariant)
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+
         // 候補リスト（名前入力に連動）
         val candidateBox = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -462,8 +471,135 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         layout.addView(label("名前・店名"))
         layout.addView(nameInput)
         layout.addView(candidateBox)
+        layout.addView(label("ふりがな（音声案内用・任意）"))
+        layout.addView(kanaInput)
         layout.addView(label("住所"))
         layout.addView(addrInput)
+
+        // ── 住所バリデーション バナー ───────────────────────────────
+        val warnBanner = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding((10*dp).toInt(), (8*dp).toInt(), (10*dp).toInt(), (8*dp).toInt())
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(android.graphics.Color.parseColor("#FFF8E1"))
+                cornerRadius = 6*dp
+                setStroke((1*dp).toInt(), android.graphics.Color.parseColor("#FFB300"))
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.topMargin = (6*dp).toInt() }
+        }
+        val tvWarn = TextView(ctx).apply {
+            textSize = 12f; setTextColor(android.graphics.Color.parseColor("#E65100"))
+        }
+        warnBanner.addView(tvWarn)
+
+        // 「電話番号を削除」「郵便番号→住所に変換」ボタン行
+        val btnRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.topMargin = (4*dp).toInt() }
+        }
+        val btnClean = com.google.android.material.button.MaterialButton(
+            ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            textSize = 11f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.marginEnd = (8*dp).toInt() }
+            visibility = View.GONE
+        }
+        val btnZip = com.google.android.material.button.MaterialButton(
+            ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            textSize = 11f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            visibility = View.GONE
+        }
+        btnRow.addView(btnClean); btnRow.addView(btnZip)
+        warnBanner.addView(btnRow)
+        layout.addView(warnBanner)
+
+        // リアルタイムバリデーション
+        fun validateAddress(text: String) {
+            if (text.isBlank()) { warnBanner.visibility = View.GONE; return }
+            val result = com.rodgers.routist.util.AddressValidator.validate(text)
+            if (!result.hasIssue) { warnBanner.visibility = View.GONE; return }
+
+            val msgs = mutableListOf<String>()
+            if (com.rodgers.routist.util.AddressValidator.Issue.POSTAL_CODE in result.issues)
+                msgs.add("🟡 郵便番号が含まれています")
+            if (com.rodgers.routist.util.AddressValidator.Issue.PHONE_NUMBER in result.issues)
+                msgs.add("🟡 電話番号が含まれています")
+            if (com.rodgers.routist.util.AddressValidator.Issue.NO_ADDRESS_KEYWORD in result.issues)
+                msgs.add("🔴 住所（市・区・町など）が見つかりません")
+            tvWarn.text = msgs.joinToString("\n")
+            warnBanner.visibility = View.VISIBLE
+
+            // 「不要な情報を削除」ボタン
+            val hasRemovable = com.rodgers.routist.util.AddressValidator.Issue.POSTAL_CODE in result.issues ||
+                               com.rodgers.routist.util.AddressValidator.Issue.PHONE_NUMBER in result.issues
+            if (hasRemovable) {
+                btnClean.text = "🗑 電話番号・郵便番号を削除"
+                btnClean.visibility = View.VISIBLE
+                btnClean.setOnClickListener {
+                    addrInput.setText(result.cleaned)
+                    addrInput.setSelection(result.cleaned.length)
+                }
+            } else {
+                btnClean.visibility = View.GONE
+            }
+
+            // 郵便番号→住所変換ボタン
+            if (result.extractedPostalCode != null) {
+                btnZip.text = "📮 郵便番号で住所を補完"
+                btnZip.visibility = View.VISIBLE
+                btnZip.setOnClickListener {
+                    btnZip.isEnabled = false
+                    btnZip.text = "変換中..."
+                    lifecycleScope.launch {
+                        val zip = com.rodgers.routist.util.AddressValidator.toHyphenFormat(
+                            result.extractedPostalCode
+                        )
+                        val addr = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            com.rodgers.routist.util.ZipCodeHelper.lookup(zip)
+                        }
+                        if (addr != null) {
+                            val cleaned = result.cleaned.ifBlank { "" }
+                            addrInput.setText(
+                                if (cleaned.isNotBlank()) "${addr.address} $cleaned"
+                                else addr.address
+                            )
+                            addrInput.setSelection(addrInput.text.length)
+                        } else {
+                            Toast.makeText(ctx, "郵便番号から住所が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                        }
+                        btnZip.isEnabled = true
+                        btnZip.text = "📮 郵便番号で住所を補完"
+                    }
+                }
+            } else {
+                btnZip.visibility = View.GONE
+            }
+        }
+
+        addrInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {
+                validateAddress(s?.toString() ?: "")
+            }
+        })
+        // 初期値を検証
+        validateAddress(addrInput.text.toString())
 
         val dlg = AlertDialog.Builder(ctx)
             .setTitle("名前・住所を編集")
@@ -474,9 +610,14 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
 
         dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val newName    = nameInput.text.toString().trim()
+            val newKana    = kanaInput.text.toString().trim().ifBlank { null }
             val newAddress = addrInput.text.toString().trim()
             // 住所も店名も両方空なら何もしない
             if (newAddress.isBlank() && newName.isBlank()) return@setOnClickListener
+            // ふりがなだけ即保存（住所は再ジオコーディングが必要）
+            if (newKana != delivery.nameKana) {
+                viewModel.updateNameKana(delivery.id, newKana)
+            }
             dlg.dismiss()
 
             lifecycleScope.launch {

@@ -36,6 +36,10 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.maps.android.clustering.Cluster
+import com.google.maps.android.clustering.ClusterItem
+import com.google.maps.android.clustering.ClusterManager
+import com.google.maps.android.clustering.view.DefaultClusterRenderer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
@@ -49,8 +53,39 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal var _binding: FragmentMapBinding? = null
     internal val binding get() = _binding!!
     internal var googleMap: GoogleMap? = null
-    private val markers = mutableMapOf<String, Marker>()
+    private val markers = mutableMapOf<String, Marker>()          // 施設ピン用（配達ピンはClusterManagerが管理）
     internal val facilityMarkers = mutableListOf<Marker>()
+    private var clusterManager: ClusterManager<DeliveryClusterItem>? = null
+
+    /** ClusterItem ラッパー。分散済み座標を保持する */
+    inner class DeliveryClusterItem(
+        val delivery: Delivery,
+        val markerColor: Int,
+        val groupName: String,
+        private val pos: LatLng
+    ) : ClusterItem {
+        override fun getPosition() = pos
+        override fun getTitle() = "[${groupName}] ${delivery.order}. ${delivery.displayTitle}"
+        override fun getSnippet() = delivery.id
+        override fun getZIndex() = 0f
+    }
+
+    /** 既存の MarkerIconFactory カスタムアイコンをクラスター解除時に適用するRenderer */
+    inner class DeliveryClusterRenderer(
+        ctx: android.content.Context,
+        map: GoogleMap,
+        cm: ClusterManager<DeliveryClusterItem>
+    ) : DefaultClusterRenderer<DeliveryClusterItem>(ctx, map, cm) {
+
+        override fun onBeforeClusterItemRendered(item: DeliveryClusterItem, opts: MarkerOptions) {
+            opts.icon(MarkerIconFactory.createWithColor(
+                item.delivery.order, item.markerColor, item.delivery.isCompleted
+            ))
+        }
+
+        // 3件以上でクラスター化（2件以下は個別ピンを見せる）
+        override fun shouldRenderAsCluster(cluster: Cluster<DeliveryClusterItem>) = cluster.size >= 3
+    }
     private val routeLines = mutableListOf<com.google.android.gms.maps.model.Polyline>()
     internal var showRouteLines = true
     internal var lastKnownLocation: android.location.Location? = null
@@ -134,12 +169,73 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onResume() {
         super.onResume()
         scheduleMapRefresh()
+        // 気象警報チェック（エリアヒントから都道府県を判定）
+        checkDisasterAlert()
+    }
+
+    private fun checkDisasterAlert() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val areaHint = viewModel.areaHint.value
+        if (areaHint.isBlank()) return
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val prefCode = com.rodgers.routist.util.DisasterAlertManager
+                .getPrefCodeFromGeocodedAddress(areaHint) ?: return@launch
+            val alert = com.rodgers.routist.util.DisasterAlertManager
+                .fetchAlerts(prefCode) ?: return@launch
+            val level = com.rodgers.routist.util.DisasterAlertManager
+                .getAlertLevel(alert)
+
+            if (level == com.rodgers.routist.util.DisasterAlertManager.AlertLevel.NONE) return@launch
+            if (!isAdded) return@launch
+
+            val icon  = if (level == com.rodgers.routist.util.DisasterAlertManager.AlertLevel.WARNING) "🔴" else "🟡"
+            val title = if (level == com.rodgers.routist.util.DisasterAlertManager.AlertLevel.WARNING) "警報発令中" else "注意報発令中"
+            val types = alert.warningTypes.take(3).joinToString("・")
+            val msg   = if (alert.headline.isNotBlank()) alert.headline else types
+
+            com.google.android.material.snackbar.Snackbar
+                .make(binding.root, "$icon $title: $msg", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                .setBackgroundTint(
+                    if (level == com.rodgers.routist.util.DisasterAlertManager.AlertLevel.WARNING)
+                        android.graphics.Color.parseColor("#D32F2F")
+                    else android.graphics.Color.parseColor("#F57F17")
+                )
+                .setTextColor(android.graphics.Color.WHITE)
+                .show()
+        }
     }
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
         map.uiSettings.isZoomControlsEnabled = false
         map.uiSettings.isMyLocationButtonEnabled = false
+
+        // ── ClusterManager 初期化 ─────────────────────────────────────
+        val cm = ClusterManager<DeliveryClusterItem>(requireContext(), map)
+        cm.renderer = DeliveryClusterRenderer(requireContext(), map, cm)
+        // クラスタータップ → 内包ピンに合わせてズームイン
+        cm.setOnClusterClickListener { cluster ->
+            val b = LatLngBounds.Builder().apply { cluster.items.forEach { include(it.position) } }.build()
+            try { map.animateCamera(CameraUpdateFactory.newLatLngBounds(b, 120)) } catch (_: Exception) {}
+            true
+        }
+        // 個別ピンタップ → 既存の詳細シートを表示
+        cm.setOnClusterItemClickListener { item ->
+            val delivery = item.delivery
+            val nearby = viewModel.allDeliveries.value.values.flatten()
+                .filter { it.hasLocation &&
+                    Math.abs(it.lat - delivery.lat) < 0.0002 &&
+                    Math.abs(it.lng - delivery.lng) < 0.0002 }
+                .sortedBy { it.order }
+            if (nearby.size > 1) showBuildingDeliveries(nearby, delivery.address)
+            else showDeliveryOptions(delivery)
+            true
+        }
+        clusterManager = cm
+        // カメラ停止時に再クラスタリング
+        map.setOnCameraIdleListener(cm)
 
         checkLocationPermission()
 
@@ -160,7 +256,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         map.setOnMarkerClickListener { marker ->
-            // 施設マーカー
+            // 施設マーカーは ClusterManager の前に処理
             if (marker in facilityMarkers) {
                 val name = marker.title ?: ""
                 val addr = marker.snippet ?: ""
@@ -179,19 +275,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                     .setNegativeButton("閉じる", null).show()
                 return@setOnMarkerClickListener true
             }
-            // 配達マーカー
-            val clicked = markers.entries.find { it.value == marker }
-                ?.let { entry -> viewModel.allDeliveries.value.values.flatten().find { it.id == entry.key } }
-            if (clicked != null) {
-                val nearby = viewModel.allDeliveries.value.values.flatten()
-                    .filter { it.hasLocation &&
-                        Math.abs(it.lat - clicked.lat) < 0.0002 &&
-                        Math.abs(it.lng - clicked.lng) < 0.0002 }
-                    .sortedBy { it.order }
-                if (nearby.size > 1) showBuildingDeliveries(nearby, clicked.address)
-                else showDeliveryOptions(clicked)
-            }
-            true
+            // 配達マーカー・クラスターは ClusterManager にデリゲート
+            clusterManager?.onMarkerClick(marker) ?: false
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -244,8 +329,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal fun updateAllMarkers(allMap: Map<String, List<Delivery>>) {
         if (_binding == null) return  // onDestroyView後の呼び出しを安全にスキップ
         val map = googleMap ?: return
+        val cm  = clusterManager ?: return
         map.clear()
+        cm.clearItems()
         markers.clear()
+        facilityMarkers.clear()
         routeLines.forEach { it.remove() }
         routeLines.clear()
 
@@ -259,6 +347,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         var hasAny = false
 
         val slotTemplates = com.rodgers.routist.util.AppSettings.getTimeSlotTemplatesWithColor(requireContext())
+        val clusterItems = mutableListOf<DeliveryClusterItem>()
 
         groups.forEach outer@{ group ->
             val shouldShow = if (visibleGroups != null) group.id in visibleGroups
@@ -288,15 +377,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                     LatLng(delivery.lat, delivery.lng)
                 }
                 val markerColor = TimeSlotColor.colorFor(delivery.timeSlot, slotTemplates) ?: color
-                val icon = MarkerIconFactory.createWithColor(delivery.order, markerColor, delivery.isCompleted)
-                val label = if (!delivery.name.isNullOrBlank()) "${delivery.name} - ${delivery.address}" else delivery.address
-                val marker = map.addMarker(
-                    MarkerOptions()
-                        .position(spreadPos)
-                        .title("[${group.name}] ${delivery.order}. $label")
-                        .icon(icon)
-                )
-                marker?.let { markers[delivery.id] = it }
+                clusterItems.add(DeliveryClusterItem(delivery, markerColor, group.name, spreadPos))
                 bounds.include(spreadPos)
                 hasAny = true
             }
@@ -315,6 +396,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
+        // ClusterManager にピンを渡して描画
+        cm.addItems(clusterItems)
+        cm.cluster()
+
         val pinLoc = pendingPinLocation
         if (pinLoc != null) {
             pendingPinLocation = null
@@ -324,7 +409,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             try { map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), 80)) }
             catch (_: Exception) {}
         }
-
     }
 
     private fun updateGroupsButtonLabel() {}

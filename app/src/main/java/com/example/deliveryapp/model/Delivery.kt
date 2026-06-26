@@ -6,6 +6,7 @@ data class Delivery(
     val id: String = UUID.randomUUID().toString(),
     val order: Int,
     val name: String? = null,          // 店名・名前（任意）
+    val nameKana: String? = null,      // 名前のふりがな（TTS読み上げ用・任意）
     val address: String,               // 住所（ジオコーディング済み）
     val geocodedAddress: String? = null,
     val note: String? = null,

@@ -32,11 +32,6 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-internal fun DeliveryListFragment.launchScanActivity() {
-        scanLauncher.launch(Intent(requireContext(), ScanActivity::class.java))
-    }
-
-
 internal fun DeliveryListFragment.importList(text: String) {
         val ctx = requireContext()
         val toAdd = mutableListOf<Delivery>()
@@ -139,6 +134,15 @@ internal fun DeliveryListFragment.importList(text: String) {
             android.widget.Toast.makeText(ctx, "インポートできるデータがありませんでした", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
+
+        // 半角数字・半角英字を全角に統一（住所・名前のすべてのインポート経路に適用）
+        val normalized = toAdd.map { d ->
+            d.copy(
+                address = com.rodgers.routist.util.AddressParser.toFullWidth(d.address),
+                name    = d.name?.let { com.rodgers.routist.util.AddressParser.toFullWidth(it) }
+            )
+        }
+        toAdd.clear(); toAdd.addAll(normalized)
 
         // ── Step A: ルート選択
         val groups = viewModel.groups.value
@@ -330,5 +334,5 @@ private fun looksLikeCsvOrTsv(text: String): Boolean {
 }
 
 internal fun DeliveryListFragment.toggleMapView() {
-    if (isMapVisible) switchToListView() else showMapView()
+    if (viewMode == DeliveryListFragment.ViewMode.MAP) switchToListView() else showMapView()
 }

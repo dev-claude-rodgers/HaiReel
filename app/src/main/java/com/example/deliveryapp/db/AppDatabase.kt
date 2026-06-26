@@ -10,8 +10,8 @@ import com.rodgers.routist.model.TenkoRecord
 import com.rodgers.routist.model.WorkRecord
 
 @Database(
-    entities = [WorkRecord::class, TenkoRecord::class, DeliveryEntity::class, DeliveryGroupEntity::class, GeocodingCacheEntity::class],
-    version = 11,
+    entities = [WorkRecord::class, TenkoRecord::class, DeliveryEntity::class, DeliveryGroupEntity::class, GeocodingCacheEntity::class, KnownAddressEntity::class],
+    version = 14,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun deliveryDao(): DeliveryDao
     abstract fun deliveryGroupDao(): DeliveryGroupDao
     abstract fun geocodingCacheDao(): GeocodingCacheDao
+    abstract fun knownAddressDao(): KnownAddressDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -97,6 +98,44 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v11→v12: known_addresses テーブル追加（住所履歴・オートコンプリート用）
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `known_addresses` (
+                        `address` TEXT NOT NULL,
+                        `name` TEXT,
+                        `deliveryCount` INTEGER NOT NULL,
+                        `lastDeliveredAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`address`)
+                    )
+                """.trimIndent())
+            }
+        }
+
+        // v13→v14: deliveries に name_kana カラム追加（TTS読み上げ用ふりがな）
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `deliveries` ADD COLUMN `name_kana` TEXT")
+            }
+        }
+
+        // v12→v13: known_addresses を正しいスキーマで再作成（v12 でスキーマ不一致があったため）
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `known_addresses`")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `known_addresses` (
+                        `address` TEXT NOT NULL,
+                        `name` TEXT,
+                        `deliveryCount` INTEGER NOT NULL,
+                        `lastDeliveredAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`address`)
+                    )
+                """.trimIndent())
+            }
+        }
+
         // v9→v10: geocoding_cache テーブル追加
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -119,7 +158,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "report_db"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                 .fallbackToDestructiveMigrationFrom(1, 2, 3)  // v1〜v3 はリリース前の開発版のみ
                 .build()
                 .also { INSTANCE = it }

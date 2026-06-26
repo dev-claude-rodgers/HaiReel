@@ -30,6 +30,23 @@ class DeliveryRepository @Inject constructor(
     suspend fun loadDeliveries(groupId: String): List<Delivery> =
         db.deliveryDao().getByGroup(groupId).map { it.toDelivery() }
 
+    /** 全グループの全配達先を返す（住所履歴バックフィル用） */
+    suspend fun getAllDeliveries(): List<Delivery> =
+        db.deliveryDao().getAll().map { it.toDelivery() }
+
+    /** 全配達先の住所・名前を全角に一括変換して保存 */
+    suspend fun normalizeAllAddressesToFullWidth() {
+        val fw = com.rodgers.routist.util.AddressParser::toFullWidth
+        val all = db.deliveryDao().getAll()
+        val changed = all.filter { e ->
+            fw(e.address) != e.address || (e.name != null && fw(e.name) != e.name)
+        }
+        if (changed.isEmpty()) return
+        db.deliveryDao().upsertAll(changed.map { e ->
+            e.copy(address = fw(e.address), name = e.name?.let { fw(it) })
+        })
+    }
+
     // ---- Group CRUD ----
 
     suspend fun saveGroups(groups: List<DeliveryGroup>) {

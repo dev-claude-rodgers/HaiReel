@@ -1,4 +1,4 @@
-﻿package com.rodgers.routist.util
+package com.rodgers.routist.util
 
 object AddressParser {
 
@@ -23,9 +23,32 @@ object AddressParser {
 
         return if (cleaned.contains('\t')) {
             val parts = cleaned.split('\t', limit = 2)
-            Entry(parts[0].trim().take(20), parts[1].trim().take(50))
+            Entry(
+                toFullWidth(parts[0].trim()).take(20),
+                toFullWidth(parts[1].trim()).take(50)
+            )
         } else {
-            Entry("", cleaned.take(50))
+            Entry("", toFullWidth(cleaned).take(50))
         }
     }
+
+    /**
+     * 半角文字を全角に統一する。
+     * 住所・名前のインポート時に表記を揃えるために使用。
+     *   0-9       → ０-９
+     *   A-Z       → Ａ-Ｚ
+     *   a-z       → ａ-ｚ
+     *   - (ハイフン) → －（全角ハイフン）
+     *   ｰ (半角長音) → ー（全角長音）
+     */
+    fun toFullWidth(text: String): String = text.map { c ->
+        when (c) {
+            in '0'..'9' -> ('０'.code + (c - '0')).toChar()
+            in 'A'..'Z' -> ('Ａ'.code + (c - 'A')).toChar()
+            in 'a'..'z' -> ('ａ'.code + (c - 'a')).toChar()
+            '-'         -> '－'
+            'ｰ'        -> 'ー'
+            else -> c
+        }
+    }.joinToString("")
 }

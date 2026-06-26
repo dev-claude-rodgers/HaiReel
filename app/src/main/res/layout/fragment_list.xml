@@ -39,26 +39,29 @@
             app:chipMinHeight="52dp"
             app:checkedIconVisible="false" />
 
+        <!-- 選択モード解除チップ（選択モード中のみ表示・chipIncompleteと同スタイル） -->
+        <com.google.android.material.chip.Chip
+            android:id="@+id/buttonSelect"
+            style="@style/Widget.MaterialComponents.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:layout_marginStart="8dp"
+            android:text="✕ 解除"
+            android:contentDescription="選択モードを解除"
+            android:textColor="@color/chip_text_selector"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:chipBackgroundColor="@color/chip_bg_selector"
+            app:chipStrokeColor="@color/chip_stroke_selector"
+            app:chipStrokeWidth="1.5dp"
+            app:chipMinHeight="52dp"
+            app:checkedIconVisible="false"
+            android:visibility="gone" />
+
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
-
-        <!-- 選択モードボタン -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonSelect"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:text="選択"
-            android:contentDescription="選択モード"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:minWidth="0dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            app:strokeColor="#FFFFFF" />
 
         <!-- 地図トグルボタン -->
         <com.google.android.material.button.MaterialButton
@@ -214,6 +217,17 @@
 
     <FrameLayout
         android:id="@+id/mapContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 荷室レイアウト表示エリア -->
+    <FrameLayout
+        android:id="@+id/vanContainer"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"

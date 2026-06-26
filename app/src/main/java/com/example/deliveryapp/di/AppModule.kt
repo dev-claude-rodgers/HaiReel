@@ -3,9 +3,13 @@ package com.rodgers.routist.di
 import android.content.Context
 import android.content.SharedPreferences
 import com.rodgers.routist.db.AppDatabase
+import com.google.android.gms.location.GeofencingClient
+import com.google.android.gms.location.LocationServices
 import com.rodgers.routist.db.GeocodingCacheDao
+import com.rodgers.routist.db.KnownAddressDao
 import com.rodgers.routist.db.TenkoDao
 import com.rodgers.routist.db.WorkRecordDao
+import com.rodgers.routist.util.DeliveryGeofenceManager
 import com.rodgers.routist.util.GeocodingApi
 import com.rodgers.routist.util.GeocodingClient
 import com.google.gson.Gson
@@ -45,6 +49,22 @@ object AppModule {
     @Provides
     @Singleton
     fun provideGeocodingCacheDao(db: AppDatabase): GeocodingCacheDao = db.geocodingCacheDao()
+
+    @Provides
+    @Singleton
+    fun provideKnownAddressDao(db: AppDatabase): KnownAddressDao = db.knownAddressDao()
+
+    @Provides
+    @Singleton
+    fun provideGeofencingClient(@ApplicationContext ctx: Context): GeofencingClient =
+        LocationServices.getGeofencingClient(ctx)
+
+    @Provides
+    @Singleton
+    fun provideDeliveryGeofenceManager(
+        @ApplicationContext ctx: Context,
+        client: GeofencingClient
+    ): DeliveryGeofenceManager = DeliveryGeofenceManager(ctx, client)
 
     @Provides
     @Singleton

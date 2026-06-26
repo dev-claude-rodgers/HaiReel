@@ -350,4 +350,8 @@ object AppSettings {
                 .edit().clear().apply()
         } catch (_: Exception) {}
     }
+
+    // ── 音声案内（TTS）設定 ──────────────────────────────────────
+    fun isTtsEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("tts_enabled", false)
+    fun setTtsEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("tts_enabled", v).apply()
 }
