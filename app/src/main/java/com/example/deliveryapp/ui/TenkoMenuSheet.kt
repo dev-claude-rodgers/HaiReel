@@ -50,10 +50,10 @@ internal fun TenkoFragment.showTenkoMenu() {
     row("🔔", "点呼リマインダー", "乗務前後の通知時刻を設定") { showReminderDialog() }
     divider()
     // ── 出力・共有
+    row("📈", "表示月の集計", "完了率・乗務時間・アルコール検知") { showMonthSummary() }
     row("📊", "Excel出力", "表示月の点呼簿をExcelで保存・共有") { exportTenko() }
     row("📄", "PDF出力", "表示月の点呼簿をPDFで保存・共有") { exportTenkoPdf() }
     row("📤", "テキストで共有", "LINEやメールで表示月の点呼記録を送る") { shareMonthText() }
-    row("📈", "表示月の集計", "完了率・乗務時間・アルコール検知") { showMonthSummary() }
     divider()
     row("🗑", "表示月の点呼データを削除", "削除直後は取り消し可能", redColor) { confirmDeleteMonth() }
 

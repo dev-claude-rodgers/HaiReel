@@ -58,14 +58,14 @@ internal fun DailyReportFragment.showReportMenu() {
     row("🖊️", "作業者署名を設定", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
     row("🤝", "取引先署名を設定", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
     divider()
+    // ── 集計
+    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
+    divider()
     // ── 締め日ベース出力
     sectionLabel("$cdLabel での出力（$periodLabel）")
     row("📊", "Excel出力", "帳票パターンの締め日で集計して出力") { exportExcel() }
     row("📄", "PDF出力", "帳票パターンの締め日で集計して出力") { exportReportPdf() }
     row("📤", "テキストで共有", "帳票パターンの締め日で集計して共有") { shareReportText() }
-    divider()
-    // ── 集計
-    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
 
     root.addView(View(ctx).apply {
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (20 * dp).toInt())

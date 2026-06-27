@@ -126,6 +126,9 @@ object GeocodingClient : GeocodingApi {
             if (resultsRev.length() == 0) return@withContext null
             val result = resultsRev.getJSONObject(0)
             val formatted = result.optString("formatted_address", "")
+                .replace(Regex("^日本[、,]\\s*"), "")
+                .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+                .trim()
             GeoResult(lat = lat, lng = lng, formattedAddress = formatted)
         } catch (e: Exception) { FirebaseCrashlytics.getInstance().recordException(e); null }
     }

@@ -152,7 +152,29 @@ internal fun DeliveryListFragment.showListActions() {
             setBackgroundColor(outlineVariant)
         })
 
-        // ── 音声案内トグル
+        // ── 追加・取り込み
+        row("📥", "名前・住所を追加", "テキスト・CSV・ファイルから追加する") {
+            inputLauncher.launch(Intent(requireContext(), InputActivity::class.java))
+        }
+        row("📚", "過去の配達先から追加", "名前・住所で検索して素早く1件追加する") { sheet.dismiss(); showAddressHistoryDialog() }
+        divider()
+        // ── 完了・選択操作
+        row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
+        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
+        row("☑️", "選択モード", "複数の配達先を選んで一括操作する") {
+            if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
+        }
+        divider()
+        // ── ルート管理
+        row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
+        row("✏️", "ルートの設定", "ルート名・配達エリアを編集する") { showRenameGroupDialog() }
+        row("📄", "ルートを複製", "同じ内容で別ルートを作成する") {
+            val groupId = viewModel.currentGroupId.value
+            viewModel.copyGroup(groupId)
+        }
+        row("📤", "ルートを共有", "LINE・メール等で送る") { shareList() }
+        divider()
+        // ── 設定・整形
         val ttsOn = com.rodgers.routist.util.AppSettings.isTtsEnabled(ctx)
         row(
             if (ttsOn) "🔊" else "🔇",
@@ -161,8 +183,9 @@ internal fun DeliveryListFragment.showListActions() {
                        else "タップすると配達完了後に次の住所を読み上げます"
         ) {
             val next = !com.rodgers.routist.util.AppSettings.isTtsEnabled(ctx)
+            com.rodgers.routist.util.TtsManager.speak(
+                if (next) "音声案内をオンにしました" else "音声案内をオフにします", ctx)
             com.rodgers.routist.util.AppSettings.setTtsEnabled(ctx, next)
-            if (next) com.rodgers.routist.util.TtsManager.speak("音声案内をオンにしました", ctx)
             android.widget.Toast.makeText(
                 ctx,
                 if (next) "🔊 音声案内をONにしました" else "🔇 音声案内をOFFにしました",
@@ -172,34 +195,11 @@ internal fun DeliveryListFragment.showListActions() {
         row("📖", "読み替え辞書", "誤読される単語を正しい読みに登録する") {
             sheet.dismiss(); showTtsDictionaryDialog()
         }
-        divider()
-
-        // ── 追加・取り込み
-        row("🔄", "住所を全角に一括変換", "既存データの半角数字・英字・ハイフンを全角に統一する") {
+        row("🔄", "住所を全角に一括変換", "半角数字・英字・ハイフンを全角に統一する") {
             sheet.dismiss()
             viewModel.normalizeAllAddresses()
             android.widget.Toast.makeText(requireContext(), "✅ 全角変換を実行しました", android.widget.Toast.LENGTH_SHORT).show()
         }
-        row("📥", "名前・住所を追加", "テキスト・CSV・ファイルから追加する") {
-            inputLauncher.launch(Intent(requireContext(), InputActivity::class.java))
-        }
-        row("📚", "過去の配達先から追加", "名前・住所で検索して素早く1件追加する") { sheet.dismiss(); showAddressHistoryDialog() }
-        row("☑️", "選択モード", "複数の配達先を選んで一括操作する") {
-            if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
-        }
-        divider()
-        // ── 完了操作
-        row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
-        row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
-        divider()
-        // ── ルート管理
-        row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
-        row("✏️", "ルート名を変更", "現在のルート名を編集する") { showRenameGroupDialog() }
-        row("📄", "ルートを複製", "同じ内容で別ルートを作成する") {
-            val groupId = viewModel.currentGroupId.value
-            viewModel.copyGroup(groupId)
-        }
-        row("📤", "ルートを共有", "LINE・メール等で送る") { shareList() }
         divider()
         // ── 危険操作
         row("🗑", "このルートを削除", "削除後は元に戻せません", redColor) { confirmDeleteGroup() }
@@ -431,7 +431,7 @@ internal fun DeliveryListFragment.showAddressHistoryDialog() {
     dialog.show()
 }
 
-/** TTS読み替え辞書 BottomSheet */
+/** 読み替え辞書 BottomSheet */
 internal fun DeliveryListFragment.showTtsDictionaryDialog() {
     val ctx   = requireContext()
     val dp    = ctx.resources.displayMetrics.density
@@ -454,7 +454,7 @@ internal fun DeliveryListFragment.showTtsDictionaryDialog() {
         gravity = android.view.Gravity.CENTER_VERTICAL
         setPadding((20*dp).toInt(), (16*dp).toInt(), (8*dp).toInt(), (8*dp).toInt())
         addView(android.widget.TextView(ctx).apply {
-            text = "📖 TTS読み替え辞書"
+            text = "📖 読み替え辞書"
             textSize = 18f; typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(onSurfaceColor)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -672,27 +672,53 @@ internal fun DeliveryListFragment.showAddressHistorySettings() {
 internal fun DeliveryListFragment.showRenameGroupDialog() {
         val ctx = requireContext()
         val group = viewModel.currentGroup() ?: return
-        val input = EditText(ctx).apply {
+        val dp = ctx.resources.displayMetrics.density
+
+        val layout = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt())
+        }
+        val inputName = EditText(ctx).apply {
             setText(group.name); selectAll()
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             filters = arrayOf(InputFilter.LengthFilter(20))
+            hint = "ルート名"
         }
+        val labelArea = android.widget.TextView(ctx).apply {
+            text = "配達エリア（気象警報通知に使用）"
+            textSize = 13f
+            setTextColor(ctx.getColor(android.R.color.darker_gray))
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.topMargin = (12 * dp).toInt() }
+        }
+        val inputArea = EditText(ctx).apply {
+            setText(viewModel.areaHint.value)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            hint = "例: 〇〇区、〇〇市"
+        }
+        layout.addView(inputName)
+        layout.addView(labelArea)
+        layout.addView(inputArea)
+
         val dlg = AlertDialog.Builder(ctx)
-            .setTitle("ルート名を変更")
-            .setView(input)
-            .setPositiveButton("変更", null)
+            .setTitle("ルートの設定")
+            .setView(layout)
+            .setPositiveButton("保存", null)
             .setNegativeButton("キャンセル", null)
             .show()
         dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            val name = input.text.toString().trim()
-            if (name.isBlank()) { input.error = "ルート名を入力してください"; return@setOnClickListener }
+            val name = inputName.text.toString().trim()
+            if (name.isBlank()) { inputName.error = "ルート名を入力してください"; return@setOnClickListener }
             viewModel.renameGroup(group.id, name)
+            viewModel.setAreaHint(inputArea.text.toString().trim())
             dlg.dismiss()
         }
-        input.postDelayed({
-            input.requestFocus()
+        inputName.postDelayed({
+            inputName.requestFocus()
             val imm = ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            imm.showSoftInput(inputName, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }, 150)
     }
 

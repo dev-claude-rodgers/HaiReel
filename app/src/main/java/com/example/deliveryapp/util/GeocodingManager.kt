@@ -27,8 +27,11 @@ class GeocodingManager @Inject constructor(
     suspend fun geocode(address: String): GeocodingClient.GeoResult? {
         val threshold = System.currentTimeMillis() - cacheTtlMs
         cache.get(address)?.takeIf { it.cachedAt >= threshold }?.let { cached ->
-            // formattedAddress が保存されていればそちらを返す（エリア判定の精度向上）
-            val formatted = cached.formattedAddress.ifBlank { address }
+            val formatted = cached.formattedAddress
+                .replace(Regex("^日本[、,]\\s*"), "")
+                .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+                .trim()
+                .ifBlank { address }
             return GeocodingClient.GeoResult(cached.lat, cached.lng, formatted)
         }
         val result = client.geocode(address) ?: return null

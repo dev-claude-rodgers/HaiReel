@@ -73,10 +73,23 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* granted/denied は自動で GeofenceManager が判定 */ }
 
+    private val fineLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+                bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            }
+        }
+    }
+
     private fun requestBackgroundLocationIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
             == PackageManager.PERMISSION_GRANTED) return
+
+        val fineGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
         AlertDialog.Builder(this)
             .setTitle("📦 到着通知を有効にする")
@@ -87,7 +100,11 @@ class MainActivity : AppCompatActivity() {
                 "次の画面で「常に許可」を選択してください。"
             )
             .setPositiveButton("設定する") { _, _ ->
-                bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                if (fineGranted) {
+                    bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                } else {
+                    fineLocationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                }
             }
             .setNegativeButton("後で", null)
             .show()
@@ -119,6 +136,10 @@ class MainActivity : AppCompatActivity() {
             viewModel.ttsNextAddress.collect { text ->
                 if (AppSettings.isTtsEnabled(this@MainActivity)) {
                     TtsManager.speak(text, this@MainActivity)
+                } else {
+                    val uri = android.media.RingtoneManager.getDefaultUri(
+                        android.media.RingtoneManager.TYPE_NOTIFICATION)
+                    android.media.RingtoneManager.getRingtone(this@MainActivity, uri)?.play()
                 }
             }
         }

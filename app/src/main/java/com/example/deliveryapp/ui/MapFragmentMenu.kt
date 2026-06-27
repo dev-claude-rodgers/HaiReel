@@ -154,6 +154,9 @@ import kotlinx.coroutines.withContext
             showRouteLines = !showRouteLines
             updateAllMarkers(viewModel.allDeliveries.value)
         }
+        val radarEmoji = if (rainRadarVisible) "🌧" else "⛅"
+        val radarSub   = if (rainRadarVisible) "雨雲レーダー ON → タップで非表示" else "雨雲レーダー OFF → タップで表示"
+        row(radarEmoji, "雨雲レーダー", radarSub) { toggleRainRadar() }
         row("👁", "他のルートも表示", "複数ルートを地図に重ねて表示する") { showGroupVisibilityDialog() }
         divider()
         // ── 周辺情報
@@ -166,9 +169,9 @@ import kotlinx.coroutines.withContext
         }
         divider()
         // ── 緊急
+        row("📞", "SOS連絡先を設定", "緊急時の連絡先電話番号を登録する") { showSosContactDialog() }
         row("🆘", "SOS送信", "緊急連絡先にSMSを送信する",
             ContextCompat.getColor(ctx, R.color.colorSosDanger)) { showSosDialog() }
-        row("📞", "SOS連絡先を設定", "緊急時の連絡先電話番号を登録する") { showSosContactDialog() }
         divider()
         // ── 削除
         row("🗑", "ピンをすべて削除", "現在のルートの全ピンを削除する",

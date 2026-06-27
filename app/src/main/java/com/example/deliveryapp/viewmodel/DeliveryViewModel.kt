@@ -185,10 +185,14 @@ class DeliveryViewModel @Inject constructor(
     // 候補選択ダイアログでユーザーが選んだ結果を直接適用する
     fun applyCandidate(deliveryId: String, name: String, address: String, lat: Double, lng: Double) {
         val groupId = _currentGroupId.value
+        val cleanAddress = address
+            .replace(Regex("^日本[、,]\\s*"), "")
+            .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+            .trim()
         val updated = _deliveries.value.map { d ->
             if (d.id == deliveryId) d.copy(
                 name = name.ifBlank { d.name },
-                address = address,
+                address = cleanAddress,
                 lat = lat,
                 lng = lng,
                 isGeocoded = true,
@@ -474,7 +478,10 @@ class DeliveryViewModel @Inject constructor(
                     "住所を検索できませんでした。\nネットワーク接続を確認してください。"
                 }
             }
-            val officialName = result?.formattedAddress?.ifBlank { newAddress } ?: newAddress
+            val officialName = (result?.formattedAddress?.ifBlank { newAddress } ?: newAddress)
+                .replace(Regex("^日本[、,]\\s*"), "")
+                .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+                .trim()
             val updated = _deliveries.value.map { d ->
                 if (d.id == id) d.copy(
                     name = newName.ifBlank { null },

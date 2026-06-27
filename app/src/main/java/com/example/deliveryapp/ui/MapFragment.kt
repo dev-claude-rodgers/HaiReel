@@ -90,6 +90,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal var showRouteLines = true
     internal var lastKnownLocation: android.location.Location? = null
     private var pendingPinLocation: LatLng? = null
+    private var tileOverlay: TileOverlay? = null
+    internal var rainRadarVisible = false
 
     internal data class NearbyPlace(val name: String, val address: String, val lat: Double, val lng: Double)
 
@@ -429,6 +431,88 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             map.setOnMyLocationChangeListener { location ->
                 lastKnownLocation = location
                 viewModel.setLocationBias(location.latitude, location.longitude)
+            }
+        }
+    }
+
+    internal fun toggleRainRadar() {
+        if (rainRadarVisible) {
+            tileOverlay?.remove()
+            tileOverlay = null
+            rainRadarVisible = false
+        } else {
+            loadRainRadar()
+        }
+    }
+
+    private fun loadRainRadar() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val info = com.rodgers.routist.util.RainRadarManager.fetchLatest()
+            if (info == null) {
+                if (isAdded) Toast.makeText(requireContext(), "雨雲データを取得できませんでした", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            tileOverlay = googleMap?.addTileOverlay(
+                TileOverlayOptions().tileProvider(createRainTileProvider(info)).transparency(0.0f)
+            )
+            rainRadarVisible = true
+            googleMap?.animateCamera(CameraUpdateFactory.zoomTo(6f))
+            if (isAdded) Toast.makeText(requireContext(),
+                "🌧 雨雲レーダーON：広域表示で雨域を確認できます",
+                Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private val emptyTileBytes: ByteArray by lazy {
+        val bmp = android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
+        val out = java.io.ByteArrayOutputStream()
+        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        bmp.recycle()
+        out.toByteArray()
+    }
+    private fun emptyTile() = com.google.android.gms.maps.model.Tile(1, 1, emptyTileBytes)
+
+    private fun createRainTileProvider(
+        info: com.rodgers.routist.util.RainRadarManager.RadarInfo
+    ): com.google.android.gms.maps.model.TileProvider {
+        val maxZoom = 5
+        return object : com.google.android.gms.maps.model.TileProvider {
+            override fun getTile(x: Int, y: Int, zoom: Int): com.google.android.gms.maps.model.Tile {
+                return try {
+                    val diff = maxOf(0, zoom - maxZoom)
+                    val tz = minOf(zoom, maxZoom)
+                    val tx = x shr diff
+                    val ty = y shr diff
+                    val conn = (java.net.URL("${info.host}${info.path}/256/$tz/$tx/$ty/6/1_1.png")
+                        .openConnection() as java.net.HttpURLConnection).also {
+                            it.connectTimeout = 5000; it.readTimeout = 5000
+                        }
+                    if (conn.responseCode != 200) return emptyTile()
+                    val rawBytes = conn.inputStream.use { it.readBytes() }
+                    if (rawBytes.size < 4 || rawBytes[0] != 0x89.toByte() || rawBytes[1] != 0x50.toByte()) {
+                        return emptyTile()
+                    }
+                    if (diff == 0) {
+                        return com.google.android.gms.maps.model.Tile(256, 256, rawBytes)
+                    }
+                    val src = android.graphics.BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size)
+                        ?: return emptyTile()
+                    val size = 256 shr diff
+                    if (size <= 0) return emptyTile()
+                    val ox = (x and ((1 shl diff) - 1)) * size
+                    val oy = (y and ((1 shl diff) - 1)) * size
+                    val cropped = android.graphics.Bitmap.createBitmap(src, ox, oy, size, size)
+                    src.recycle()
+                    val scaled = android.graphics.Bitmap.createScaledBitmap(cropped, 256, 256, true)
+                    if (scaled !== cropped) cropped.recycle()
+                    val bytes = java.io.ByteArrayOutputStream().also {
+                        scaled.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                    }.toByteArray()
+                    scaled.recycle()
+                    com.google.android.gms.maps.model.Tile(256, 256, bytes)
+                } catch (_: Exception) {
+                    emptyTile()
+                }
             }
         }
     }

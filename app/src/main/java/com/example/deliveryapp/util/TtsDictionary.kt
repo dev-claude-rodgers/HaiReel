@@ -4,7 +4,7 @@ import android.content.Context
 import org.json.JSONObject
 
 /**
- * TTS読み替え辞書
+ * 読み替え辞書
  * 「はなまさ」→「ハナマサ」のように登録しておくと、
  * 読み上げ前に自動で置換してTTSの誤読を防ぐ。
  */
