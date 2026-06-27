@@ -204,7 +204,7 @@ internal fun TenkoFragment.showTenkoSettings() {
     }
 
     root.addView(label("乗務員名"))
-    val etDriver  = field(AppSettings.getDriverName(ctx), "例: 山田 太郎")
+    val etDriver  = field(AppSettings.getDriverName(ctx), "例: 〇〇 〇〇")
     root.addView(etDriver)
 
     root.addView(label("確認者名（運行管理者）"))
@@ -212,12 +212,12 @@ internal fun TenkoFragment.showTenkoSettings() {
     root.addView(etChecker)
 
     root.addView(label("事業者名"))
-    val etCompany = field(AppSettings.getCompanyName(ctx), "例: 山田運送")
+    val etCompany = field(AppSettings.getCompanyName(ctx), "例: 〇〇運送")
     root.addView(etCompany)
 
     val savedVehicles = AppSettings.getVehicles(ctx)
     root.addView(label("使用車両 1"))
-    val etVehicle1 = field(savedVehicles[0], "例: 品川 100 あ 1234")
+    val etVehicle1 = field(savedVehicles[0], "例: 〇〇 100 あ 1234")
     root.addView(etVehicle1)
     root.addView(label("使用車両 2"))
     val etVehicle2 = field(savedVehicles[1], "例: 練馬 200 い 5678")

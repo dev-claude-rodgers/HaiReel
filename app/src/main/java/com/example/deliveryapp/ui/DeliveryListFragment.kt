@@ -243,6 +243,9 @@ class DeliveryListFragment : Fragment() {
         }
 
         binding.buttonMapToggle.setOnClickListener { cycleViewMode() }
+        binding.buttonSubToggle.setOnClickListener {
+            viewMode = ViewMode.LIST; applyViewMode()
+        }
 
         binding.buttonListMenu.setOnClickListener { showListActions() }
 
@@ -403,6 +406,8 @@ class DeliveryListFragment : Fragment() {
         binding.chipIncomplete.visibility = if (isList) View.VISIBLE else View.GONE
         binding.buttonListMenu.visibility = if (isList) View.VISIBLE else View.GONE
 
+        binding.buttonSubToggle.visibility = if (isMap) View.VISIBLE else View.GONE
+
         binding.buttonMapToggle.text = when (viewMode) {
             ViewMode.LIST -> getString(R.string.btn_map_toggle)
             ViewMode.MAP  -> "🚐 荷室"
@@ -436,6 +441,7 @@ class DeliveryListFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.reloadFromDb()
         if (viewMode != ViewMode.LIST) applyViewMode()
     }
 

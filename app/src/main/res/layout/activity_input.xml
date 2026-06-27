@@ -52,7 +52,7 @@
             android:textSize="16sp"
             android:textColor="#FFFFFF"
             android:textColorHint="#BBBBBB"
-            android:hint="配達先の住所やお店の名前を 1行ずつ入力してください&#10;例）東京都渋谷区渋谷1-1-1&#10;スターバックス渋谷店" />
+            android:hint="配達先の住所やお店の名前を 1行ずつ入力してください&#10;例）〇〇県〇〇市１ー１ー１" />
 
     </com.google.android.material.card.MaterialCardView>
 

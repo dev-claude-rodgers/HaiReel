@@ -142,7 +142,7 @@ internal fun DailyReportFragment.showAppSettingsDialog() {
 
     root.addView(field("車番（ナンバー）"))
     val etVehicle = EditText(ctx).apply {
-        hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+        hint = "例: 〇〇 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
         setText(AppSettings.getVehicleNumber(ctx))
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }

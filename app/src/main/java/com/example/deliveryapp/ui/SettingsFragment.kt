@@ -888,19 +888,19 @@ proxyroutine777@gmail.com"""
         val vehicles = AppSettings.getVehicles(ctx)
         root.addView(field("車番１"))
         val etVehicle1 = EditText(ctx).apply {
-            hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+            hint = "例: 〇〇 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
             setText(vehicles[0]); layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(etVehicle1)
         root.addView(field("車番２"))
         val etVehicle2 = EditText(ctx).apply {
-            hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+            hint = "例: 〇〇 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
             setText(vehicles[1]); layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(etVehicle2)
         root.addView(field("車番３"))
         val etVehicle3 = EditText(ctx).apply {
-            hint = "例: 品川 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+            hint = "例: 〇〇 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
             setText(vehicles[2]); layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(etVehicle3)

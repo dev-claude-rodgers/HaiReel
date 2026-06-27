@@ -482,7 +482,7 @@ class DailyReportFragment : Fragment() {
         // ── エリア
         root.addView(label("エリア"))
         val areaIn = EditText(ctx).apply {
-            hint = "例: 北部・市内"; setText(record.area)
+            hint = "例: 〇〇区・市内"; setText(record.area)
             inputType = InputType.TYPE_CLASS_TEXT
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }

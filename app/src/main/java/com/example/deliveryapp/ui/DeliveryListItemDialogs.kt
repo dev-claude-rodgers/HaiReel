@@ -363,14 +363,14 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         }
 
         val nameInput = EditText(ctx).apply {
-            hint = "例: ファミリーマート渋谷店"
+            hint = "例: 〇〇店"
             setText(delivery.name ?: "")
             inputType = InputType.TYPE_CLASS_TEXT
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
 
         val kanaInput = EditText(ctx).apply {
-            hint = "ふりがな（任意・音声案内で使用）例: やまだたろう"
+            hint = "任意・音声案内で使用"
             setText(delivery.nameKana ?: "")
             inputType = InputType.TYPE_CLASS_TEXT
             textSize = 13f
@@ -397,7 +397,7 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         }
 
         val addrInput = EditText(ctx).apply {
-            hint = "例: 東京都渋谷区〇〇1-2-3"
+            hint = "例: 〇〇県〇〇市１ー１ー１"
             // 店名として取り込まれた場合（name == address）は住所欄を空欄にする
             val displayAddr = if (!delivery.name.isNullOrBlank() && delivery.address == delivery.name) ""
                               else delivery.address

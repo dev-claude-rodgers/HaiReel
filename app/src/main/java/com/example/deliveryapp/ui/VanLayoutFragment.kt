@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.view.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.SeekBar
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
@@ -43,6 +44,9 @@ class VanLayoutFragment : Fragment() {
     private lateinit var pinOverlay: FrameLayout
     private lateinit var tvHint: TextView
     private lateinit var tvPinList: TextView
+    private lateinit var seekPinSize: SeekBar
+    private lateinit var tvPinSizeLabel: TextView
+    private var pinSizeDp = 80
 
     // カメラ
     private val cameraLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
@@ -91,6 +95,35 @@ class VanLayoutFragment : Fragment() {
             setBackgroundColor(Color.parseColor("#111111"))
         }
         root.addView(chipGroup)
+
+        // ── ピンサイズスライダー ──────────────────────────────────
+        pinSizeDp = loadPinSize()
+        val sliderRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.parseColor("#0D0D0D"))
+            setPadding((12*dp).toInt(), (4*dp).toInt(), (12*dp).toInt(), (4*dp).toInt())
+        }
+        sliderRow.addView(TextView(ctx).apply {
+            text = "📍"; textSize = 14f
+            setTextColor(Color.parseColor("#AAAAAA"))
+            setPadding(0, 0, (6*dp).toInt(), 0)
+        })
+        seekPinSize = SeekBar(ctx).apply {
+            max = 80          // 48dp〜128dp の範囲
+            progress = pinSizeDp - 48
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        sliderRow.addView(seekPinSize)
+        tvPinSizeLabel = TextView(ctx).apply {
+            text = "${pinSizeDp}dp"; textSize = 12f
+            setTextColor(Color.parseColor("#AAAAAA"))
+            setPadding((8*dp).toInt(), 0, 0, 0)
+            minWidth = (52*dp).toInt()
+            gravity = Gravity.END
+        }
+        sliderRow.addView(tvPinSizeLabel)
+        root.addView(sliderRow)
 
         // ── ヒント ─────────────────────────────────────────────────
         tvHint = TextView(ctx).apply {
@@ -150,6 +183,17 @@ class VanLayoutFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        seekPinSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
+                pinSizeDp = 48 + progress
+                tvPinSizeLabel.text = "${pinSizeDp}dp"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar) {}
+            override fun onStopTrackingTouch(sb: SeekBar) {
+                savePinSize(pinSizeDp)
+                renderLayout(viewModel.vanLayout.value)
+            }
+        })
         // データ監視はonViewCreated後に行う（viewLifecycleOwnerが確実に使える）
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.vanLayout.collectLatest { layout ->
@@ -263,6 +307,23 @@ class VanLayoutFragment : Fragment() {
         ))
     }
 
+    private fun loadPinSize(): Int =
+        requireContext().getSharedPreferences("van_layout_prefs", 0)
+            .getInt("pin_size_dp", 80)
+
+    private fun savePinSize(size: Int) {
+        requireContext().getSharedPreferences("van_layout_prefs", 0)
+            .edit().putInt("pin_size_dp", size).apply()
+    }
+
+    private fun clearPhotoUri(viewId: String) {
+        val groupId = viewModel.currentGroupId.value
+        val layout  = viewModel.vanLayout.value
+        viewModel.saveVanLayout(groupId, layout.copy(
+            views = layout.views.map { if (it.id == viewId) it.copy(photoUri = "") else it }
+        ))
+    }
+
     // ── ピン追加 ────────────────────────────────────────────────
     private fun showSelectDeliveryDialog(xPct: Float, yPct: Float) {
         val ctx      = requireContext()
@@ -319,7 +380,7 @@ class VanLayoutFragment : Fragment() {
             view.pins.forEach { pin ->
                 val x = pin.xPercent * bmp.width
                 val y = pin.yPercent * bmp.height
-                val r = 28f
+                val r = bmp.width * 0.03f * (pinSizeDp / 80f)
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG)
                 val groupColor = try {
                     Color.parseColor(viewModel.groups.value
@@ -386,13 +447,24 @@ class VanLayoutFragment : Fragment() {
 
         val view = layout.views.find { it.id == currentViewId } ?: return
 
-        // 写真
+        // 写真（setImageURIはlayout時に例外を投げるため、BitmapFactory経由で同期読み込み）
         if (view.photoUri.isBlank()) {
             ivPhoto.setImageDrawable(null)
             ivPhoto.setBackgroundColor(Color.parseColor("#222222"))
         } else {
-            try { ivPhoto.setImageURI(Uri.parse(view.photoUri)) }
-            catch (_: Exception) { }
+            try {
+                val bmp = ctx.contentResolver.openInputStream(Uri.parse(view.photoUri))
+                    ?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                if (bmp != null) {
+                    ivPhoto.setImageBitmap(bmp)
+                } else {
+                    ivPhoto.setImageDrawable(null)
+                    clearPhotoUri(view.id)
+                }
+            } catch (_: Exception) {
+                ivPhoto.setImageDrawable(null)
+                clearPhotoUri(view.id)
+            }
         }
 
         // ピン
@@ -401,7 +473,7 @@ class VanLayoutFragment : Fragment() {
             if (pinOverlay.width == 0) return@post
             view.pins.forEach { pin ->
                 val delivery = viewModel.deliveries.value.find { it.id == pin.deliveryId } ?: return@forEach
-                val size = (56 * dp).toInt()
+                val size = (pinSizeDp * dp).toInt()
                 val groupColor = try {
                     Color.parseColor(viewModel.groups.value
                         .find { it.id == viewModel.currentGroupId.value }?.colorHex ?: "#1565C0")
@@ -450,7 +522,7 @@ class VanLayoutFragment : Fragment() {
     }
 
     private fun createPinBitmap(number: Int, color: Int, completed: Boolean, dp: Float): Bitmap {
-        val size = (56 * dp).toInt()
+        val size = (pinSizeDp * dp).toInt()
         val bmp    = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val paint  = Paint(Paint.ANTI_ALIAS_FLAG)

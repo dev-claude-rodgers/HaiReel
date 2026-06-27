@@ -1,8 +1,12 @@
 ﻿package com.rodgers.routist
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.animation.DecelerateInterpolator
+import androidx.core.animation.doOnEnd
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -91,7 +95,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppSettings.getDarkMode(this))
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
+        splashScreen.setOnExitAnimationListener { provider ->
+            val icon = provider.iconView
+            val scaleX = ObjectAnimator.ofFloat(icon, View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
+            val scaleY = ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1f, 1.25f, 0.8f, 0f)
+            val fade  = ObjectAnimator.ofFloat(provider.view, View.ALPHA, 1f, 1f, 1f, 0f)
+            AnimatorSet().also { set ->
+                set.playTogether(scaleX, scaleY, fade)
+                set.duration = 500L
+                set.interpolator = DecelerateInterpolator()
+                set.doOnEnd { provider.remove() }
+                set.start()
+            }
+        }
         super.onCreate(savedInstanceState)
         // 初回起動日を記録
         AppSettings.ensureInstallDate(this)

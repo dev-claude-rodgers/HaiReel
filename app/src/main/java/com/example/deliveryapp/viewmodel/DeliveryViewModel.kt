@@ -775,18 +775,27 @@ class DeliveryViewModel @Inject constructor(
                         val current = _deliveries.value
                         if (_currentGroupId.value != groupId) return@batchGeocode  // 二重チェック
                         val updated = current.map { d ->
-                            if (d.id == result.deliveryId) d.copy(
-                                name = when {
-                                    !d.name.isNullOrBlank() -> d.name
-                                    result.suggestedName != null -> result.suggestedName
-                                    else -> null
-                                },
-                                address = result.officialAddress,
-                                lat = result.lat,
-                                lng = result.lng,
-                                isGeocoded = true,
-                                geocodedAddress = null
-                            ) else d
+                            if (d.id == result.deliveryId) {
+                                val originalAddress = originalList.find { it.id == d.id }?.address
+                                val userEdited = originalAddress != null && d.address != originalAddress
+                                if (userEdited) {
+                                    // ユーザーが手動編集した住所はジオコード結果で上書きしない（座標のみ更新）
+                                    d.copy(lat = result.lat, lng = result.lng, isGeocoded = true)
+                                } else {
+                                    d.copy(
+                                        name = when {
+                                            !d.name.isNullOrBlank() -> d.name
+                                            result.suggestedName != null -> result.suggestedName
+                                            else -> null
+                                        },
+                                        address = result.officialAddress,
+                                        lat = result.lat,
+                                        lng = result.lng,
+                                        isGeocoded = true,
+                                        geocodedAddress = null
+                                    )
+                                }
+                            } else d
                         }
                         commitDeliveries(groupId, updated)
                     }
@@ -820,6 +829,15 @@ class DeliveryViewModel @Inject constructor(
 
     internal fun saveGroupDeliveries(groupId: String, list: List<Delivery>) {
         viewModelScope.launch(Dispatchers.IO) { repo.saveDeliveries(groupId, list) }
+    }
+
+    fun reloadFromDb() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val groupId = _currentGroupId.value
+            if (groupId.isBlank()) return@launch
+            val list = repo.loadDeliveries(groupId)
+            withContext(Dispatchers.Main) { _deliveries.value = list }
+        }
     }
 
     private suspend fun loadAll() {

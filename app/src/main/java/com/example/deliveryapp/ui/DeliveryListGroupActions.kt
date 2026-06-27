@@ -248,7 +248,7 @@ internal fun DeliveryListFragment.showAddressHistoryDialog() {
         })
     })
     val etAddress = android.widget.EditText(ctx).apply {
-        hint = "例：港北区日吉、横浜市…"
+        hint = "例: 〇〇区〇〇、〇〇市…"
         textSize = 16f
         inputType = android.text.InputType.TYPE_CLASS_TEXT
         layoutParams = LinearLayout.LayoutParams(
@@ -469,7 +469,7 @@ internal fun DeliveryListFragment.showTtsDictionaryDialog() {
 
     // 説明文
     root.addView(android.widget.TextView(ctx).apply {
-        text = "誤読される単語をカタカナの読みに登録してください\n例: はなまさ → ハナマサ"
+        text = "誤読される単語をカタカナの読みに登録してください\n例: 〇〇まち → 〇〇マチ"
         textSize = 12f; setTextColor(onSurfaceVariant)
         setPadding((20*dp).toInt(), 0, (20*dp).toInt(), (8*dp).toInt())
     })
@@ -505,13 +505,13 @@ internal fun DeliveryListFragment.showTtsDictionaryDialog() {
         setTextColor(onSurfaceColor)
     })
     val etSurface = android.widget.EditText(ctx).apply {
-        hint = "表記（例: はなまさ）"; textSize = 14f
+        hint = "表記（例: 〇〇まち）"; textSize = 14f
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).also { it.topMargin = (6*dp).toInt() }
     }
     val etReading = android.widget.EditText(ctx).apply {
-        hint = "読み・カタカナ（例: ハナマサ）"; textSize = 14f
+        hint = "読み・カタカナ（例: 〇〇マチ）"; textSize = 14f
         layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).also { it.topMargin = (6*dp).toInt() }
