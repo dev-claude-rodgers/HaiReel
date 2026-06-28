@@ -807,24 +807,6 @@ internal fun DeliveryListFragment.confirmMarkAllCompleted() {
             .show()
     }
 
-internal fun DeliveryListFragment.showProgressDialog() {
-        val list = viewModel.deliveries.value
-        val total = list.size
-        if (total == 0) {
-            android.widget.Toast.makeText(requireContext(), "リストが空です", android.widget.Toast.LENGTH_SHORT).show()
-            return
-        }
-        val done = list.count { it.isCompleted }
-        val remaining = total - done
-        val percent = done * 100 / total
-        val groupName = viewModel.currentGroup()?.name ?: "配達リスト"
-        AlertDialog.Builder(requireContext())
-            .setTitle("📈  $groupName")
-            .setMessage("完了　　$done 件\n残り　　$remaining 件\n合計　　$total 件\n\n進捗　　$percent%")
-            .setPositiveButton("閉じる", null)
-            .show()
-    }
-
 internal fun DeliveryListFragment.confirmDeleteGroup() {
         val group = viewModel.currentGroup() ?: return
         AlertDialog.Builder(requireContext())

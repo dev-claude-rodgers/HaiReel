@@ -449,8 +449,8 @@ class SettingsFragment : Fragment() {
 
     private fun buildBackgroundSummary(ctx: android.content.Context): String {
         val items = mutableListOf<String>()
-        if (AppSettings.getReminderBeforeEnabled(ctx)) items.add("乗務前通知 ON")
-        if (AppSettings.getReminderAfterEnabled(ctx)) items.add("乗務後通知 ON")
+        if (AppSettings.getReminderBeforeEnabled(ctx)) items.add("乗務前リマインダー ON")
+        if (AppSettings.getReminderAfterEnabled(ctx)) items.add("乗務後リマインダー ON")
         return if (items.isEmpty()) "すべてOFF" else items.joinToString("・")
     }
 

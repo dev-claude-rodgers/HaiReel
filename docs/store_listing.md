@@ -1,7 +1,7 @@
-# RouteJin ストア掲載文
+# HaiReel ストア掲載文
 
 ## アプリ名
-RouteJin
+HaiReel
 
 ## 開発者名
 RODGERS

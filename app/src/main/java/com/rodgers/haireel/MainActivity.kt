@@ -130,11 +130,6 @@ class MainActivity : AppCompatActivity() {
 
         setupTabs()
 
-        // ライセンス期限通知チェック（デバッグビルドはスキップ）
-        if (!com.rodgers.haireel.BuildConfig.DEBUG) {
-            com.rodgers.haireel.util.LicenseNotificationHelper.checkAndNotify(this)
-        }
-
         // 利用規約未同意の場合は同意を求める（デバッグビルドはスキップ）
         if (!com.rodgers.haireel.BuildConfig.DEBUG && !AppSettings.isTermsAgreed(this)) {
             showTermsAgreementDialog()

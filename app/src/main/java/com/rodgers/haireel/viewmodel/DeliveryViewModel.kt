@@ -101,23 +101,8 @@ class DeliveryViewModel @Inject constructor(
         prefs.edit().putString("van_layout2_$groupId", arr.toString()).apply()
     }
 
-    fun clearVanLayout(groupId: String) {
-        _vanLayout.value = com.rodgers.haireel.model.VanLayout()
-        prefs.edit().remove("van_layout2_$groupId").apply()
-    }
-
     companion object {
         private const val TAG = "DeliveryViewModel"
-        private val APARTMENT_KEYWORDS = listOf(
-            "マンション", "アパート", "ハイツ", "コーポ", "レジデンス", "コート",
-            "荘", "ガーデン", "テラス", "ヴィラ", "ビレッジ", "タワー", "パレス",
-            "ハウス", "シティ", "プレイス", "エステート", "グランド", "サンシャイン"
-        )
-    }
-
-    fun isLikelyApartment(delivery: Delivery): Boolean {
-        val text = "${delivery.name.orEmpty()} ${delivery.address} ${delivery.geocodedAddress.orEmpty()}"
-        return APARTMENT_KEYWORDS.any { text.contains(it) }
     }
 
     fun generateRooms(deliveryId: String, roomNumbers: List<String>) {
@@ -180,13 +165,15 @@ class DeliveryViewModel @Inject constructor(
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     fun clearError() { _errorMessage.value = null }
 
+    private fun cleanGeocodedAddress(address: String): String =
+        address.replace(Regex("^日本[、,]\\s*"), "")
+               .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
+               .trim()
+
     // 候補選択ダイアログでユーザーが選んだ結果を直接適用する
     fun applyCandidate(deliveryId: String, name: String, address: String, lat: Double, lng: Double) {
         val groupId = _currentGroupId.value
-        val cleanAddress = address
-            .replace(Regex("^日本[、,]\\s*"), "")
-            .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
-            .trim()
+        val cleanAddress = cleanGeocodedAddress(address)
         val updated = _deliveries.value.map { d ->
             if (d.id == deliveryId) d.copy(
                 name = name.ifBlank { d.name },
@@ -472,10 +459,7 @@ class DeliveryViewModel @Inject constructor(
                     "住所を検索できませんでした。\nネットワーク接続を確認してください。"
                 }
             }
-            val officialName = (result?.formattedAddress?.ifBlank { newAddress } ?: newAddress)
-                .replace(Regex("^日本[、,]\\s*"), "")
-                .replace(Regex("〒\\d{3}-\\d{4}\\s*"), "")
-                .trim()
+            val officialName = cleanGeocodedAddress(result?.formattedAddress?.ifBlank { newAddress } ?: newAddress)
             val updated = _deliveries.value.map { d ->
                 if (d.id == id) d.copy(
                     name = newName.ifBlank { null },

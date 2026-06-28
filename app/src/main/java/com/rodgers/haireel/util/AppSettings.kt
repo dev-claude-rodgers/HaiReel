@@ -263,12 +263,10 @@ object AppSettings {
     fun isTermsAgreed(ctx: Context): Boolean = prefs(ctx).getBoolean("terms_agreed", false)
     fun setTermsAgreed(ctx: Context) = prefs(ctx).edit().putBoolean("terms_agreed", true).apply()
 
-    // ── ライセンス管理 ─────────────────────────────────────────
+    // ── 試用期間管理 ──────────────────────────────────────────
 
     private const val TRIAL_DAYS = 7L
     private const val KEY_INSTALL_DATE = "install_date"
-    private const val KEY_LICENSE_KEY  = "license_key"
-    private const val KEY_LICENSE_EXPIRY = "license_expiry"
 
     // 初回起動日を記録（一度セットしたら変わらない）
     fun ensureInstallDate(ctx: Context) {
@@ -291,20 +289,6 @@ object AppSettings {
         val elapsed = System.currentTimeMillis() - getInstallDate(ctx)
         val remaining = TRIAL_DAYS * 24 * 60 * 60 * 1000L - elapsed
         return maxOf(0, (remaining / (24 * 60 * 60 * 1000L)).toInt())
-    }
-
-    // ライセンスキー（EncryptedSharedPreferencesに保存）
-    fun getLicenseKey(ctx: Context): String = try { encryptedPrefs(ctx).getString(KEY_LICENSE_KEY, "") ?: "" } catch (_: Exception) { "" }
-    fun setLicenseKey(ctx: Context, key: String) { try { encryptedPrefs(ctx).edit().putString(KEY_LICENSE_KEY, key).apply() } catch (_: Exception) {} }
-
-    // ライセンス有効期限（エポック秒）
-    fun getLicenseExpiry(ctx: Context): Long = try { encryptedPrefs(ctx).getLong(KEY_LICENSE_EXPIRY, 0L) } catch (_: Exception) { 0L }
-    fun setLicenseExpiry(ctx: Context, expiry: Long) { try { encryptedPrefs(ctx).edit().putLong(KEY_LICENSE_EXPIRY, expiry).apply() } catch (_: Exception) {} }
-
-    // ライセンスが有効かどうか（期限内）
-    fun isLicenseValid(ctx: Context): Boolean {
-        val expiry = getLicenseExpiry(ctx)
-        return expiry > 0L && System.currentTimeMillis() < expiry
     }
 
     // ─── Google Play IAP サブスクリプション ──────────────────────
@@ -330,9 +314,9 @@ object AppSettings {
         return System.currentTimeMillis() - checkedAt > sevenDays
     }
 
-    // アプリを使えるかどうか（試用中 or ライセンス有効 or IAPサブスク有効）
+    // アプリを使えるかどうか（試用中 or IAPサブスク有効）
     fun canUseApp(ctx: Context): Boolean =
-        isInTrial(ctx) || isLicenseValid(ctx) || isSubscriptionActive(ctx)
+        isInTrial(ctx) || isSubscriptionActive(ctx)
 
     // 暗号化設定の個別削除（clear()はKeyStore破壊の既知バグがあるため使わない）
     fun clearSensitiveData(ctx: Context) {
@@ -340,8 +324,6 @@ object AppSettings {
             encryptedPrefs(ctx).edit()
                 .remove("user_api_key")
                 .remove("backup_password")
-                .remove(KEY_LICENSE_KEY)
-                .remove(KEY_LICENSE_EXPIRY)
                 .apply()
         } catch (_: Exception) {}
         // フォールバック側も念のためクリア

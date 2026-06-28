@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val DTAG = "DeliveryDownloads"
+private fun String.toSafeFileName() = replace(Regex("[/\\\\:*?\"<>|]"), "_")
 
 // Downloads 操作: DeliveryViewModel の extension functions
 // ─────────────────────────────────────────────────
@@ -30,7 +31,7 @@ internal fun DeliveryViewModel.createMissingDownloadFiles(activeGroups: List<Del
                 activeGroups.forEach { group ->
                     val list = repo.loadDeliveries(group.id)
                     if (list.isEmpty()) return@forEach
-                    val safeName = group.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+                    val safeName = group.name.toSafeFileName()
                     val fileName = "HaiReel_$safeName.txt"
                     val exists = resolver.query(
                         baseUri, arrayOf(MediaStore.Downloads._ID),
@@ -96,7 +97,7 @@ internal fun DeliveryViewModel.deleteDownloadsFile(groupId: String, groupName: S
                     repo.clearDownloadFileUri(groupId)
                 }
                 val baseUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                val safeName = groupName.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+                val safeName = groupName.toSafeFileName()
                 val fileName = "HaiReel_$safeName.txt"
                 resolver.query(
                     baseUri, arrayOf(MediaStore.Downloads._ID),
@@ -129,7 +130,7 @@ internal fun DeliveryViewModel.exportToDownloads(groupId: String, list: List<Del
         val label = if (!d.name.isNullOrBlank()) d.name else d.address
         "${index + 1}. $label"
     }.joinToString("\n")
-    val safeName = group.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+    val safeName = group.name.toSafeFileName()
     val fileName = "HaiReel_$safeName.txt"
     viewModelScope.launch(Dispatchers.IO) {
         try {
