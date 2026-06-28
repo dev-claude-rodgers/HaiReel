@@ -40,3 +40,7 @@
 
 # Security Crypto（EncryptedSharedPreferences）
 -keep class androidx.security.crypto.** { *; }
+
+# Google Play Billing（課金クラス・インターフェースを保護）
+-keep class com.android.billingclient.** { *; }
+-keep interface com.android.billingclient.** { *; }

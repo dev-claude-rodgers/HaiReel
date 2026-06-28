@@ -204,9 +204,11 @@ object BillingManager {
         scope.launch {
             purchases?.forEach { purchase ->
                 if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                    acknowledgePurchase(purchase)
-                    AppSettings.setSubscriptionActive(ctx, true)
-                    _subscriptionState.value = SubscriptionState.SUBSCRIBED
+                    val acked = acknowledgePurchase(purchase)
+                    if (acked) {
+                        AppSettings.setSubscriptionActive(ctx, true)
+                        _subscriptionState.value = SubscriptionState.SUBSCRIBED
+                    }
                 } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
                     _subscriptionState.value = SubscriptionState.PENDING
                 }
@@ -214,13 +216,14 @@ object BillingManager {
         }
     }
 
-    private suspend fun acknowledgePurchase(purchase: Purchase) {
-        if (purchase.isAcknowledged) return
+    private suspend fun acknowledgePurchase(purchase: Purchase): Boolean {
+        if (purchase.isAcknowledged) return true
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
             .build()
         val result = billingClient?.acknowledgePurchase(params)
         Log.d(TAG, "Acknowledge: ${result?.responseCode}")
+        return result?.responseCode == BillingClient.BillingResponseCode.OK
     }
 
     // ─── 商品情報の取得（価格表示用）──────────────────────────

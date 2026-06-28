@@ -7,8 +7,8 @@ import java.util.Locale
 /** Android標準TTSのシングルトンラッパー（追加ライブラリなし） */
 object TtsManager {
 
-    private var tts: TextToSpeech? = null
-    private var isReady = false
+    @Volatile private var tts: TextToSpeech? = null
+    @Volatile private var isReady = false
 
     fun init(ctx: Context) {
         if (tts != null) return
