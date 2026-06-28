@@ -1,21 +1,21 @@
-# Kotlin メタデータ・アノテーション保持
+﻿# Kotlin メタデータ・アノテーション保持
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
 
 # Gson: モデルクラスのフィールド名を保持（JSON デシリアライズに必要）
--keep class com.rodgers.routist.model.** { *; }
+-keep class com.rodgers.haireel.model.** { *; }
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
 
 # BuildConfig（APIキーアクセスに使用）
--keep class com.rodgers.routist.BuildConfig { *; }
+-keep class com.rodgers.haireel.BuildConfig { *; }
 
 # ViewBinding（R8がクラスを削除しないよう保護）
--keep class com.rodgers.routist.databinding.** { *; }
+-keep class com.rodgers.haireel.databinding.** { *; }
 
 # Room Entity・DAO（フィールド名・クエリ名を保持）
--keep class com.rodgers.routist.model.WorkRecord { *; }
--keep class com.rodgers.routist.model.TenkoRecord { *; }
--keep class com.rodgers.routist.db.** { *; }
+-keep class com.rodgers.haireel.model.WorkRecord { *; }
+-keep class com.rodgers.haireel.model.TenkoRecord { *; }
+-keep class com.rodgers.haireel.db.** { *; }
 
 # Enum（R8がordinal/nameを削除しないよう保護）
 -keepclassmembers enum * { *; }

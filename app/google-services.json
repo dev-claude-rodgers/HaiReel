@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:776767939941:android:2cfda486471110a4362d8c",
         "android_client_info": {
-          "package_name": "com.rodgers.routist"
+          "package_name": "com.rodgers.haireel"
         }
       },
       "oauth_client": [],
@@ -28,7 +28,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:776767939941:android:2cfda486471110a4362d8c",
         "android_client_info": {
-          "package_name": "com.rodgers.routist.debug"
+          "package_name": "com.rodgers.haireel.debug"
         }
       },
       "oauth_client": [],

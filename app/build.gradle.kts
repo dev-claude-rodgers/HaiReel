@@ -1,4 +1,4 @@
-import java.util.Properties
+﻿import java.util.Properties
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -19,16 +19,16 @@ val localProps = Properties().apply {
 }
 
 android {
-    namespace = "com.rodgers.routist"
+    namespace = "com.rodgers.haireel"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.rodgers.routist"
+        applicationId = "com.rodgers.haireel"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
-        testInstrumentationRunner = "com.rodgers.routist.HiltTestRunner"
+        versionCode = 2
+        versionName = "2.0.0"
+        testInstrumentationRunner = "com.rodgers.haireel.HiltTestRunner"
 
         val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: ""
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
@@ -104,7 +104,7 @@ android {
             val ts = LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
-                .outputFileName = "RouteJin_${ts}.apk"
+                .outputFileName = "HaiReel_${ts}.apk"
         }
     }
 }

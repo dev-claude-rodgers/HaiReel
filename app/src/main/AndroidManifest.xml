@@ -8,12 +8,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
-        android:name=".RouteJinApp"
+        android:name=".HaiReelApp"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -56,21 +55,12 @@
             </intent-filter>
         </activity>
 
-        <!-- ジオフェンス到着通知 -->
-        <receiver
-            android:name=".ui.DeliveryGeofenceReceiver"
-            android:exported="true" />
-        <!-- 通知ボタン（完了/スキップ）処理 -->
-        <receiver
-            android:name=".ui.DeliveryActionReceiver"
-            android:exported="false" />
-
         <receiver
             android:name=".util.ReminderReceiver"
             android:exported="false" />
 
         <receiver
-            android:name=".ui.RouteJinWidget"
+            android:name=".ui.HaiReelWidget"
             android:exported="true"
             android:label="HaiReel">
             <intent-filter>
@@ -78,7 +68,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/routejin_widget_info" />
+                android:resource="@xml/haireel_widget_info" />
         </receiver>
 
         <receiver

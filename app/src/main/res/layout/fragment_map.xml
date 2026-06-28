@@ -79,4 +79,24 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
+    <!-- 配達先なし時のEmptyView -->
+    <TextView
+        android:id="@+id/emptyMapView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📍 配達先がありません\nメニュー → 住所をインポートから追加できます"
+        android:textSize="15sp"
+        android:textColor="#CC000000"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="16dp"
+        android:background="#DDFFFFFF"
+        android:elevation="2dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
