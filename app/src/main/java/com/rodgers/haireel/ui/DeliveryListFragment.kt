@@ -77,9 +77,6 @@ class DeliveryListFragment : Fragment() {
     enum class ViewMode { LIST, MAP, VAN }
     internal var viewMode = ViewMode.LIST
 
-    enum class SortMode { ORIGINAL, TIME_SLOT, AREA, PACKAGE_COUNT }
-    internal var sortMode = SortMode.ORIGINAL
-
     internal var pendingPhotoDeliveryId: String? = null
     internal var pendingPhotoFilePath: String? = null
 
@@ -297,7 +294,6 @@ class DeliveryListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.currentGroupId.collectLatest {
                 filterMode = FilterMode.ALL
-                sortMode = SortMode.ORIGINAL
                 binding.chipIncomplete.text = "すべて"
                 exitSelectMode()
                 applyFilter()
@@ -354,16 +350,7 @@ class DeliveryListFragment : Fragment() {
             FilterMode.INCOMPLETE -> list.filter { !it.isCompleted }
             FilterMode.COMPLETED -> list.filter { it.isCompleted }
         }
-        val baseSorted = when (sortMode) {
-            SortMode.ORIGINAL      -> filtered.sortedBy { it.order }
-            SortMode.TIME_SLOT     -> filtered.sortedWith(
-                compareBy(nullsLast()) { it.timeSlot?.takeIf { s -> s.isNotBlank() } }
-            )
-            SortMode.AREA          -> filtered.sortedBy { AddressParser.extractAreaKey(it.displayAddress) }
-            SortMode.PACKAGE_COUNT -> filtered.sortedByDescending { it.packageCount }
-        }
-        val sorted = if (loadedIds.isEmpty() || sortMode == SortMode.ORIGINAL) baseSorted
-                     else baseSorted.filter { it.id !in loadedIds } + baseSorted.filter { it.id in loadedIds }
+        val sorted = filtered.sortedBy { it.order }
         adapter.submitList(sorted)
         binding.textEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
 

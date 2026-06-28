@@ -164,25 +164,6 @@ internal fun DeliveryListFragment.showListActions() {
                       else "${viewModel.deliveries.value.count { it.id in loadedIds }}/${viewModel.deliveries.value.size}件 積み込み済み"
         row("📦", "積み込みチェック", loadSub) { showLoadingCheckSheet() }
         divider()
-        // ── 並び替え
-        fun sortEmoji(mode: DeliveryListFragment.SortMode) = if (sortMode == mode) "✓" else "  "
-        row(sortEmoji(DeliveryListFragment.SortMode.ORIGINAL), "元の順番",
-            "インポート時の順番に戻す") {
-            sortMode = DeliveryListFragment.SortMode.ORIGINAL; applyFilter()
-        }
-        row(sortEmoji(DeliveryListFragment.SortMode.TIME_SLOT), "時間帯順",
-            "時間指定が早い順（未設定は末尾）") {
-            sortMode = DeliveryListFragment.SortMode.TIME_SLOT; applyFilter()
-        }
-        row(sortEmoji(DeliveryListFragment.SortMode.AREA), "エリア順",
-            "住所の丁目・エリアでまとめて並べる") {
-            sortMode = DeliveryListFragment.SortMode.AREA; applyFilter()
-        }
-        row(sortEmoji(DeliveryListFragment.SortMode.PACKAGE_COUNT), "個数順（多い順）",
-            "荷物が多い順に並べる（積み込み計画用）") {
-            sortMode = DeliveryListFragment.SortMode.PACKAGE_COUNT; applyFilter()
-        }
-        divider()
 
         // ── 完了・選択操作
         row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
@@ -888,14 +869,8 @@ internal fun DeliveryListFragment.shareList() {
 internal fun DeliveryListFragment.showLoadingCheckSheet() {
     val ctx = requireContext()
     val dp  = ctx.resources.displayMetrics.density
-    val raw = viewModel.deliveries.value
-    val baseSorted = when (sortMode) {
-        DeliveryListFragment.SortMode.ORIGINAL      -> raw.sortedBy { it.order }
-        DeliveryListFragment.SortMode.TIME_SLOT     -> raw.sortedWith(compareBy(nullsLast()) { it.timeSlot?.takeIf { s -> s.isNotBlank() } })
-        DeliveryListFragment.SortMode.AREA          -> raw.sortedBy { com.rodgers.haireel.util.AddressParser.extractAreaKey(it.displayAddress) }
-        DeliveryListFragment.SortMode.PACKAGE_COUNT -> raw.sortedByDescending { it.packageCount }
-    }
-    val deliveries = baseSorted.filter { it.id !in loadedIds } + baseSorted.filter { it.id in loadedIds }
+    val raw = viewModel.deliveries.value.sortedBy { it.order }
+    val deliveries = raw.filter { it.id !in loadedIds } + raw.filter { it.id in loadedIds }
     if (deliveries.isEmpty()) {
         Toast.makeText(ctx, "配達先がありません", Toast.LENGTH_SHORT).show()
         return
