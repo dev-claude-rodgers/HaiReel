@@ -11,7 +11,7 @@ data class VanLayoutPin(
     val orderLabel: Int    // 配達番号（ピンに表示する数字）
 )
 
-/** 1つのビュー（例: 右ドア・左ドア・バック）の写真＋ピンセット */
+/** 1つのビュー（例: 右ドア・左ドア）の写真＋ピンセット */
 data class VanView(
     val id: String              = UUID.randomUUID().toString(),
     val name: String,           // ユーザーが自由に設定する名前

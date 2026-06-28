@@ -216,7 +216,7 @@ class VanLayoutFragment : Fragment() {
         val ctx   = requireContext()
         val dp    = ctx.resources.displayMetrics.density
         val input = EditText(ctx).apply {
-            hint = "例: 右ドア・左ドア・バック"
+            hint = "例: 右ドア・左ドア"
             setText(editView?.name ?: "")
             textSize = 16f
             setPadding((16*dp).toInt(), (12*dp).toInt(), (16*dp).toInt(), (12*dp).toInt())
