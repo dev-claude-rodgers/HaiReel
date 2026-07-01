@@ -119,6 +119,7 @@ internal fun DailyReportFragment.shareReportText() {
                         ColumnType.INCOME         -> if (r.income > 0) "${col.label}:${"%,d".format(r.income)}円" else null
                         ColumnType.AREA           -> r.area.takeIf { it.isNotBlank() }?.let { "${col.label}:$it" }
                         ColumnType.REMARKS        -> r.remarks.takeIf { it.isNotBlank() }?.let { "📝$it" }
+                        ColumnType.ALC_CHECK      -> r.alcCheck.takeIf { it.isNotBlank() }?.let { "${col.label}:$it" }
                     }
                     if (v != null) append("  $v")
                 }

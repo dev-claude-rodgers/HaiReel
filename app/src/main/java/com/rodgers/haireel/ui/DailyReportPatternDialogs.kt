@@ -298,7 +298,8 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
         ColumnType.METER_END,
         ColumnType.DISTANCE,
         ColumnType.FUEL_COST,
-        ColumnType.INCOME
+        ColumnType.INCOME,
+        ColumnType.ALC_CHECK
     )
     val colTypeLabels = allowedColTypes.map { it.defaultLabel }.toTypedArray()
 

@@ -12,7 +12,8 @@ enum class ColumnType(val defaultLabel: String) {
     METER_END("終了メーター(km)"),
     INCOME("収入"),
     AREA("エリア"),
-    REMARKS("備考")
+    REMARKS("備考"),
+    ALC_CHECK("ALCチェック")
 }
 
 data class ExcelColumn(val type: ColumnType, val label: String)

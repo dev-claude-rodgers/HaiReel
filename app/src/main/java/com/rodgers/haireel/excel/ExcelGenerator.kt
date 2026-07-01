@@ -95,6 +95,7 @@ class ExcelGenerator(private val context: Context) {
                     if (totalIncome > 0) "%,d円".format(totalIncome) else "")
                 ColumnType.AREA          -> ColDef(col.label, { it?.area ?: "" })
                 ColumnType.REMARKS       -> ColDef(col.label, { it?.remarks ?: "" })
+                ColumnType.ALC_CHECK     -> ColDef(col.label, { it?.alcCheck ?: "" })
             }
         }
 
