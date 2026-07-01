@@ -220,7 +220,6 @@ class ExcelGenerator(private val context: Context) {
         val colWs = columns.mapIndexed { idx, col ->
             val vals = allDays.mapNotNull { day -> recordMap[day.format(isoFmt)]?.let { col.getData(it) } } + listOf(col.totalValue)
             val extras = buildList<String> {
-                if (idx == 0)                    { add(pattern.driverName); add(pattern.clientName) }
                 if (idx == columns.size - 2)     { add("集計期間"); add("締め日") }
                 if (idx == columns.size - 1)     { add(periodText); add(closingLabel) }
             }
@@ -241,9 +240,19 @@ class ExcelGenerator(private val context: Context) {
         sb.append(sc("A", 1, titleText, s = 3))
         sb.append("</row>")
 
+        val nameEndIdx = numCols - 3
+        val hasNameMerge = nameEndIdx >= 2
+        if (hasNameMerge) {
+            merges.add("B2:${colLetter(nameEndIdx)}2")
+            merges.add("B3:${colLetter(nameEndIdx)}3")
+        }
+
         sb.append("""<row r="2">""")
         sb.append(sc("A", 2, "作業者", s = 8))
         sb.append(sc("B", 2, pattern.driverName))
+        if (hasNameMerge) {
+            for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 2, ""))
+        }
         if (numCols >= 2) {
             sb.append(sc(colLetter(numCols - 2), 2, "集計期間", s = 8))
             sb.append(sc(lastLetter, 2, periodText))
@@ -253,6 +262,9 @@ class ExcelGenerator(private val context: Context) {
         sb.append("""<row r="3">""")
         sb.append(sc("A", 3, "取引先", s = 8))
         sb.append(sc("B", 3, pattern.clientName))
+        if (hasNameMerge) {
+            for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 3, ""))
+        }
         if (numCols >= 2) {
             sb.append(sc(colLetter(numCols - 2), 3, "締め日", s = 8))
             sb.append(sc(lastLetter, 3, closingLabel))
@@ -301,10 +313,8 @@ class ExcelGenerator(private val context: Context) {
             sb.append("""<row r="$row">""")
             sb.append(sc("A", row, dateDisplay, s = style))
             if (record != null && record.noWork) {
-                // 稼働なし行：最初の列に「休み」を表示し残りは空白
-                sb.append(sc(colLetter(1), row, "休み", s = style))
-                columns.drop(1).forEachIndexed { ci, _ ->
-                    sb.append(sc(colLetter(ci + 2), row, "", s = style))
+                columns.forEachIndexed { ci, _ ->
+                    sb.append(sc(colLetter(ci + 1), row, "", s = style))
                 }
             } else {
                 columns.forEachIndexed { ci, col ->

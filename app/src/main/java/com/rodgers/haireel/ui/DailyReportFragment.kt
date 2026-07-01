@@ -341,33 +341,34 @@ class DailyReportFragment : Fragment() {
                 .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
         }
 
-        // ── 稼働なしトグル
-        val noWorkColor = ctx.themeColor(com.google.android.material.R.attr.colorError)
-        val noWorkBtnRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        // ── 稼働あり / 休み セグメントボタン
+        val workBtnId = android.view.View.generateViewId()
+        val restBtnId = android.view.View.generateViewId()
+        val noWorkToggle = com.google.android.material.button.MaterialButtonToggleGroup(ctx).apply {
+            isSingleSelection = true
+            isSelectionRequired = true
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.bottomMargin = (8 * dp).toInt() }
+                .also { it.bottomMargin = (12 * dp).toInt() }
         }
-        val btnNoWork = com.google.android.material.button.MaterialButton(ctx).apply {
-            isAllCaps = false; textSize = 14f
-            layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+        val btnWork = com.google.android.material.button.MaterialButton(
+            ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            id = workBtnId; text = "稼働あり"; isAllCaps = false; textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
         }
-        fun refreshNoWorkBtn() {
-            if (isNoWork) {
-                btnNoWork.text = "休み（稼働なし）"
-                btnNoWork.setBackgroundColor(noWorkColor)
-                btnNoWork.setTextColor(android.graphics.Color.WHITE)
-            } else {
-                btnNoWork.text = "稼働あり"
-                btnNoWork.backgroundTintList = null
-                btnNoWork.setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant))
-                btnNoWork.setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-            }
+        val btnRest = com.google.android.material.button.MaterialButton(
+            ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            id = restBtnId; text = "休み"; isAllCaps = false; textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
         }
-        refreshNoWorkBtn()
-        btnNoWork.setOnClickListener { isNoWork = !isNoWork; refreshNoWorkBtn() }
-        noWorkBtnRow.addView(btnNoWork)
-        root.addView(noWorkBtnRow)
+        noWorkToggle.addView(btnWork)
+        noWorkToggle.addView(btnRest)
+        noWorkToggle.check(if (isNoWork) restBtnId else workBtnId)
+        noWorkToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) isNoWork = (checkedId == restBtnId)
+        }
+        root.addView(noWorkToggle)
 
         // ── 日付
         val btnDate = android.widget.Button(ctx).apply {
