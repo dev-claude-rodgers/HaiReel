@@ -231,7 +231,7 @@ object AppSettings {
 
     // ユーザー独自のGoogle APIキー（EncryptedSharedPreferencesに保存）
     fun getUserApiKey(ctx: Context): String = encryptedPrefs(ctx).getString("user_api_key", "") ?: ""
-    fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).commit() }
+    fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).apply() }
     fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
 
 

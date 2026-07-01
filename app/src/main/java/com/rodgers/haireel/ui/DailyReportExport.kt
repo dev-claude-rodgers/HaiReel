@@ -12,7 +12,6 @@ import com.rodgers.haireel.util.BackupManager
 import com.rodgers.haireel.util.PatternStorage
 import com.rodgers.haireel.util.SignatureStorage
 import com.rodgers.haireel.viewmodel.*
-import com.rodgers.haireel.viewmodel.ReportViewModel
 import kotlinx.coroutines.launch
 
 internal fun DailyReportFragment.exportExcel() {

@@ -56,15 +56,16 @@ class ExcelGenerator(private val context: Context) {
         val periodLabel = "${periodStart.monthValue}/${periodStart.dayOfMonth}〜${periodEnd.monthValue}/${periodEnd.dayOfMonth}"
         val recordMap = records.associateBy { it.date }
 
-        val totalMins   = records.sumOf { it.workingMinutes }
-        val totalDeliv  = records.sumOf { it.deliveryCount }
-        val totalPkg    = records.sumOf { it.packageCount }
-        val totalDist   = records.sumOf { it.distanceKm.toDouble() }
+        val workRecords = records.filter { !it.noWork }
+        val totalMins   = workRecords.sumOf { it.workingMinutes }
+        val totalDeliv  = workRecords.sumOf { it.deliveryCount }
+        val totalPkg    = workRecords.sumOf { it.packageCount }
+        val totalDist   = workRecords.sumOf { it.distanceKm.toDouble() }
         val totalHours  = "%d時間%02d分".format(totalMins / 60, totalMins % 60)
-        val workingDays = records.sumOf { 1 + it.endDateOffset }
+        val workingDays = workRecords.sumOf { 1 + it.endDateOffset }
 
-        val totalFuel   = records.sumOf { it.fuelCost }
-        val totalIncome = records.sumOf { it.income }
+        val totalFuel   = workRecords.sumOf { it.fuelCost }
+        val totalIncome = workRecords.sumOf { it.income }
 
         val columns = pattern.excelColumns.map { col ->
             when (col.type) {
@@ -74,23 +75,23 @@ class ExcelGenerator(private val context: Context) {
                 })
                 ColumnType.WORKING_HOURS -> ColDef(col.label, { it?.workingHoursText ?: "" }, totalHours)
                 ColumnType.DELIVERY_COUNT -> ColDef(col.label,
-                    { if ((it?.deliveryCount ?: 0) > 0) "${it!!.deliveryCount}件" else "" },
+                    { r -> r?.deliveryCount?.takeIf { it > 0 }?.let { "${it}件" } ?: "" },
                     if (totalDeliv > 0) "${totalDeliv}件" else "")
                 ColumnType.PACKAGE_COUNT -> ColDef(col.label,
-                    { if ((it?.packageCount ?: 0) > 0) "${it!!.packageCount}個" else "" },
+                    { r -> r?.packageCount?.takeIf { it > 0 }?.let { "${it}個" } ?: "" },
                     if (totalPkg > 0) "${totalPkg}個" else "")
                 ColumnType.DISTANCE      -> ColDef(col.label,
-                    { if (it != null && it.distanceKm > 0f) "%.0fkm".format(it.distanceKm) else "" },
+                    { r -> r?.distanceKm?.takeIf { it > 0f }?.let { "%.0fkm".format(it) } ?: "" },
                     if (totalDist > 0) "%.0fkm".format(totalDist) else "")
                 ColumnType.FUEL_COST     -> ColDef(col.label,
-                    { if ((it?.fuelCost ?: 0) > 0) "%,d円".format(it!!.fuelCost) else "" },
+                    { r -> r?.fuelCost?.takeIf { it > 0 }?.let { "%,d円".format(it) } ?: "" },
                     if (totalFuel > 0) "%,d円".format(totalFuel) else "")
                 ColumnType.METER_START   -> ColDef(col.label,
-                    { if (it != null && it.startMeter > 0) "${it.startMeter}km" else "" })
+                    { r -> r?.startMeter?.takeIf { it > 0 }?.let { "${it}km" } ?: "" })
                 ColumnType.METER_END     -> ColDef(col.label,
-                    { if (it != null && it.endMeter > 0) "${it.endMeter}km" else "" })
+                    { r -> r?.endMeter?.takeIf { it > 0 }?.let { "${it}km" } ?: "" })
                 ColumnType.INCOME        -> ColDef(col.label,
-                    { if ((it?.income ?: 0) > 0) "%,d円".format(it!!.income) else "" },
+                    { r -> r?.income?.takeIf { it > 0 }?.let { "%,d円".format(it) } ?: "" },
                     if (totalIncome > 0) "%,d円".format(totalIncome) else "")
                 ColumnType.AREA          -> ColDef(col.label, { it?.area ?: "" })
                 ColumnType.REMARKS       -> ColDef(col.label, { it?.remarks ?: "" })
@@ -292,14 +293,22 @@ class ExcelGenerator(private val context: Context) {
             }
 
             val record = recordMap[dayStr]
-            val dateDisplay = if (record != null && record.endDateOffset > 0)
+            val dateDisplay = if (record != null && !record.noWork && record.endDateOffset > 0)
                 "${day.format(dateFmt)}〜${day.plusDays(record.endDateOffset.toLong()).format(dateFmt)}"
             else
                 day.format(dateFmt)
             sb.append("""<row r="$row">""")
             sb.append(sc("A", row, dateDisplay, s = style))
-            columns.forEachIndexed { ci, col ->
-                sb.append(sc(colLetter(ci + 1), row, col.getData(record), s = style))
+            if (record != null && record.noWork) {
+                // 稼働なし行：最初の列に「休み」を表示し残りは空白
+                sb.append(sc(colLetter(1), row, "休み", s = style))
+                columns.drop(1).forEachIndexed { ci, _ ->
+                    sb.append(sc(colLetter(ci + 2), row, "", s = style))
+                }
+            } else {
+                columns.forEachIndexed { ci, col ->
+                    sb.append(sc(colLetter(ci + 1), row, col.getData(record), s = style))
+                }
             }
             sb.append("</row>")
         }

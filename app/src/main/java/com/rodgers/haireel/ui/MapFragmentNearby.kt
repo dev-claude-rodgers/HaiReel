@@ -54,12 +54,12 @@ import kotlinx.coroutines.withContext
             "🅿️ コインパーキング",
             "🍽️ 飲食店",
             "⛽ ガソリンスタンド",
-            "🏥 病院",
-            "🚔 交番・警察署",
-            "🛣️ 道の駅"
+            "🏦 ATM・銀行",
+            "💊 薬局・ドラッグストア",
+            "🛒 スーパー"
         )
-        val types = arrayOf("", "convenience_store", "parking", "restaurant", "gas_station", "hospital", "police", "")
-        val keywords = arrayOf("公衆トイレ", "", "", "", "", "", "", "道の駅")
+        val types = arrayOf("", "convenience_store", "parking", "restaurant", "gas_station", "atm", "pharmacy", "supermarket")
+        val keywords = arrayOf("公衆トイレ", "", "", "", "", "", "", "")
 
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setTitle("近くの施設を探す")
@@ -87,6 +87,7 @@ import kotlinx.coroutines.withContext
             val map = googleMap ?: return@launch
             facilityMarkers.forEach { it.remove() }
             facilityMarkers.clear()
+            savedFacilityPlaces.clear()
 
             places.forEach { place: MapFragment.NearbyPlace ->
                 val marker = map.addMarker(
@@ -96,7 +97,9 @@ import kotlinx.coroutines.withContext
                         .snippet(place.address)
                         .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN))
                 ) ?: return@forEach
+                marker.tag = place
                 facilityMarkers.add(marker)
+                savedFacilityPlaces.add(place)
             }
             Toast.makeText(ctx, "${label} ${places.size}件を地図に表示しました", Toast.LENGTH_SHORT).show()
         }

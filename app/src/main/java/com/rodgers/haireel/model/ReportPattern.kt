@@ -13,11 +13,12 @@ data class ReportPattern(
 ) {
     companion object {
         fun defaultExcelColumns() = listOf(
-            ExcelColumn(ColumnType.START_TIME,    ColumnType.START_TIME.defaultLabel),
-            ExcelColumn(ColumnType.END_TIME,      ColumnType.END_TIME.defaultLabel),
-            ExcelColumn(ColumnType.WORKING_HOURS, ColumnType.WORKING_HOURS.defaultLabel),
+            ExcelColumn(ColumnType.START_TIME,     ColumnType.START_TIME.defaultLabel),
+            ExcelColumn(ColumnType.END_TIME,       ColumnType.END_TIME.defaultLabel),
             ExcelColumn(ColumnType.DELIVERY_COUNT, ColumnType.DELIVERY_COUNT.defaultLabel),
-            ExcelColumn(ColumnType.FUEL_COST,     ColumnType.FUEL_COST.defaultLabel)
+            ExcelColumn(ColumnType.METER_START,    ColumnType.METER_START.defaultLabel),
+            ExcelColumn(ColumnType.METER_END,      ColumnType.METER_END.defaultLabel),
+            ExcelColumn(ColumnType.DISTANCE,       ColumnType.DISTANCE.defaultLabel)
         )
 
         fun default(id: Int = 0) = ReportPattern(id = id)

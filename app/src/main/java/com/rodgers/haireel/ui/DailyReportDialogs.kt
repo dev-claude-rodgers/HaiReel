@@ -149,15 +149,15 @@ internal fun DailyReportFragment.showAppSettingsDialog() {
     root.addView(etVehicle)
 
     root.addView(section("── 点呼設定"))
-    root.addView(field("ドライバー名"))
+    root.addView(field("乗務員名"))
     val etDriver = EditText(ctx).apply {
-        hint = "氏名"; inputType = InputType.TYPE_CLASS_TEXT
+        hint = "例: 〇〇 〇〇"; inputType = InputType.TYPE_CLASS_TEXT
         setText(AppSettings.getDriverName(ctx))
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }
     root.addView(etDriver)
 
-    root.addView(field("確認者（運行管理者）名"))
+    root.addView(field("確認者名（運行管理者）"))
     val etChecker = EditText(ctx).apply {
         hint = "乗務員本人（自己点呼時）"
         inputType = InputType.TYPE_CLASS_TEXT
@@ -384,7 +384,7 @@ internal fun DailyReportFragment.showAssignmentSummarySheet() {
             byAssignment.forEach { (assignmentId, records) ->
                 val group  = groups.find { it.id == assignmentId }
                 val label  = group?.name ?: "未分類"
-                val days   = records.size
+                val days   = records.count { !it.noWork }
                 val deliv  = records.sumOf { it.deliveryCount }
                 val income = records.sumOf { it.income }
                 val fuel   = records.sumOf { it.fuelCost }

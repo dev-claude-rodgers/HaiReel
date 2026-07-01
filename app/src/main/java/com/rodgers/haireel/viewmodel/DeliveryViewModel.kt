@@ -368,6 +368,19 @@ class DeliveryViewModel @Inject constructor(
         commitDeliveries(groupId, updated)
     }
 
+    /** 名前・住所を座標そのままで更新（再ジオコーディングなし） */
+    fun updateNameAndAddressOnly(id: String, name: String, address: String, kana: String?) {
+        val groupId = _currentGroupId.value
+        val updated = _deliveries.value.map { d ->
+            if (d.id == id) d.copy(
+                name = name.ifBlank { null },
+                address = address,
+                nameKana = kana
+            ) else d
+        }
+        commitDeliveries(groupId, updated)
+    }
+
     fun markAllCompleted() {
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { it.copy(isCompleted = true) }

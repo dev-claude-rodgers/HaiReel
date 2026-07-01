@@ -226,14 +226,22 @@ class TenkoMonthAdapter(
             tvDayLabel.text = "${day}（${wd}）"
             tvDayLabel.setTextColor(dayColor)
 
-            val hintBg   = ContextCompat.getColor(ctx, R.color.colorHintBg)
-            val hintText = ContextCompat.getColor(ctx, R.color.colorHintText)
-            for (chip in listOf(chipBefore, chipAfter)) {
-                chip.setTextColor(hintText)
-                chip.background = GradientDrawable().apply {
-                    setColor(hintBg)
-                    cornerRadius = 6 * dp
-                }
+            val beforeFg = ContextCompat.getColor(ctx, R.color.colorTenkoBefore)
+            val beforeBg = ContextCompat.getColor(ctx, R.color.colorTenkoBeforeBg)
+            chipBefore.setTextColor(beforeFg)
+            chipBefore.background = GradientDrawable().apply {
+                setColor(beforeBg)
+                setStroke((1.5f * dp).toInt(), beforeFg)
+                cornerRadius = 6 * dp
+            }
+
+            val afterFg = ContextCompat.getColor(ctx, R.color.colorTenkoAfter)
+            val afterBg = ContextCompat.getColor(ctx, R.color.colorTenkoAfterBg)
+            chipAfter.setTextColor(afterFg)
+            chipAfter.background = GradientDrawable().apply {
+                setColor(afterBg)
+                setStroke((1.5f * dp).toInt(), afterFg)
+                cornerRadius = 6 * dp
             }
 
             chipBefore.setOnClickListener { onBeforeClick(row.date, null) }
@@ -266,17 +274,17 @@ class TenkoMonthAdapter(
             val todayBg = if (row.isToday) ContextCompat.getColor(ctx, R.color.colorTodayBg)
                           else             ContextCompat.getColor(ctx, R.color.colorDayBg)
 
-            fun chip(label: String, done: Boolean, onClick: () -> Unit) = TextView(ctx).apply {
+            fun chip(label: String, done: Boolean, isBefore: Boolean, onClick: () -> Unit) = TextView(ctx).apply {
                 text = label; textSize = 16f
-                val hintBg      = ContextCompat.getColor(ctx, R.color.colorHintBg)
-                val hintText    = ContextCompat.getColor(ctx, R.color.colorHintText)
-                val chipDone    = ctx.themeColor(com.google.android.material.R.attr.colorPrimaryContainer)
-                val chipDoneText = ctx.themeColor(com.google.android.material.R.attr.colorOnPrimaryContainer)
-                setTextColor(if (done) chipDoneText else hintText)
+                val accentFg = ContextCompat.getColor(ctx, if (isBefore) R.color.colorTenkoBefore else R.color.colorTenkoAfter)
+                val accentBg = ContextCompat.getColor(ctx, if (isBefore) R.color.colorTenkoBeforeBg else R.color.colorTenkoAfterBg)
+                val doneFg   = ContextCompat.getColor(ctx, R.color.colorTenkoDoneFg)
+                val doneBg   = ContextCompat.getColor(ctx, R.color.colorTenkoDoneBg)
+                setTextColor(if (done) doneFg else accentFg)
                 setTypeface(null, Typeface.BOLD)
                 background = GradientDrawable().apply {
-                    setColor(if (done) chipDone else hintBg)
-                    setStroke((1.5f*dp).toInt(), if (done) chipDone else hintBg)
+                    setColor(if (done) doneBg else accentBg)
+                    setStroke((1.5f*dp).toInt(), if (done) doneFg else accentFg)
                     cornerRadius = 6*dp
                 }
                 setPadding((14*dp).toInt(),(8*dp).toInt(),(14*dp).toInt(),(8*dp).toInt())
@@ -352,8 +360,8 @@ class TenkoMonthAdapter(
                     layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
                         .also { it.marginEnd = (10*dp).toInt() }
                 })
-                chipRow.addView(chip("乗務前", rec.beforeDone) { onBeforeClick(row.date, rec) })
-                chipRow.addView(chip("乗務後", rec.afterDone)  { onAfterClick(row.date, rec) })
+                chipRow.addView(chip("乗務前", rec.beforeDone, isBefore = true)  { onBeforeClick(row.date, rec) })
+                chipRow.addView(chip("乗務後", rec.afterDone,  isBefore = false) { onAfterClick(row.date, rec) })
                 chipRow.addView(View(ctx).apply { layoutParams = LinearLayout.LayoutParams(0, 0, 1f) })
                 rightInfoCol(rec)?.also {
                     it.layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)

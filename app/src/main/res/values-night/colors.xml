@@ -21,4 +21,13 @@
     <!-- 行背景 -->
     <color name="colorDayBg">#1A1A1A</color>
     <color name="colorTodayBg">#2A2A2A</color>
+    <!-- 点呼チップ -->
+    <color name="colorTenkoBefore">#64B5F6</color>
+    <color name="colorTenkoBeforeBg">#0D1A2A</color>
+    <color name="colorTenkoAfter">#FFAB40</color>
+    <color name="colorTenkoAfterBg">#2A1500</color>
+    <color name="colorTenkoDoneFg">#81C784</color>
+    <color name="colorTenkoDoneBg">#0A2210</color>
+    <color name="colorBannerHintText">#668866</color>
+    <color name="colorProgressBg">#444444</color>
 </resources>

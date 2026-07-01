@@ -71,13 +71,23 @@ internal fun TenkoFragment.showMonthSummary() {
     val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
     val WRAP  = LinearLayout.LayoutParams.WRAP_CONTENT
 
-    val cGreen  = Color.parseColor("#2E7D32")
-    val cRed    = Color.parseColor("#C62828")
-    val cOrange = Color.parseColor("#E65100")
-    val cBlue   = Color.parseColor("#1565C0")
-    val cGray   = Color.parseColor("#AAAAAA")
+    val isDark  = (ctx.resources.configuration.uiMode and
+        android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+        android.content.res.Configuration.UI_MODE_NIGHT_YES
+    // バナー背景・カード左バー用（白テキストが読める固定の中彩度色）
+    val cGreenBg  = Color.parseColor("#388E3C")
+    val cRedBg    = Color.parseColor("#C62828")
+    val cOrangeBg = Color.parseColor("#E65100")
+    val cBlueBg   = Color.parseColor("#1565C0")
+    // カード内テキスト用（ダーク: 明るく / ライト: 暗く）
+    val cGreen  = if (isDark) Color.parseColor("#A5D6A7") else Color.parseColor("#2E7D32")
+    val cRed    = if (isDark) Color.parseColor("#EF9A9A") else Color.parseColor("#C62828")
+    val cOrange = if (isDark) Color.parseColor("#FFCC80") else Color.parseColor("#E65100")
+    val cBlue   = if (isDark) Color.parseColor("#90CAF9") else Color.parseColor("#1565C0")
     val cBg     = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
     val cOnSurf = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+    val cText   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+    val cDivider = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
 
     val scroll = android.widget.ScrollView(ctx)
     val root = LinearLayout(ctx).apply {
@@ -87,9 +97,9 @@ internal fun TenkoFragment.showMonthSummary() {
     scroll.addView(root)
 
     val pctColor = when {
-        completionPct >= 80 -> cGreen
-        completionPct >= 50 -> cOrange
-        else                -> cRed
+        completionPct >= 80 -> cGreenBg
+        completionPct >= 50 -> cOrangeBg
+        else                -> cRedBg
     }
     val banner = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
@@ -142,7 +152,7 @@ internal fun TenkoFragment.showMonthSummary() {
         })
     }
 
-    fun LinearLayout.statRow(icon: String, label: String, value: String, valueColor: Int = Color.WHITE) {
+    fun LinearLayout.statRow(icon: String, label: String, value: String, valueColor: Int = cText) {
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(MATCH, (44*dp).toInt())
@@ -170,7 +180,7 @@ internal fun TenkoFragment.showMonthSummary() {
         }
         hdr.addView(TextView(ctx).apply {
             text = label; textSize = 15f; typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
+            setTextColor(cText)
             layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
         })
         hdr.addView(TextView(ctx).apply {
@@ -179,7 +189,7 @@ internal fun TenkoFragment.showMonthSummary() {
         })
         addView(hdr)
         val barBg = android.widget.FrameLayout(ctx).apply {
-            background = GradientDrawable().apply { setColor(Color.parseColor("#444444")); cornerRadius = 6*dp }
+            background = GradientDrawable().apply { setColor(cDivider); cornerRadius = 6*dp }
             layoutParams = LinearLayout.LayoutParams(MATCH, (10*dp).toInt())
                 .also { it.topMargin = (6*dp).toInt(); it.bottomMargin = (10*dp).toInt() }
         }
@@ -196,13 +206,13 @@ internal fun TenkoFragment.showMonthSummary() {
 
     fun LinearLayout.divider() {
         addView(android.view.View(ctx).apply {
-            setBackgroundColor(Color.parseColor("#444444"))
+            setBackgroundColor(cDivider)
             layoutParams = LinearLayout.LayoutParams(MATCH, (1*dp).toInt())
                 .also { it.topMargin = (4*dp).toInt(); it.bottomMargin = (4*dp).toInt() }
         })
     }
 
-    accentCard(cBlue) {
+    accentCard(cBlueBg) {
         cardTitle("📋  記録状況", cBlue)
         progressBar("前後 両方完了", daysWithBoth, effectiveDays,
             if (daysWithBoth == effectiveDays) cGreen else cBlue)
@@ -223,16 +233,17 @@ internal fun TenkoFragment.showMonthSummary() {
     }
 
     if (workMinutesList.isNotEmpty()) {
-        accentCard(Color.parseColor("#1B5E20")) {
-            cardTitle("⏱  乗務時間", Color.parseColor("#66BB6A"))
+        accentCard(cGreenBg) {
+            cardTitle("⏱  乗務時間", cGreen)
             statRow("📊", "月合計", totalMinutes.toHM())
             statRow("📈", "1便あたり平均", avgMinutes.toHM())
             statRow("🔢", "集計対象", "${workMinutesList.size}便")
         }
     }
 
-    val alcAccent = if (totalAbnormal == 0) cGreen else cRed
-    accentCard(alcAccent) {
+    val alcAccent   = if (totalAbnormal == 0) cGreen else cRed
+    val alcAccentBg = if (totalAbnormal == 0) cGreenBg else cRedBg
+    accentCard(alcAccentBg) {
         cardTitle("🍺  アルコール検知", alcAccent)
         statRow("🌅", "乗務前",
             if (alcBeforeAbnormal == 0) "検知なし" else "${alcBeforeAbnormal}件",

@@ -605,8 +605,18 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
             .setTitle("名前・住所を編集")
             .setView(scroll)
             .setPositiveButton("修正して再検索", null)
+            .setNeutralButton("そのまま保存", null)
             .setNegativeButton("キャンセル", null)
             .show()
+
+        dlg.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+            val newName    = nameInput.text.toString().trim()
+            val newKana    = kanaInput.text.toString().trim().ifBlank { null }
+            val newAddress = addrInput.text.toString().trim()
+            if (newAddress.isBlank() && newName.isBlank()) return@setOnClickListener
+            viewModel.updateNameAndAddressOnly(delivery.id, newName, newAddress, newKana)
+            dlg.dismiss()
+        }
 
         dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val newName    = nameInput.text.toString().trim()

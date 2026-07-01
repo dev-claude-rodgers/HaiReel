@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1A1A1A">
+    android:background="?android:attr/colorBackground">
 
     <!-- ヘッダー -->
     <LinearLayout
@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="#111111"
+        android:background="?attr/colorSurfaceContainerHigh"
         android:paddingStart="12dp"
         android:paddingEnd="4dp"
         android:paddingVertical="6dp"
@@ -73,14 +73,14 @@
             android:visibility="gone"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorPrimary"
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:layout_marginEnd="8dp"
-            app:strokeColor="#FFFFFF"
+            app:strokeColor="@color/colorPrimary"
             app:cornerRadius="8dp" />
 
         <!-- 地図トグルボタン -->
@@ -93,13 +93,13 @@
             android:contentDescription="地図/リスト切替"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorPrimary"
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            app:strokeColor="#FFFFFF"
+            app:strokeColor="@color/colorPrimary"
             app:cornerRadius="8dp" />
 
         <!-- メニューボタン -->
@@ -111,7 +111,7 @@
             android:text="≡"
             android:contentDescription="メニューを開く"
             android:textSize="24sp"
-            android:textColor="#FFFFFF"
+            android:textColor="?attr/colorOnSurface"
             android:minWidth="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
@@ -126,7 +126,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="#111111"
+        android:background="?attr/colorSurfaceContainer"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:paddingTop="4dp"
@@ -145,7 +145,7 @@
             android:layout_marginEnd="12dp"
             android:max="100"
             android:progressTint="#4CAF50"
-            android:progressBackgroundTint="#444444" />
+            android:progressBackgroundTint="@color/colorProgressBg" />
 
         <TextView
             android:id="@+id/tvProgressLabel"
@@ -153,7 +153,7 @@
             android:layout_height="wrap_content"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="#AAAAAA" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
     </LinearLayout>
 
@@ -176,7 +176,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="12dp"
-        android:background="#111111"
+        android:background="?attr/colorSurfaceContainerHigh"
         android:elevation="8dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -192,11 +192,11 @@
             android:layout_marginEnd="8dp"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorPrimary"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:singleLine="true"
-            app:strokeColor="#FFFFFF"
+            app:strokeColor="@color/colorPrimary"
             android:text="@string/btn_select_all"
             android:contentDescription="全件選択" />
 
@@ -209,11 +209,11 @@
             android:layout_marginEnd="8dp"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorPrimary"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:singleLine="true"
-            app:strokeColor="#FFFFFF"
+            app:strokeColor="@color/colorPrimary"
             android:text="🕐 時間帯"
             android:contentDescription="時間帯を設定"
             android:enabled="false" />
@@ -262,7 +262,7 @@
         android:layout_height="wrap_content"
         android:text="≡ メニュー → 名前・住所を追加\nからルートに追加できます"
         android:textSize="16sp"
-        android:textColor="#AAAAAA"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:gravity="center"
         android:lineSpacingExtra="6dp"
         android:visibility="gone"

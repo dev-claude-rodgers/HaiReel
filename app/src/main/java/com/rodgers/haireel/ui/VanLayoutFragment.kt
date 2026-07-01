@@ -366,13 +366,13 @@ class VanLayoutFragment : Fragment() {
     private fun savePhotoWithPins() {
         val ctx  = requireContext()
         val view = currentView()
-        if (view?.photoUri.isNullOrBlank()) {
+        if (view == null || view.photoUri.isNullOrBlank()) {
             Toast.makeText(ctx, "写真を設定してください", Toast.LENGTH_SHORT).show()
             return
         }
         try {
             val src = android.graphics.BitmapFactory.decodeStream(
-                ctx.contentResolver.openInputStream(Uri.parse(view!!.photoUri))
+                ctx.contentResolver.openInputStream(Uri.parse(view.photoUri))
             ) ?: return
             val bmp  = src.copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(bmp)

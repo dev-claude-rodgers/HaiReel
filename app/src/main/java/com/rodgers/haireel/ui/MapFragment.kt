@@ -55,6 +55,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal var googleMap: GoogleMap? = null
     private val markers = mutableMapOf<String, Marker>()          // 施設ピン用（配達ピンはClusterManagerが管理）
     internal val facilityMarkers = mutableListOf<Marker>()
+    internal val savedFacilityPlaces = mutableListOf<NearbyPlace>()
     private var clusterManager: ClusterManager<DeliveryClusterItem>? = null
 
     /** ClusterItem ラッパー。分散済み座標を保持する */
@@ -83,8 +84,23 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             ))
         }
 
-        // 3件以上でクラスター化（2件以下は個別ピンを見せる）
-        override fun shouldRenderAsCluster(cluster: Cluster<DeliveryClusterItem>) = cluster.size >= 3
+        // 3件以上かつ全ピンが300m圏内（丁目内）のときのみクラスター化
+        override fun shouldRenderAsCluster(cluster: Cluster<DeliveryClusterItem>): Boolean {
+            if (cluster.size < 3) return false
+            val positions = cluster.items.map { it.position }
+            for (i in positions.indices) {
+                for (j in i + 1 until positions.size) {
+                    val results = FloatArray(1)
+                    android.location.Location.distanceBetween(
+                        positions[i].latitude, positions[i].longitude,
+                        positions[j].latitude, positions[j].longitude,
+                        results
+                    )
+                    if (results[0] > 300f) return false
+                }
+            }
+            return true
+        }
     }
     private val routeLines = mutableListOf<com.google.android.gms.maps.model.Polyline>()
     internal var showRouteLines = true
@@ -258,23 +274,15 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         map.setOnMarkerClickListener { marker ->
-            // 施設マーカーは ClusterManager の前に処理
-            if (marker in facilityMarkers) {
-                val name = marker.title ?: ""
-                val addr = marker.snippet ?: ""
-                val lat = marker.position.latitude
-                val lng = marker.position.longitude
-                val ctx = requireContext()
-                androidx.appcompat.app.AlertDialog.Builder(ctx)
-                    .setTitle(name)
-                    .setMessage(addr)
-                    .setPositiveButton("🧭 ナビ開始") { _, _ ->
-                        val uri = android.net.Uri.parse("google.navigation:q=$lat,$lng&mode=d")
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                            .apply { setPackage("com.google.android.apps.maps") }
-                        if (intent.resolveActivity(ctx.packageManager) != null) startActivity(intent)
-                    }
-                    .setNegativeButton("閉じる", null).show()
+            val place = marker.tag as? NearbyPlace
+            if (place != null) {
+                val label = buildString {
+                    append(place.name)
+                    if (place.address.isNotBlank()) append("  ${place.address}")
+                }
+                com.google.android.material.snackbar.Snackbar
+                    .make(binding.root, label, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .show()
                 return@setOnMarkerClickListener true
             }
             // 配達マーカー・クラスターは ClusterManager にデリゲート
@@ -338,6 +346,19 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         facilityMarkers.clear()
         routeLines.forEach { it.remove() }
         routeLines.clear()
+
+        // 施設ピンを再描画（map.clear() で消えるため savedFacilityPlaces から復元）
+        savedFacilityPlaces.forEach { place ->
+            val m = map.addMarker(
+                MarkerOptions()
+                    .position(LatLng(place.lat, place.lng))
+                    .title(place.name)
+                    .snippet(place.address)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN))
+            ) ?: return@forEach
+            m.tag = place
+            facilityMarkers.add(m)
+        }
 
         val groups = viewModel.groups.value
         val filter = viewModel.mapFilter.value

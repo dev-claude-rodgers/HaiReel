@@ -32,7 +32,7 @@ import javax.crypto.spec.SecretKeySpec
 
 object BackupManager {
 
-    private const val FORMAT_VERSION = "1"
+    private const val FORMAT_VERSION = "2"
 
     // 暗号化ヘッダー
     private val ENC_HEADER    = byteArrayOf(0x52, 0x53, 0x54, 0x42) // "RSTB" v1（全体GCM）
@@ -159,7 +159,9 @@ object BackupManager {
             zos.utf8Entry("tenko.json",      tenkoToJson(tenkoList).toString())
             zos.utf8Entry("patterns.json",   patternsToJson(patterns, activeId).toString())
             zos.utf8Entry("groups.json",     groupsToJson(groups).toString())
+            bundleDeliveryPhotos(context, deliveries, zos)   // deliveries.json より先に写真を書く
             zos.utf8Entry("deliveries.json", deliveriesToJson(deliveries).toString())
+            bundleVanLayoutPhotos(context, zos)
             zos.utf8Entry("settings.json",   settingsToJson(context).toString())
 
             for (type in listOf(SignatureStorage.TYPE_DRIVER, SignatureStorage.TYPE_CLIENT)) {
@@ -221,6 +223,10 @@ object BackupManager {
     private suspend fun restoreFromStream(context: Context, input: InputStream) {
         val db  = AppDatabase.getInstance(context)
         val dao = db.workRecordDao()
+        // version.txt は常に最初のエントリに書かれるため、以降の処理で参照できる
+        var backupVersion = 1
+        // photos/ エントリを deliveries.json より先に読み込んでバッファリング（書き込み順序で保証）
+        val photoBuffer = mutableMapOf<String, ByteArray>()
 
         // トランザクションで囲むことで途中失敗時のDB半壊を防ぐ
         db.withTransaction {
@@ -229,6 +235,10 @@ object BackupManager {
             while (entry != null) {
                 val bytes = zis.readBytes()
                 when (entry.name) {
+                    "version.txt" -> {
+                        backupVersion = bytes.toString(Charsets.UTF_8).trim().toIntOrNull() ?: 1
+                        Log.d("BackupManager", "バックアップバージョン: $backupVersion")
+                    }
                     "records.json" -> {
                         val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
                         dao.deleteAll()
@@ -273,16 +283,22 @@ object BackupManager {
                         for (i in 0 until arr.length()) {
                             try {
                                 val o = arr.getJSONObject(i)
+                                val delivId = o.getString("id")
+                                val (newPhotoUri, newPhotoUrisJson) = restoreDeliveryPhotos(
+                                    context, photoBuffer, delivId,
+                                    o.optString("photoUri").ifBlank { null },
+                                    o.optString("photoUrisJson").ifBlank { null }
+                                )
                                 db.deliveryDao().upsert(com.rodgers.haireel.db.DeliveryEntity(
-                                    id              = o.getString("id"),
+                                    id              = delivId,
                                     groupId         = o.getString("groupId"),
                                     order           = o.optInt("order", i),
                                     name            = o.optString("name").ifBlank { null },
                                     address         = o.optString("address", ""),
                                     geocodedAddress = o.optString("geocodedAddress").ifBlank { null },
                                     note            = o.optString("note").ifBlank { null },
-                                    photoUri        = o.optString("photoUri").ifBlank { null },
-                                    photoUrisJson   = o.optString("photoUrisJson").ifBlank { null },
+                                    photoUri        = newPhotoUri,
+                                    photoUrisJson   = newPhotoUrisJson,
                                     roomsJson       = o.optString("roomsJson").ifBlank { null },
                                     timeSlot        = o.optString("timeSlot").ifBlank { null },
                                     packageCount    = o.optInt("packageCount", 0),
@@ -308,12 +324,105 @@ object BackupManager {
                             }
                         } catch (_: OutOfMemoryError) {}
                     }
+                    else -> {
+                        if (entry.name.startsWith("photos/")) {
+                            val key = entry.name.removePrefix("photos/").removeSuffix(".jpg")
+                            photoBuffer[key] = bytes
+                        } else if (entry.name.startsWith("van_photos/")) {
+                            val fileName = entry.name.removePrefix("van_photos/")
+                            restoreVanPhoto(context, fileName, bytes)
+                        }
+                    }
                 }
                 zis.closeEntry()
                 entry = zis.nextEntry
             }
         }
         } // end withTransaction
+    }
+
+    private fun bundleVanLayoutPhotos(context: Context, zos: ZipOutputStream) {
+        val dir = File(context.filesDir, "van_layout")
+        if (!dir.exists()) return
+        dir.listFiles()?.forEach { file ->
+            if (!file.isFile) return@forEach
+            try {
+                zos.putNextEntry(ZipEntry("van_photos/${file.name}"))
+                file.inputStream().use { it.copyTo(zos) }
+                zos.closeEntry()
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun restoreVanPhoto(context: Context, fileName: String, bytes: ByteArray) {
+        try {
+            val dir = File(context.filesDir, "van_layout").also { it.mkdirs() }
+            File(dir, fileName).writeBytes(bytes)
+        } catch (_: Exception) {}
+    }
+
+    private fun bundleDeliveryPhotos(
+        context: Context,
+        deliveries: List<com.rodgers.haireel.db.DeliveryEntity>,
+        zos: ZipOutputStream
+    ) {
+        deliveries.forEach { d ->
+            val uris = buildList<String> {
+                if (!d.photoUrisJson.isNullOrBlank()) {
+                    try {
+                        val arr = JSONArray(d.photoUrisJson)
+                        for (i in 0 until arr.length()) arr.optString(i).takeIf { it.isNotBlank() }?.let { add(it) }
+                    } catch (_: Exception) {}
+                } else if (!d.photoUri.isNullOrBlank()) {
+                    add(d.photoUri)
+                }
+            }
+            uris.forEachIndexed { idx, uri ->
+                try {
+                    context.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { ins ->
+                        zos.putNextEntry(ZipEntry("photos/${d.id}_$idx.jpg"))
+                        ins.copyTo(zos)
+                        zos.closeEntry()
+                    }
+                } catch (_: Exception) {} // アクセスできないURIはスキップ
+            }
+        }
+    }
+
+    private fun restoreDeliveryPhotos(
+        context: Context,
+        photoBuffer: Map<String, ByteArray>,
+        deliveryId: String,
+        origSingleUri: String?,
+        origUrisJson: String?
+    ): Pair<String?, String?> {
+        if (origUrisJson != null) {
+            return try {
+                val arr = JSONArray(origUrisJson)
+                val newArr = JSONArray()
+                for (j in 0 until arr.length()) {
+                    val key = "${deliveryId}_$j"
+                    val uri = photoBuffer[key]?.let { saveRestoredPhoto(context, key, it) }
+                        ?: arr.optString(j).ifBlank { null }
+                    if (uri != null) newArr.put(uri)
+                }
+                Pair(null, if (newArr.length() > 0) newArr.toString() else null)
+            } catch (_: Exception) { Pair(origSingleUri, origUrisJson) }
+        } else if (origSingleUri != null) {
+            val key = "${deliveryId}_0"
+            val newUri = photoBuffer[key]?.let { saveRestoredPhoto(context, key, it) } ?: origSingleUri
+            return Pair(newUri, null)
+        }
+        return Pair(null, null)
+    }
+
+    private fun saveRestoredPhoto(context: Context, key: String, bytes: ByteArray): String? {
+        return try {
+            val dir = File(context.filesDir, "delivery_photos").also { it.mkdirs() }
+            val file = File(dir, "$key.jpg")
+            file.writeBytes(bytes)
+            android.net.Uri.fromFile(file).toString()
+        } catch (_: Exception) { null }
     }
 
     private fun ZipOutputStream.utf8Entry(name: String, content: String) {
@@ -339,14 +448,18 @@ object BackupManager {
                 put("startMeter",    r.startMeter)
                 put("endMeter",      r.endMeter)
                 put("endDateOffset", r.endDateOffset)
+                put("income",        r.income)
+                put("fuelCost",      r.fuelCost)
+                put("assignmentId",  r.assignmentId)
+                put("noWork",        r.noWork)
             })
         }
         return arr
     }
 
     private fun recordFromJson(j: JSONObject) = WorkRecord(
-        id            = j.getLong("id"),
-        date          = j.getString("date"),
+        id            = j.optLong("id", 0L),
+        date          = j.optString("date", ""),
         startTime     = j.optString("startTime", ""),
         endTime       = j.optString("endTime", ""),
         deliveryCount = j.optInt("deliveryCount", 0),
@@ -357,7 +470,11 @@ object BackupManager {
         remarks       = j.optString("remarks", ""),
         startMeter    = j.optInt("startMeter", 0),
         endMeter      = j.optInt("endMeter", 0),
-        endDateOffset = j.optInt("endDateOffset", 0)
+        endDateOffset = j.optInt("endDateOffset", 0),
+        income        = j.optInt("income", 0),
+        fuelCost      = j.optInt("fuelCost", 0),
+        assignmentId  = j.optString("assignmentId", ""),
+        noWork        = j.optBoolean("noWork", false)
     )
 
     private fun patternsToJson(patterns: List<com.rodgers.haireel.model.ReportPattern>, activeId: Int): JSONObject {

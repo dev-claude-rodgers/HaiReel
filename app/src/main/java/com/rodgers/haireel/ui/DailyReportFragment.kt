@@ -229,7 +229,7 @@ class DailyReportFragment : Fragment() {
 
     private fun updateSummary(records: List<WorkRecord>) {
         if (!isAdded) return
-        binding.tvSummaryDays.text       = "${records.size}日稼働"
+        binding.tvSummaryDays.text       = "${records.count { !it.noWork }}日稼働"
         binding.tvSummaryDeliveries.text = "配達 ${records.sumOf { it.deliveryCount }}件"
         binding.tvSummaryDistance.text   = "走行 ${"%.0f".format(records.sumOf { it.distanceKm.toDouble() })}km"
         val pattern     = currentPattern()
@@ -320,6 +320,7 @@ class DailyReportFragment : Fragment() {
         var endH          = record.endTime.split(":").getOrNull(0)?.toIntOrNull() ?: 18
         var endM          = record.endTime.split(":").getOrNull(1)?.toIntOrNull() ?: 0
         var endDateOffset = record.endDateOffset
+        var isNoWork      = record.noWork
 
         val alcValues  = listOf("",       "○",      "×")
         var alcIdx     = alcValues.indexOf(record.alcCheck).coerceAtLeast(0)
@@ -339,6 +340,34 @@ class DailyReportFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
                 .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
         }
+
+        // ── 稼働なしトグル
+        val noWorkColor = ctx.themeColor(com.google.android.material.R.attr.colorError)
+        val noWorkBtnRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (8 * dp).toInt() }
+        }
+        val btnNoWork = com.google.android.material.button.MaterialButton(ctx).apply {
+            isAllCaps = false; textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+        }
+        fun refreshNoWorkBtn() {
+            if (isNoWork) {
+                btnNoWork.text = "休み（稼働なし）"
+                btnNoWork.setBackgroundColor(noWorkColor)
+                btnNoWork.setTextColor(android.graphics.Color.WHITE)
+            } else {
+                btnNoWork.text = "稼働あり"
+                btnNoWork.backgroundTintList = null
+                btnNoWork.setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant))
+                btnNoWork.setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            }
+        }
+        refreshNoWorkBtn()
+        btnNoWork.setOnClickListener { isNoWork = !isNoWork; refreshNoWorkBtn() }
+        noWorkBtnRow.addView(btnNoWork)
+        root.addView(noWorkBtnRow)
 
         // ── 日付
         val btnDate = android.widget.Button(ctx).apply {
@@ -708,18 +737,21 @@ class DailyReportFragment : Fragment() {
             val workMins   = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
             val updated = record.copy(
                 date          = selectedDate,
-                startTime     = "%02d:%02d".format(startH, startM),
-                endTime       = "%02d:%02d".format(endH, endM),
-                endDateOffset = endDateOffset,
-                startMeter    = sm, endMeter = em, distanceKm = dist,
-                deliveryCount = delivCount,
-                packageCount  = pkgCntIn.text.toString().toIntOrNull()   ?: 0,
-                area          = areaIn.text.toString().trim(),
-                alcCheck      = alcValues[alcIdx],
+                startTime     = if (isNoWork) "" else "%02d:%02d".format(startH, startM),
+                endTime       = if (isNoWork) "" else "%02d:%02d".format(endH, endM),
+                endDateOffset = if (isNoWork) 0 else endDateOffset,
+                startMeter    = if (isNoWork) 0 else sm,
+                endMeter      = if (isNoWork) 0 else em,
+                distanceKm    = if (isNoWork) 0f else dist,
+                deliveryCount = if (isNoWork) 0 else delivCount,
+                packageCount  = if (isNoWork) 0 else (pkgCntIn.text.toString().toIntOrNull() ?: 0),
+                area          = if (isNoWork) "" else areaIn.text.toString().trim(),
+                alcCheck      = if (isNoWork) "" else alcValues[alcIdx],
                 remarks       = remarksIn.text.toString().trim(),
-                income        = incomeIn.text.toString().toIntOrNull() ?: calcIncome(pattern, delivCount, workMins, pkgCntIn.text.toString().toIntOrNull() ?: 0),
-                fuelCost      = fuelIn.text.toString().toIntOrNull() ?: 0,
-                assignmentId  = reportViewModel.assignmentId.value
+                income        = if (isNoWork) 0 else (incomeIn.text.toString().toIntOrNull() ?: calcIncome(pattern, delivCount, workMins, pkgCntIn.text.toString().toIntOrNull() ?: 0)),
+                fuelCost      = if (isNoWork) 0 else (fuelIn.text.toString().toIntOrNull() ?: 0),
+                assignmentId  = reportViewModel.assignmentId.value,
+                noWork        = isNoWork
             )
             lifecycleScope.launch {
                 // NonCancellable: 画面回転などでコルーチンがキャンセルされてもDB書き込みを完走させる
@@ -900,8 +932,8 @@ class DayEntryAdapter(
             )
 
             val r = entry.record
-            if (r != null) {
-                // ALC バッジ
+            if (r != null && !r.noWork) {
+                // ALC バッジ（稼働なしのときは表示しない）
                 when (r.alcCheck) {
                     "○" -> headerRow.addView(tv("✅", 12f))
                     "×" -> headerRow.addView(tv("❌", 12f))
@@ -922,6 +954,31 @@ class DayEntryAdapter(
                     setOnClickListener { onTap(entry) }
                 })
                 root.addView(addRow)
+            } else if (r.noWork) {
+                // 稼働なし
+                val noWorkRow = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+                if (r.remarks.isNotBlank()) {
+                    noWorkRow.addView(tv("休み  ${r.remarks}", 13f, secondaryColor)
+                        .also { it.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+                } else {
+                    noWorkRow.addView(tv("休み", 13f, secondaryColor)
+                        .also { it.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+                }
+                noWorkRow.addView(android.widget.Button(ctx).apply {
+                    text = "編集"; isAllCaps = false; textSize = 11f
+                    setTextColor(primaryColor); background = null
+                    setOnClickListener { onTap(entry) }
+                })
+                noWorkRow.addView(android.widget.Button(ctx).apply {
+                    text = "削除"; isAllCaps = false; textSize = 11f
+                    setTextColor(redColor); background = null
+                    setOnClickListener { onDelete(r) }
+                })
+                root.addView(noWorkRow)
             } else {
                 // 時刻・稼働時間（記録がある場合は雇用形態に関わらず表示）
                 if (r.startTime.isNotBlank() || r.endTime.isNotBlank()) {

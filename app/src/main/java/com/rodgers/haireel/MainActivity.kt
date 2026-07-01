@@ -72,7 +72,12 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(AppSettings.getDarkMode(this))
         val splashScreen = installSplashScreen()
         splashScreen.setOnExitAnimationListener { provider ->
-            val icon = provider.iconView
+            // iconView のgetter自体がNPEを投げる端末があるため try-catch で保護する
+            val icon = try { provider.iconView } catch (_: Throwable) { null }
+            if (icon == null) {
+                provider.remove()
+                return@setOnExitAnimationListener
+            }
             val scaleX = ObjectAnimator.ofFloat(icon, View.SCALE_X, 1f, 1.25f, 0.8f, 0f)
             val scaleY = ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1f, 1.25f, 0.8f, 0f)
             val fade  = ObjectAnimator.ofFloat(provider.view, View.ALPHA, 1f, 1f, 1f, 0f)
@@ -426,30 +431,25 @@ class MainActivity : AppCompatActivity() {
             packageManager.getPackageInfo(packageName, 0).versionName ?: "不明"
         } catch (_: Exception) { "不明" }
         AlertDialog.Builder(this)
-            .setTitle("HaiReel")
+            .setTitle("HaiReel について")
             .setMessage(
                 "バージョン: $version\n" +
                 "開発者: RODGERS\n" +
                 "お問い合わせ: dev.claude.rodgers@gmail.com\n\n" +
-                "© 2026 RODGERS  All rights reserved.\n\n" +
+                "© 2026 RODGERS  All rights reserved.\n" +
+                "本アプリのデザイン・機能・UIの模倣・複製を禁じます。\n\n" +
                 "── 使用技術 ──\n" +
                 "地図: Google Maps SDK for Android\n" +
                 "住所変換: Google Geocoding API\n" +
-                "文字認識: Google ML Kit\n" +
                 "クラッシュ監視: Firebase Crashlytics\n\n" +
-                "── 更新履歴 ──\n" +
-                "v2.0.0\n" +
-                "・アプリ名を HaiReel に変更\n" +
-                "・荷室レイアウト機能を追加（写真＋ピン管理）\n" +
-                "・配達リストに3状態トグル（全件／未完了／完了）を追加\n" +
-                "・Google APIキー設定ウィザードを刷新\n" +
-                "・ホーム画面ウィジェット対応\n" +
-                "\n" +
-                "v1.0.0\n" +
-                "・初回リリース\n" +
-                "・配達先管理・地図・ルート最適化\n" +
-                "・点呼記録・日報・帳票Excel/PDF出力\n" +
-                "・バックアップ（AES暗号化）\n" +
+                "── v1.0.0 リリース内容 ──\n" +
+                "・配達先管理・地図表示・ルート最適化\n" +
+                "・荷室レイアウト（写真＋ピン管理）\n" +
+                "・点呼記録（乗務前・乗務後）\n" +
+                "・日報・帳票 Excel 出力\n" +
+                "・近くの施設を探す（コンビニ・駐車場・ATM・薬局など）\n" +
+                "・ホーム画面ウィジェット\n" +
+                "・バックアップ（AES-256 暗号化）\n" +
                 "・7日間無料体験 → 月額¥300 / 年額¥2,980"
             )
             .setPositiveButton("OK", null)

@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#1A1A1A">
+    android:background="?android:attr/colorBackground">
 
     <!-- 月ナビゲーションヘッダー -->
     <LinearLayout
@@ -14,7 +14,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="8dp"
-        android:background="#111111"
+        android:background="?attr/colorSurfaceContainerHigh"
         android:elevation="2dp">
 
         <com.google.android.material.button.MaterialButton
@@ -25,7 +25,7 @@
             android:text="‹"
             android:contentDescription="前の月"
             android:textSize="22sp"
-            android:textColor="#FFFFFF"
+            android:textColor="?attr/colorOnSurface"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             app:cornerRadius="24dp" />
@@ -38,7 +38,7 @@
             android:gravity="center"
             android:textSize="17sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF" />
+            android:textColor="?attr/colorOnSurface" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNextMonth"
@@ -48,7 +48,7 @@
             android:text="›"
             android:contentDescription="次の月"
             android:textSize="22sp"
-            android:textColor="#FFFFFF"
+            android:textColor="?attr/colorOnSurface"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             app:cornerRadius="24dp" />
@@ -62,7 +62,7 @@
             android:contentDescription="点呼メニュー"
             android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="?attr/colorOnSurface"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             app:cornerRadius="28dp" />
@@ -76,11 +76,11 @@
         android:layout_height="wrap_content"
         android:text="便を長押しすると記録を削除できます"
         android:textSize="11sp"
-        android:textColor="#AAAAAA"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:gravity="center"
         android:paddingTop="4dp"
         android:paddingBottom="4dp"
-        android:background="#111111"
+        android:background="?attr/colorSurfaceContainer"
         android:visibility="gone" />
 
     <!-- 未記録ヒントバナー（当月に記録が1件もない時のみ表示） -->
@@ -92,7 +92,7 @@
         android:gravity="center"
         android:paddingHorizontal="24dp"
         android:paddingVertical="20dp"
-        android:background="#1E2A1E"
+        android:background="@color/colorTenkoDoneBg"
         android:visibility="gone">
 
         <TextView
@@ -100,7 +100,7 @@
             android:layout_height="wrap_content"
             android:text="📋 今月の点呼記録はまだありません"
             android:textSize="14sp"
-            android:textColor="#88CC88"
+            android:textColor="@color/colorTenkoDoneFg"
             android:textStyle="bold"
             android:gravity="center" />
 
@@ -110,7 +110,7 @@
             android:layout_marginTop="4dp"
             android:text="日付をタップして乗務前・乗務後の点呼を記録できます"
             android:textSize="12sp"
-            android:textColor="#668866"
+            android:textColor="@color/colorBannerHintText"
             android:gravity="center" />
 
     </LinearLayout>

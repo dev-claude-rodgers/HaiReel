@@ -110,6 +110,15 @@ internal fun MapFragment.showSosDialog() {
     root.addView(TextView(ctx).apply {
         text = "状況を選んでください"
         textSize = 13f; setTextColor(onSurfaceVar); gravity = Gravity.CENTER
+        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.bottomMargin = (8*dp).toInt() }
+    })
+    root.addView(TextView(ctx).apply {
+        text = "※ このガイドは参考情報です。状況の判断・行動はご自身の責任で行ってください。生命に関わる緊急時は必ず 119 または 110 に直接お電話ください。"
+        textSize = 11f; setTextColor(onSurfaceVar)
+        setPadding((8*dp).toInt(), (6*dp).toInt(), (8*dp).toInt(), (6*dp).toInt())
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(surfaceVariant); cornerRadius = 8 * dp
+        }
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.bottomMargin = (16*dp).toInt() }
     })
 
@@ -188,6 +197,15 @@ private fun MapFragment.showSosGuide(situation: SosSituation) {
     root.addView(TextView(ctx).apply {
         text = "${situation.emoji} ${situation.label}の対処手順"
         textSize = 18f; typeface = Typeface.DEFAULT_BOLD; setTextColor(onSurface)
+        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.bottomMargin = (8*dp).toInt() }
+    })
+    root.addView(TextView(ctx).apply {
+        text = "⚠️ 以下は参考手順です。実際の行動はご自身の判断と責任で行ってください。"
+        textSize = 11f; setTextColor(onSurfaceVar)
+        setPadding((8*dp).toInt(), (6*dp).toInt(), (8*dp).toInt(), (6*dp).toInt())
+        background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)); cornerRadius = 8 * dp
+        }
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.bottomMargin = (16*dp).toInt() }
     })
 

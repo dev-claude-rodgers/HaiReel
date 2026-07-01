@@ -16,7 +16,7 @@ object RouteOptimizer {
         var currentLng = startLng
 
         while (geocoded.isNotEmpty()) {
-            val nearest = geocoded.minByOrNull { haversine(currentLat, currentLng, it.lat, it.lng) }!!
+            val nearest = geocoded.minByOrNull { haversine(currentLat, currentLng, it.lat, it.lng) } ?: break
             result.add(nearest)
             geocoded.remove(nearest)
             currentLat = nearest.lat

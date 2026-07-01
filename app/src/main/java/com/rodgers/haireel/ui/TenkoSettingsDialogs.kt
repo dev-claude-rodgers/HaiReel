@@ -192,14 +192,16 @@ internal fun TenkoFragment.showTenkoSettings() {
     }
     scroll.addView(root)
 
+    val colorOnSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+
     fun label(text: String) = TextView(ctx).apply {
-        this.text = text; textSize = 13f; setTextColor(android.graphics.Color.GRAY)
+        this.text = text; textSize = 13f; setTextColor(colorOnSurfaceVariant)
+        typeface = Typeface.DEFAULT_BOLD
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.topMargin = (14 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
+            .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
     }
     fun field(value: String, hint: String) = android.widget.EditText(ctx).apply {
         setText(value); this.hint = hint; inputType = InputType.TYPE_CLASS_TEXT
-        textSize = 16f
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }
 
@@ -212,7 +214,7 @@ internal fun TenkoFragment.showTenkoSettings() {
     root.addView(etChecker)
 
     root.addView(label("事業者名"))
-    val etCompany = field(AppSettings.getCompanyName(ctx), "例: 〇〇運送")
+    val etCompany = field(AppSettings.getCompanyName(ctx), "例: 〇〇運送株式会社")
     root.addView(etCompany)
 
     val savedVehicles = AppSettings.getVehicles(ctx)

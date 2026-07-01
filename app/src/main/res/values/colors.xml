@@ -36,6 +36,15 @@
     <color name="colorSosDanger">#CC0000</color>
     <!-- 点呼 -->
     <color name="colorSuccess">#1B5E20</color>
+    <!-- 点呼チップ -->
+    <color name="colorTenkoBefore">#1565C0</color>
+    <color name="colorTenkoBeforeBg">#E3F2FD</color>
+    <color name="colorTenkoAfter">#E65100</color>
+    <color name="colorTenkoAfterBg">#FFF3E0</color>
+    <color name="colorTenkoDoneFg">#1B5E20</color>
+    <color name="colorTenkoDoneBg">#E8F5E9</color>
+    <color name="colorBannerHintText">#2E7D32</color>
+    <color name="colorProgressBg">#CCCCCC</color>
     <!-- ボトムナビゲーション -->
     <color name="colorNavUnselected">#9E9E9E</color>
 </resources>

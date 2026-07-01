@@ -168,6 +168,21 @@ internal fun DeliveryListFragment.showListActions() {
         // ── 完了・選択操作
         row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
         row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
+        row("🗑️", "完了済みを削除", "完了した配達先を削除してピン番号を振り直す") {
+            val completed = viewModel.deliveries.value.filter { it.isCompleted }
+            if (completed.isEmpty()) {
+                android.widget.Toast.makeText(requireContext(), "完了済みの配達先はありません", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("完了済みを削除")
+                    .setMessage("完了済みの${completed.size}件を削除してピン番号を振り直しますか？\nこの操作は元に戻せません。")
+                    .setPositiveButton("削除する") { _, _ ->
+                        viewModel.deleteDeliveries(completed.map { it.id }.toSet())
+                    }
+                    .setNegativeButton("キャンセル", null)
+                    .show()
+            }
+        }
         row("☑️", "選択モード", "複数の配達先を選んで一括操作する") {
             if (adapter.isSelectMode) exitSelectMode() else enterSelectMode()
         }

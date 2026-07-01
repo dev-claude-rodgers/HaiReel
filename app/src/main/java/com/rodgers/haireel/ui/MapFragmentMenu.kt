@@ -135,7 +135,7 @@ import kotlinx.coroutines.withContext
             if (geocodedCount < 2) {
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle("ルート最適化できません")
-                    .setMessage("地図に配置済みの住所が2件未満です。\nジオコーディングが完了してから実行してください。")
+                    .setMessage("地図に配置済みの住所が2件未満です。\n住所を入力すると自動で地図に配置されます。配達リストで「⏳ 検索中」が消えてから実行してください。")
                     .setPositiveButton("OK", null).show()
                 return@row
             }
@@ -172,6 +172,7 @@ import kotlinx.coroutines.withContext
             row("✕", "施設マーカーを消す", "${facilityMarkers.size}件の施設ピンを削除") {
                 facilityMarkers.forEach { it.remove() }
                 facilityMarkers.clear()
+                savedFacilityPlaces.clear()
             }
         }
         divider()

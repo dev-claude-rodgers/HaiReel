@@ -38,20 +38,32 @@ class SettingsFragment : Fragment() {
     private fun doRestore(ctx: android.content.Context, uri: android.net.Uri, password: String? = null) {
         val appCtx = ctx.applicationContext  // Fragmentのライフサイクルに依存しないApplicationContextを使用
         Toast.makeText(appCtx, "復元中...", Toast.LENGTH_SHORT).show()
-        // lifecycleScope ではなく GlobalScope を使い、Fragmentデタッチでキャンセルされないようにする
-        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO).launch {
             try {
                 BackupManager.restoreBackup(appCtx, uri, password)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(appCtx, "復元しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
                 }
                 kotlinx.coroutines.delay(1500)
-                val intent = appCtx.packageManager.getLaunchIntentForPackage(appCtx.packageName)
-                if (intent != null) {
-                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    appCtx.startActivity(intent)
+                val launchIntent = appCtx.packageManager.getLaunchIntentForPackage(appCtx.packageName)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(
+                        android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    )
+                    // AlarmManagerで500ms後に起動予約してからkillProcessする。
+                    // startActivity直後にkillすると起動前にプロセスが死ぬため。
+                    val pi = android.app.PendingIntent.getActivity(
+                        appCtx, 0, launchIntent,
+                        android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                    )
+                    val alarmManager = appCtx.getSystemService(android.app.AlarmManager::class.java)
+                    alarmManager.set(
+                        android.app.AlarmManager.RTC,
+                        System.currentTimeMillis() + 500L,
+                        pi
+                    )
                 } else {
-                    // フォールバック: インテントが取れなくてもプロセスは終了（ランチャーから再起動）
                     withContext(Dispatchers.Main) {
                         Toast.makeText(appCtx, "アプリをランチャーから開いてください", Toast.LENGTH_LONG).show()
                     }
@@ -236,6 +248,12 @@ class SettingsFragment : Fragment() {
             text = "住所を地図座標に変換するには「Google APIキー」が必要です。\nGoogleアカウントがあれば無料で取得でき、個人利用の範囲では料金はかかりません。"
             textSize = 14f; setTextColor(onSurface)
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (8*dp).toInt() }
+        })
+        root.addView(android.widget.TextView(ctx).apply {
+            text = "※ APIキーを設定しなくても、住所管理・日報・点呼・荷室管理は使えます。後からでも変更可能です。"
+            textSize = 12f; setTextColor(onSurfaceVar)
+            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
                 .also { it.bottomMargin = (16*dp).toInt() }
         })
 
@@ -363,12 +381,31 @@ class SettingsFragment : Fragment() {
         })
 
         val inputField = android.widget.EditText(ctx).apply {
-            hint = "AIza... を貼り付け"
+            hint = "④ のAPIキーをここに貼り付け（例: AIza...）"
             setText(AppSettings.getUserApiKey(ctx))
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
         }
         root.addView(inputField)
+
+        // クリップボードに AIza... があれば自動貼り付けを提案
+        val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+            as android.content.ClipboardManager
+        val clipText = clipboard.primaryClip?.getItemAt(0)?.coerceToText(ctx)?.toString() ?: ""
+        if (clipText.trim().startsWith("AIza") && inputField.text.isBlank()) {
+            root.addView(com.google.android.material.button.MaterialButton(
+                ctx, null, com.google.android.material.R.attr.borderlessButtonStyle
+            ).apply {
+                text = "📋 クリップボードから貼り付け"
+                isAllCaps = false
+                setTextColor(primary)
+                layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
+                setOnClickListener {
+                    inputField.setText(clipText.trim())
+                    Toast.makeText(ctx, "APIキーを貼り付けました", Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
 
         val dlg = MaterialAlertDialogBuilder(ctx)
             .setTitle("🔑 Google APIキー設定")
@@ -629,7 +666,7 @@ class SettingsFragment : Fragment() {
             .setMessage("日報・配達先・ルート・帳票パターン・署名を含むすべてのデータを削除します。\n\nこの操作は元に戻せません。\n\n先にバックアップを作成することをおすすめします。")
             .setPositiveButton("初期化する") { _, _ ->
                 val appCtx2 = ctx.applicationContext
-                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO).launch {
                     try {
                         val db = com.rodgers.haireel.db.AppDatabase.getInstance(appCtx2)
                         db.workRecordDao().deleteAll()
@@ -685,30 +722,37 @@ class SettingsFragment : Fragment() {
 第2条（利用対象）
 本アプリは宅配ドライバーおよびその業務に関わる方を対象とした業務管理ツールです。
 
-第3条（禁止事項）
-・逆コンパイル・リバースエンジニアリング
+第3条（知的財産権）
+本アプリのデザイン・UI・機能・画面構成・ロゴ・文言・アイコン等に関する知的財産権は、すべて開発者（RODGERS）に帰属します。
+本アプリを参考・模倣した類似アプリの作成・配布・販売を禁止します。
+
+第4条（禁止事項）
+・逆コンパイル・逆アセンブル・リバースエンジニアリング
+・本アプリのデザインや機能を模倣した類似アプリの制作・配布
 ・サブスクリプションの第三者への譲渡・アカウント共有
 ・違法な目的での使用
 ・本アプリを利用した迷惑行為
 
-第4条（免責事項）
+第5条（免責事項）
 ・本アプリはあくまで補助ツールです。点呼記録・日報の法的効力を保証しません。
 ・ルート最適化の結果は参考情報であり、精度を保証しません。
 ・データの消失・破損に関して開発者は責任を負いません。
-・本アプリの利用により生じた損害について、開発者は一切責任を負いません。
+・本アプリの利用により生じた損害について、開発者の故意または重大な過失による場合を除き、責任を負いません。
+・運転中の本アプリの操作は道路交通法に違反する場合があります。走行中は必ず安全な場所に停車してからご使用ください。
 
-第5条（サービスの変更・停止）
+第6条（サービスの変更・停止）
 開発者は事前の通知なくサービスの内容変更・停止を行う場合があります。
 
-第6条（料金）
+第7条（料金）
 試用期間（7日間）は無料でご利用いただけます。
 継続利用には Google Play のサブスクリプション登録が必要です。
 月額プラン（¥300/月）または年額プラン（¥2,980/年）をお選びください。
+返金についてはGoogle Playの返金ポリシーに準じます。
 
-第7条（準拠法・管轄）
+第8条（準拠法・管轄）
 本規約は日本法に準拠し、紛争は開発者所在地の裁判所を第一審管轄とします。
 
-第8条（規約の変更）
+第9条（規約の変更）
 本規約は事前の通知なく変更される場合があります。
 変更後の規約はアプリ内に掲示された時点で効力を生じます。"""
             textSize = 13f
@@ -735,14 +779,14 @@ class SettingsFragment : Fragment() {
 RODGERS
 
 ■ 所在地
-個人情報保護のため非公開
-（お問い合わせいただければ開示します）
+消費者からの請求があり次第、遅滞なく開示いたします。
+※ 特定商取引法施行規則第11条の2の規定に基づきます。
 
 ■ 電話番号
-個人情報保護のため非公開
-（お問い合わせいただければ開示します）
+消費者からの請求があり次第、遅滞なく開示いたします。
+お問い合わせは下記メールにて承ります。
 
-■ メールアドレス
+■ お問い合わせ先
 dev.claude.rodgers@gmail.com
 
 ■ 販売価格
@@ -820,26 +864,25 @@ Android 8.0（API 26）以上"""
         }
 
         section("📦 基本的な使い方")
-        item("① 配達リストメニュー →「名前・住所を追加」で住所を入力")
-        item("② 地図ボタン →「ルート最適化」で現在地から最短順に自動整列")
-        item("③ 配達完了後に各行をタップして完了マークをつける")
-        note("→ 右上のトグルで「全件 / 未完了 / 完了」を切り替えられます")
+        item("① 配達タブの右上メニューから「名前・住所を追加」で住所を入力")
+        item("② トグルで地図に切り替え → メニューの「ルート最適化」で現在地から最短順に自動整列")
+        item("③ 各行をタップ →「完了にする」で完了マークをつける")
+        note("→ チップで「すべて / 未完了のみ / 完了のみ」を切り替えられます")
         item("④ 点呼タブで乗務前後の点呼を記録する")
-        item("⑤ 報告タブで日報（収入・走行距離）を記録してExcel/PDF出力")
+        item("⑤ 報告タブで日報（収入・走行距離）を記録してExcel出力")
 
         section("🚛 荷室レイアウト")
-        item("荷室タブで車の積載状況を写真で管理できます。")
-        item("写真を撮影またはギャラリーから選択してピンで位置を記録します。")
+        item("配達タブのトグルボタン（リスト → 地図 → 荷室）で荷室画面に切り替えます。")
+        item("写真を撮影またはギャラリーから選択してピンで積載位置を記録します。")
         note("ピンをタップすると備考や状態を入力できます。")
 
         section("🔑 Google APIキーについて")
         item("住所検索・地図機能にGoogle APIキーが必要です。")
-        item("設定 →「Google APIキー設定」→「設定ウィザードを開く」から登録できます。")
+        item("設定 →「Google APIキー設定」をタップするとウィザードが開きます。")
         note("Google Cloudプロジェクト作成・課金設定・API有効化の手順をウィザードで案内します。")
         note("毎月200ドル分の無料枠があり、個人利用は通常無料枠内に収まります。")
 
         section("💡 便利な使い方")
-        item("伝票スキャン: カメラで伝票を撮影して住所を自動読み取り")
         item("帳票パターン: 取引先ごとに帳票の設定（社名・単価など）を切り替えられます")
         item("ウィジェット: ホーム画面にウィジェットを追加して今日の配達件数を確認")
         item("バックアップ: 定期的に設定 → バックアップを作成してください")
@@ -849,7 +892,7 @@ Android 8.0（API 26）以上"""
         item("Q. 地図が白くなる")
         note("→ Google APIキーが設定されていないか無効です。設定 →「Google APIキー設定」を確認してください。")
         item("Q. ルート最適化ができない")
-        note("→ 住所のジオコーディング（緑マーク）が完了しているか確認してください。APIキーが必要です。")
+        note("→ 配達リストで「⏳ 検索中」が消えているか確認してください。住所が地図に配置されるまで少し待ってから実行してください。APIキーの設定も確認してください。")
         item("Q. 住所変換に失敗する")
         note("→ 設定 →「Google APIキー設定」でAPIキーを確認・再入力してください。")
         item("Q. 収入が表示されない")
@@ -873,34 +916,39 @@ Android 8.0（API 26）以上"""
         val dp  = ctx.resources.displayMetrics.density
         val tv  = TextView(ctx).apply {
             text = """プライバシーポリシー
-最終更新日：2026年6月
+最終更新日：2026年7月
 
 HaiReel（以下「本アプリ」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めます。
 
 ■ 収集する情報
 ・配達先情報（氏名・住所・備考など）
 ・日報・点呼記録・収支データ
-・位置情報（地図・ルート最適化機能を使用する場合のみ・端末外に送信しない）
+・位置情報（地図・ルート最適化機能を使用する場合のみ）
 ・Google APIキー（端末内に暗号化して保存）
 
 ■ 利用目的
 収集した情報は本アプリの機能提供のみに使用します。
-外部サーバーへの送信は行いません。
 
 ■ データの保存場所
-すべてのデータは端末内にのみ保存されます。
+配達先・日報・点呼・収支データはすべて端末内にのみ保存されます。
 バックアップファイルをエクスポートした場合の管理はユーザー自身の責任となります。
 
 ■ 第三者への提供
-ユーザーのデータを第三者に提供・販売することは一切ありません。
+ユーザーの業務データを第三者に提供・販売することは一切ありません。
 
 ■ Google APIの利用
 住所検索・地図機能においてGoogle Geocoding API・Places API・Maps SDK for Androidを使用します。
-これらのAPIはGoogleのプライバシーポリシーに従います。
+住所検索時に入力された住所データはGoogleのサーバーに送信されます。
+位置情報は地図・ルート最適化機能のためGoogleのサービスに送信される場合があります。
+これらのAPIはGoogleのプライバシーポリシー（https://policies.google.com/privacy）に従います。
 
 ■ Firebase Crashlytics
-アプリ安定性向上のためクラッシュレポートを収集します。
+アプリ安定性向上のためクラッシュレポートをGoogleのサーバーに送信します。
 このレポートには個人を特定できる情報は含まれません。
+
+■ Firebase Analytics
+アプリ改善のため画面遷移・起動回数などの匿名使用状況をGoogleのサーバーに送信します。
+個人を特定できる情報は収集しません。
 
 ■ データの削除
 アプリを削除するとすべてのデータが端末から削除されます。

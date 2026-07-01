@@ -15,6 +15,7 @@ import com.rodgers.haireel.R
 import com.rodgers.haireel.model.ColumnType
 import com.rodgers.haireel.model.ExcelColumn
 import com.rodgers.haireel.model.ReportPattern
+import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
 import com.rodgers.haireel.util.themeColor
 
@@ -65,7 +66,9 @@ internal fun DailyReportFragment.showPatternListDialog() {
         if (patterns.isEmpty()) {
             listRoot.addView(TextView(ctx).apply {
                 text = "パターンがありません。\n上のボタンから追加してください。"
-                textSize = 13f; setTextColor(Color.GRAY); gravity = Gravity.CENTER
+                textSize = 13f
+                setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                gravity = Gravity.CENTER
                 layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
                     .also { it.topMargin = (16 * dp).toInt() }
             })
@@ -190,10 +193,21 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
 
     val base = pattern ?: ReportPattern.default(PatternStorage.nextId(ctx))
 
+    val colorOnSurface        = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+    val colorOnSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+    val colorSurfaceVariant   = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
+    val colorOutlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+
     fun label(text: String) = TextView(ctx).apply {
-        this.text = text; textSize = 12f; setTextColor(Color.GRAY)
+        this.text = text; textSize = 13f; setTextColor(colorOnSurfaceVariant)
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.topMargin = (8 * dp).toInt(); it.bottomMargin = (2 * dp).toInt() }
+            .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
+    }
+    fun divider() = android.view.View(ctx).apply {
+        setBackgroundColor(colorOutlineVariant)
+        layoutParams = LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
+            .also { it.topMargin = (16 * dp).toInt(); it.bottomMargin = (12 * dp).toInt() }
     }
     fun field(value: String, hint: String = "") = EditText(ctx).apply {
         setText(value); this.hint = hint
@@ -206,11 +220,11 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     root.addView(titleIn)
 
     root.addView(label("担当者名"))
-    val driverIn  = field(base.driverName, "山田 太郎")
+    val driverIn  = field(base.driverName.ifBlank { AppSettings.getDriverName(ctx) }, "例: 〇〇 〇〇")
     root.addView(driverIn)
 
     root.addView(label("取引先名"))
-    val clientIn  = field(base.clientName, "◯◯運輸")
+    val clientIn  = field(base.clientName, "例: 委託元の会社名")
     root.addView(clientIn)
 
     root.addView(label("締め日"))
@@ -259,20 +273,33 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     closingRow.addView(monthEndBtn)
     root.addView(closingRow)
 
+    root.addView(divider())
     root.addView(TextView(ctx).apply {
         text = "Excel 出力列"
-        textSize = 13f; setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurface))
+        textSize = 13f; setTextColor(colorOnSurfaceVariant)
         typeface = android.graphics.Typeface.DEFAULT_BOLD
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).also { it.topMargin = (12 * dp).toInt() }
+        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     })
     root.addView(TextView(ctx).apply {
-        text = "A4横目安: 5〜6列  ／  [種別] [列名] [×]"
-        textSize = 11f; setTextColor(Color.GRAY)
+        text = "種別を選ぶと列名が自動入力されます（A4横目安: 5〜6列）"
+        textSize = 11f; setTextColor(colorOnSurfaceVariant)
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.bottomMargin = (4 * dp).toInt() }
+            .also { it.bottomMargin = (8 * dp).toInt() }
     })
 
-    val allowedColTypes = ColumnType.values().filter { it != ColumnType.REMARKS }
+    val allowedColTypes = listOf(
+        ColumnType.START_TIME,
+        ColumnType.END_TIME,
+        ColumnType.WORKING_HOURS,
+        ColumnType.DELIVERY_COUNT,
+        ColumnType.PACKAGE_COUNT,
+        ColumnType.AREA,
+        ColumnType.METER_START,
+        ColumnType.METER_END,
+        ColumnType.DISTANCE,
+        ColumnType.FUEL_COST,
+        ColumnType.INCOME
+    )
     val colTypeLabels = allowedColTypes.map { it.defaultLabel }.toTypedArray()
 
     val editingCols = base.excelColumns.map { ExcelColumn(it.type, it.label) }.toMutableList()
@@ -285,33 +312,12 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
 
     fun rebuildColList() {
         colListRoot.removeAllViews()
-        editingCols.forEachIndexed { idx, _ ->
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                    .also { it.bottomMargin = (4 * dp).toInt() }
-            }
-
-            val spinner = android.widget.Spinner(ctx).apply {
-                adapter = android.widget.ArrayAdapter(
-                    ctx, android.R.layout.simple_spinner_item, colTypeLabels
-                ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-                setSelection(allowedColTypes.indexOf(editingCols[idx].type).coerceAtLeast(0))
-                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1.5f)
-                onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(p: android.widget.AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                        if (idx < editingCols.size)
-                            editingCols[idx] = editingCols[idx].copy(type = allowedColTypes[pos])
-                    }
-                    override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
-                }
-            }
-
+        editingCols.forEachIndexed { idx, col ->
+            // labelEditを先に生成してスピナーリスナーから参照できるようにする
             val labelEdit = EditText(ctx).apply {
-                setText(editingCols[idx].label)
-                hint = "列名"
-                textSize = 12f
+                setText(col.label)
+                hint = "列名（省略時は種別名を使用）"
+                textSize = 13f
                 layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
                 addTextChangedListener(object : android.text.TextWatcher {
                     override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
@@ -323,19 +329,69 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
                 })
             }
 
-            val delBtn = android.widget.Button(ctx).apply {
-                text = "×"
-                textSize = 14f
-                setTextColor(android.graphics.Color.RED)
-                background = null
+            val spinner = android.widget.Spinner(ctx).apply {
+                adapter = android.widget.ArrayAdapter(
+                    ctx, android.R.layout.simple_spinner_item, colTypeLabels
+                ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+                setSelection(allowedColTypes.indexOf(col.type).coerceAtLeast(0))
+                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+                var isInitialized = false
+                onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(p: android.widget.AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                        if (!isInitialized) { isInitialized = true; return }
+                        if (idx < editingCols.size) {
+                            val newType = allowedColTypes[pos]
+                            editingCols[idx] = editingCols[idx].copy(type = newType, label = newType.defaultLabel)
+                            labelEdit.setText(newType.defaultLabel)
+                        }
+                    }
+                    override fun onNothingSelected(p: android.widget.AdapterView<*>?) {}
+                }
+            }
+
+            val delBtn = com.google.android.material.button.MaterialButton(
+                ctx, null, com.google.android.material.R.attr.borderlessButtonStyle
+            ).apply {
+                text = "✕"
+                textSize = 13f
+                setTextColor(ContextCompat.getColor(ctx, R.color.colorActionRed))
                 layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
                 setOnClickListener { editingCols.removeAt(idx); rebuildColList() }
             }
 
-            row.addView(spinner)
-            row.addView(labelEdit)
-            row.addView(delBtn)
-            colListRoot.addView(row)
+            val topRow = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+            }
+            topRow.addView(spinner)
+            topRow.addView(delBtn)
+
+            val bottomRow = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                    .also { it.topMargin = (4 * dp).toInt() }
+            }
+            bottomRow.addView(TextView(ctx).apply {
+                text = "列名:"; textSize = 12f; setTextColor(colorOnSurfaceVariant)
+                layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+                    .also { it.marginEnd = (6 * dp).toInt() }
+            })
+            bottomRow.addView(labelEdit)
+
+            val card = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(colorSurfaceVariant); cornerRadius = 8 * dp
+                }
+                setPadding((10 * dp).toInt(), (8 * dp).toInt(), (6 * dp).toInt(), (8 * dp).toInt())
+                layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                    .also { it.bottomMargin = (6 * dp).toInt() }
+            }
+            card.addView(topRow)
+            card.addView(bottomRow)
+            colListRoot.addView(card)
         }
     }
 
@@ -357,13 +413,8 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     }
     root.addView(addColBtn)
 
-    root.addView(TextView(ctx).apply {
-        text = "報酬タイプ"; textSize = 13f
-        setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurface))
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.topMargin = (14 * dp).toInt(); it.bottomMargin = (2 * dp).toInt() }
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-    })
+    root.addView(divider())
+    root.addView(label("報酬タイプ"))
     val payLabels = listOf("個建て（個数×単価）", "車建て（日当制）", "時間制（時間×単価）", "なし（集計しない）")
     val payGroup  = android.widget.RadioGroup(ctx)
     var selectedPayType = base.paymentType
@@ -385,7 +436,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     root.addView(unitPriceIn)
     root.addView(TextView(ctx).apply {
         text = "個建て（個数×単価）/ 車建て（日当制）/ 時間制（時間×単価）"
-        textSize = 11f; setTextColor(Color.GRAY)
+        textSize = 11f; setTextColor(colorOnSurfaceVariant)
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     })
 

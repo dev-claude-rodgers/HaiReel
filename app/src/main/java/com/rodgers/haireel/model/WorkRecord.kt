@@ -20,7 +20,8 @@ data class WorkRecord(
     val remarks: String = "",
     val income: Int = 0,
     val fuelCost: Int = 0,
-    val assignmentId: String = ""
+    val assignmentId: String = "",
+    val noWork: Boolean = false
 ) {
     val workingMinutes: Int get() = try {
         val (sh, sm) = startTime.split(":").map { it.toInt() }
