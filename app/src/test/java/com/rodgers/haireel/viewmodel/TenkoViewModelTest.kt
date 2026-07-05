@@ -3,6 +3,7 @@
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.rodgers.haireel.db.TenkoDao
+import com.rodgers.haireel.db.WorkRecordDao
 import com.rodgers.haireel.model.TenkoRecord
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -32,6 +33,7 @@ class TenkoViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var mockApp: Application
     private lateinit var mockDao: TenkoDao
+    private lateinit var mockWorkRecordDao: WorkRecordDao
     private lateinit var viewModel: TenkoViewModel
 
     private fun makeRecord(date: String, aid: String = "") = TenkoRecord(
@@ -46,8 +48,9 @@ class TenkoViewModelTest {
         Dispatchers.setMain(testDispatcher)
         mockApp = mockk(relaxed = true)
         mockDao = mockk(relaxed = true)
+        mockWorkRecordDao = mockk(relaxed = true)
         coEvery { mockDao.getByMonthFlow(any(), any()) } returns flowOf(emptyList())
-        viewModel = TenkoViewModel(mockApp, mockDao)
+        viewModel = TenkoViewModel(mockApp, mockDao, mockWorkRecordDao)
     }
 
     @After

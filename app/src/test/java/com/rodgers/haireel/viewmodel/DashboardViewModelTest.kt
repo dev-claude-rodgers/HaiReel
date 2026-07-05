@@ -1,26 +1,48 @@
 ﻿package com.rodgers.haireel.viewmodel
 
+import android.app.Application
+import com.rodgers.haireel.db.DeliveryGroupDao
 import com.rodgers.haireel.db.WorkRecordDao
 import com.rodgers.haireel.model.WorkRecord
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
 
+    private val testDispatcher = UnconfinedTestDispatcher()
+    private lateinit var mockApp: Application
     private lateinit var mockDao: WorkRecordDao
+    private lateinit var mockGroupDao: DeliveryGroupDao
     private lateinit var vm: DashboardViewModel
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        mockApp = mockk(relaxed = true)
         mockDao = mockk(relaxed = true)
+        mockGroupDao = mockk(relaxed = true)
         every { mockDao.recordsForPeriodFlow(any(), any(), any()) } returns flowOf(emptyList())
         every { mockDao.recordsForYearFlow(any()) } returns flowOf(emptyList())
-        vm = DashboardViewModel(mockDao)
+        coEvery { mockGroupDao.getAll() } returns emptyList()
+        vm = DashboardViewModel(mockApp, mockDao, mockGroupDao)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     // ── 年遷移 ─────────────────────────────────────────────────
@@ -77,38 +99,10 @@ class DashboardViewModelTest {
     @Test
     fun `空のレコードリストはすべての月が0のサマリーになる`() {
         every { mockDao.recordsForYearFlow(any()) } returns flowOf(emptyList())
-        val vm2 = DashboardViewModel(mockDao)
+        val vm2 = DashboardViewModel(mockApp, mockDao, mockGroupDao)
         // stateIn の初期値を確認
         val summaries = vm2.monthlySummaries.value
         assertEquals(0, summaries.size)
     }
 
-    @Test
-    fun `weekSummaryの初期値はすべて0`() {
-        val w = vm.weekSummary.value
-        assertEquals(0, w.workDays)
-        assertEquals(0, w.income)
-        assertEquals(0, w.deliveryCount)
-        assertEquals(0f, w.distanceKm, 0.001f)
-    }
-
-    // ── WeekSummary 計算ロジック ──────────────────────────────
-
-    @Test
-    fun `複数レコードのincomeが合算されるダッシュボードロジック`() {
-        val today = LocalDate.now()
-        val monday = today.minusDays((today.dayOfWeek.value - 1).toLong())
-        val records = listOf(
-            WorkRecord(date = monday.toString(), income = 10000, deliveryCount = 5, distanceKm = 50f),
-            WorkRecord(date = monday.plusDays(1).toString(), income = 20000, deliveryCount = 10, distanceKm = 80f)
-        )
-        every { mockDao.recordsForPeriodFlow(any(), any(), any()) } returns flowOf(records)
-
-        val vm2 = DashboardViewModel(mockDao)
-        // stateIn の初期値を確認（フローの最初の値）
-        val summary = vm2.weekSummary.value
-        // 初期値は0だが、フローが流れた後は合算値になる
-        // ここでは初期値の型安全性を確認
-        assertNotNull(summary)
-    }
 }

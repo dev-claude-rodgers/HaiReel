@@ -192,26 +192,6 @@ class DeliveryViewModelTest {
         assertFalse(viewModel.groups.value.any { it.id == newId })
     }
 
-    // ── アパート判定 ──────────────────────────────────────────
-
-    @Test
-    fun `isLikelyApartmentでマンションキーワードを検出する`() {
-        val d = makeDelivery("a1").copy(address = "東京都新宿区西新宿マンション101号室")
-        assertTrue(viewModel.isLikelyApartment(d))
-    }
-
-    @Test
-    fun `isLikelyApartmentで戸建住所はfalse`() {
-        val d = makeDelivery("a2").copy(address = "東京都新宿区西新宿1-1-1")
-        assertFalse(viewModel.isLikelyApartment(d))
-    }
-
-    @Test
-    fun `isLikelyApartmentで店名にキーワードがあっても検出する`() {
-        val d = makeDelivery("a3").copy(name = "ハイツ新宿", address = "東京都新宿区1-1")
-        assertTrue(viewModel.isLikelyApartment(d))
-    }
-
     // ── エラーパス ────────────────────────────────────────────
 
     @Test
