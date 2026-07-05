@@ -5,6 +5,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -74,5 +75,36 @@ class TenkoFlowTest {
         onView(withId(R.id.btnTenkoMenu)).perform(click())
         onView(withText("点呼簿を出力")).check(matches(isDisplayed()))
         pressBack()
+    }
+
+    // ── 点呼記録フロー ────────────────────────────────────────
+
+    @Test
+    fun tenkoTab_chipBefore_opensDialog() {
+        onView(withId(R.id.chipBefore)).perform(click())
+        onView(withText("体調")).check(matches(isDisplayed()))
+        pressBack()
+    }
+
+    @Test
+    fun tenkoTab_chipAfter_opensDialog() {
+        onView(withId(R.id.chipAfter)).perform(click())
+        onView(withText("体調")).check(matches(isDisplayed()))
+        pressBack()
+    }
+
+    @Test
+    fun tenkoTab_chipBefore_dialogHasSaveButton() {
+        onView(withId(R.id.chipBefore)).perform(click())
+        onView(withText("保存")).check(matches(isDisplayed()))
+        onView(withText("キャンセル")).perform(click())
+    }
+
+    @Test
+    fun tenkoTab_chipBefore_cancelDismissesDialog() {
+        onView(withId(R.id.chipBefore)).perform(click())
+        onView(withText("体調")).check(matches(isDisplayed()))
+        onView(withText("キャンセル")).perform(click())
+        onView(withText("体調")).check(doesNotExist())
     }
 }

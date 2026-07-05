@@ -222,4 +222,79 @@ class DeliveryRepositoryTest {
         repo.clearDownloadFileUri("g1")
         assertNull(repo.getDownloadFileUri("g1"))
     }
+
+    // ── getAllDeliveries ───────────────────────────────────────
+
+    @Test
+    fun `getAllDeliveriesで全グループの配達先を返す`() = runTest {
+        val entities = listOf(
+            DeliveryEntity(id = "d1", groupId = "g1", order = 1, address = "東京都新宿区"),
+            DeliveryEntity(id = "d2", groupId = "g2", order = 1, address = "大阪府大阪市")
+        )
+        coEvery { mockDeliveryDao.getAll() } returns entities
+
+        val result = repo.getAllDeliveries()
+
+        assertEquals(2, result.size)
+        assertTrue(result.any { it.id == "d1" })
+        assertTrue(result.any { it.id == "d2" })
+    }
+
+    @Test
+    fun `getAllDeliveriesが空の場合は空リストを返す`() = runTest {
+        coEvery { mockDeliveryDao.getAll() } returns emptyList()
+
+        val result = repo.getAllDeliveries()
+
+        assertTrue(result.isEmpty())
+    }
+
+    // ── loadDeliveries（データあり）──────────────────────────
+
+    @Test
+    fun `loadDeliveriesでグループ内の配達先リストを返す`() = runTest {
+        val entities = listOf(
+            DeliveryEntity(id = "d1", groupId = "g1", order = 1, address = "東京都渋谷区"),
+            DeliveryEntity(id = "d2", groupId = "g1", order = 2, address = "東京都港区")
+        )
+        coEvery { mockDeliveryDao.getByGroup("g1") } returns entities
+
+        val result = repo.loadDeliveries("g1")
+
+        assertEquals(2, result.size)
+        assertEquals("東京都渋谷区", result[0].address)
+        assertEquals("東京都港区", result[1].address)
+    }
+
+    // ── normalizeAllAddressesToFullWidth ──────────────────────
+
+    @Test
+    fun `normalizeAllAddressesToFullWidthで半角住所はupsertAllが呼ばれる`() = runTest {
+        val entity = DeliveryEntity(id = "d1", groupId = "g1", order = 1, address = "Tokyo")
+        coEvery { mockDeliveryDao.getAll() } returns listOf(entity)
+        coJustRun { mockDeliveryDao.upsertAll(any()) }
+
+        repo.normalizeAllAddressesToFullWidth()
+
+        coVerify(exactly = 1) { mockDeliveryDao.upsertAll(any()) }
+    }
+
+    @Test
+    fun `normalizeAllAddressesToFullWidthで既に全角の場合はupsertAllが呼ばれない`() = runTest {
+        val entity = DeliveryEntity(id = "d1", groupId = "g1", order = 1, address = "東京都新宿区")
+        coEvery { mockDeliveryDao.getAll() } returns listOf(entity)
+
+        repo.normalizeAllAddressesToFullWidth()
+
+        coVerify(exactly = 0) { mockDeliveryDao.upsertAll(any()) }
+    }
+
+    @Test
+    fun `normalizeAllAddressesToFullWidthで空リストの場合はupsertAllが呼ばれない`() = runTest {
+        coEvery { mockDeliveryDao.getAll() } returns emptyList()
+
+        repo.normalizeAllAddressesToFullWidth()
+
+        coVerify(exactly = 0) { mockDeliveryDao.upsertAll(any()) }
+    }
 }

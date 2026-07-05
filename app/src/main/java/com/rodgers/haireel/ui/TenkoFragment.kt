@@ -73,7 +73,12 @@ class TenkoFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupRecyclerView()
+        setupButtons()
+        observeFlows()
+    }
 
+    private fun setupRecyclerView() {
         adapter = TenkoMonthAdapter(
             onBeforeClick  = { date, rec -> showBeforeDialog(date, rec) },
             onAfterClick   = { date, rec -> showAfterDialog(date, rec) },
@@ -88,11 +93,15 @@ class TenkoFragment : Fragment() {
                 DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL)
             )
         }
+    }
 
+    private fun setupButtons() {
         binding.btnPrevMonth.setOnClickListener { viewModel.previousMonth() }
         binding.btnNextMonth.setOnClickListener { viewModel.nextMonth() }
         binding.btnTenkoMenu.setOnClickListener { showTenkoMenu() }
+    }
 
+    private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.yearMonth.collect { ym ->
                 val (y, m) = ym.split("-").map { it.toInt() }

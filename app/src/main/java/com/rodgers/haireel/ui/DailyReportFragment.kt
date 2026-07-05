@@ -62,51 +62,61 @@ class DailyReportFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         fuelPricePerL     = com.rodgers.haireel.util.AppSettings.getFuelPricePerLiter(requireContext())
         fuelEfficiencyKmL = com.rodgers.haireel.util.AppSettings.getFuelEfficiencyKmPerL(requireContext())
+        setupRecyclerView()
+        setupButtons()
+        setupAssignmentBar()
+        observeFlows()
+    }
 
+    private fun setupRecyclerView() {
         adapter = DayEntryAdapter(
             onTap    = { entry -> openEditForDate(entry.date) },
             onDelete = { record -> confirmDelete(record) },
             onShare  = { record -> shareRecord(record) },
             onNoWork = { date, noWork -> reportViewModel.setNoWork(date, noWork) }
         )
-
         binding.recyclerReport.apply {
             layoutManager = LinearLayoutManager(requireContext())
             this.adapter  = this@DailyReportFragment.adapter
             addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
         }
+    }
 
+    private fun setupButtons() {
         binding.btnPrevMonth.setOnClickListener { reportViewModel.previousMonth() }
         binding.btnNextMonth.setOnClickListener { reportViewModel.nextMonth() }
         binding.btnMenu.setOnClickListener     { showReportMenu() }
-
         val initPattern = PatternStorage.ensureDefault(requireContext())
         reportViewModel.setClosingDay(initPattern.closingDay)
+    }
 
-        val updateAssignmentBar = {
-            val group = deliveryViewModel.currentGroup()
-            if (group != null && group.name.isNotBlank()) {
-                binding.tvAssignment.visibility = View.VISIBLE
-                binding.tvAssignment.text = "📦 ${group.name}"
-                try {
-                    val color = android.graphics.Color.parseColor(group.colorHex)
-                    binding.tvAssignment.setBackgroundColor(
-                        android.graphics.Color.argb(60,
-                            android.graphics.Color.red(color),
-                            android.graphics.Color.green(color),
-                            android.graphics.Color.blue(color))
-                    )
-                } catch (_: Exception) {
-                    binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#222222"))
-                }
-            } else {
-                binding.tvAssignment.visibility = View.GONE
+    private fun updateAssignmentBar() {
+        val group = deliveryViewModel.currentGroup()
+        if (group != null && group.name.isNotBlank()) {
+            binding.tvAssignment.visibility = View.VISIBLE
+            binding.tvAssignment.text = "📦 ${group.name}"
+            try {
+                val color = android.graphics.Color.parseColor(group.colorHex)
+                binding.tvAssignment.setBackgroundColor(
+                    android.graphics.Color.argb(60,
+                        android.graphics.Color.red(color),
+                        android.graphics.Color.green(color),
+                        android.graphics.Color.blue(color))
+                )
+            } catch (_: Exception) {
+                binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#222222"))
             }
+        } else {
+            binding.tvAssignment.visibility = View.GONE
         }
+    }
 
+    private fun setupAssignmentBar() {
         reportViewModel.setAssignmentId(deliveryViewModel.currentGroupId.value)
         updateAssignmentBar()
+    }
 
+    private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
             deliveryViewModel.currentGroupId.collectLatest { groupId ->
                 reportViewModel.setAssignmentId(groupId)
