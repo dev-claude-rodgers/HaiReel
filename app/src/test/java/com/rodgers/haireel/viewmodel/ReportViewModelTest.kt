@@ -1,9 +1,36 @@
 ﻿package com.rodgers.haireel.viewmodel
 
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.rodgers.haireel.model.WorkRecord
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.slot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReportViewModelTest {
+
+    @get:Rule
+    val instantTaskRule = InstantTaskExecutorRule()
+
+    private val testDispatcher = UnconfinedTestDispatcher()
+
+    @Before
+    fun setUp() { Dispatchers.setMain(testDispatcher) }
+
+    @After
+    fun tearDown() { Dispatchers.resetMain() }
 
     // ── computePeriod: 月末締め (closingDay >= 31) ──────────────
 
@@ -182,5 +209,127 @@ class ReportViewModelTest {
         val e = java.time.LocalDate.parse(end)
         val days = java.time.temporal.ChronoUnit.DAYS.between(s, e) + 1
         assertEquals(30L, days)  // 6月は30日
+    }
+
+    // ── setNoWork ─────────────────────────────────────────────
+
+    @Test
+    fun `setNoWorkで既存レコードがない場合_新規レコードをnoWorkでupsertする`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            coEvery { dao.recordForDate(any(), any()) } returns null
+
+            vm.setNoWork("2026-06-10", true)
+            advanceUntilIdle()
+
+            coVerify { dao.upsert(match { it.date == "2026-06-10" && it.noWork }) }
+        }
+
+    @Test
+    fun `setNoWorkで既存レコードがある場合_noWorkを更新してupsertする`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            val existing = WorkRecord(date = "2026-06-10", deliveryCount = 50, noWork = false)
+            coEvery { dao.recordForDate("2026-06-10", any()) } returns existing
+
+            vm.setNoWork("2026-06-10", true)
+            advanceUntilIdle()
+
+            coVerify { dao.upsert(match { it.date == "2026-06-10" && it.noWork && it.deliveryCount == 50 }) }
+        }
+
+    @Test
+    fun `setNoWorkでfalseに戻すとnoWorkがfalseでupsertされる`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            val existing = WorkRecord(date = "2026-06-10", noWork = true)
+            coEvery { dao.recordForDate("2026-06-10", any()) } returns existing
+
+            vm.setNoWork("2026-06-10", false)
+            advanceUntilIdle()
+
+            coVerify { dao.upsert(match { it.date == "2026-06-10" && !it.noWork }) }
+        }
+
+    // ── recordForDate ─────────────────────────────────────────
+
+    @Test
+    fun `recordForDateでdao_recordForDateの結果を返す`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            val record = WorkRecord(date = "2026-06-15", deliveryCount = 30)
+            coEvery { dao.recordForDate("2026-06-15", any()) } returns record
+
+            val result = vm.recordForDate("2026-06-15")
+
+            assertEquals(record, result)
+        }
+
+    @Test
+    fun `recordForDateでレコードがない場合nullを返す`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            coEvery { dao.recordForDate(any(), any()) } returns null
+
+            assertNull(vm.recordForDate("2026-06-01"))
+        }
+
+    // ── save / delete ─────────────────────────────────────────
+
+    @Test
+    fun `saveでdao_upsertが呼ばれる`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            val record = WorkRecord(date = "2026-06-20", deliveryCount = 10)
+
+            vm.save(record)
+            advanceUntilIdle()
+
+            coVerify { dao.upsert(record) }
+        }
+
+    @Test
+    fun `deleteでdao_deleteが呼ばれる`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            val record = WorkRecord(date = "2026-06-20")
+
+            vm.delete(record)
+            advanceUntilIdle()
+
+            coVerify { dao.delete(record) }
+        }
+
+    @Test
+    fun `saveAndWaitでdao_upsertが呼ばれる`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            val record = WorkRecord(date = "2026-06-25", deliveryCount = 5)
+
+            vm.saveAndWait(record)
+
+            coVerify { dao.upsert(record) }
+        }
+
+    // ── setAssignmentId が recordForDate に反映される ────────────
+
+    @Test
+    fun `setAssignmentId後のrecordForDateは設定した案件IDで検索する`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val (vm, dao) = makeVmWithDao()
+            coEvery { dao.recordForDate(any(), any()) } returns null
+
+            vm.setAssignmentId("job_02")
+            vm.recordForDate("2026-06-10")
+
+            coVerify { dao.recordForDate("2026-06-10", "job_02") }
+        }
+
+    private fun makeVmWithDao(): Pair<ReportViewModel, com.rodgers.haireel.db.WorkRecordDao> {
+        val mockApp = io.mockk.mockk<android.app.Application>(relaxed = true)
+        val mockDao = io.mockk.mockk<com.rodgers.haireel.db.WorkRecordDao>(relaxed = true)
+        io.mockk.every { mockDao.recordsForPeriodFlow(any(), any(), any()) } returns
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        return ReportViewModel(mockApp, mockDao) to mockDao
     }
 }

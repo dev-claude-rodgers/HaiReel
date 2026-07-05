@@ -79,6 +79,7 @@ class DeliveryListFragment : Fragment() {
 
     internal var pendingPhotoDeliveryId: String? = null
     internal var pendingPhotoFilePath: String? = null
+    private lateinit var itemTouchHelper: ItemTouchHelper
 
     // 積み込みチェック（インメモリ。アプリ再起動でリセット）
     internal val loadedIds = mutableSetOf<String>()
@@ -125,13 +126,10 @@ class DeliveryListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // ItemTouchHelper はアダプターより先に参照が必要なため var で保持
-        var itemTouchHelper: ItemTouchHelper? = null
-
         adapter = DeliveryAdapter(
             onTap = { delivery -> showItemOptions(delivery) },
             onLongPress = { if (!adapter.isSelectMode) enterSelectMode() },
-            onDragStart = { vh -> itemTouchHelper?.startDrag(vh) },
+            onDragStart = { vh -> itemTouchHelper.startDrag(vh) },
             onNoteClick = { delivery -> showNoteView(delivery) },
             onPhotoClick = { delivery, index -> showPhotosViewer(delivery, index) },
             onSelectionChanged = { updateSelectionUI() }
@@ -143,8 +141,22 @@ class DeliveryListFragment : Fragment() {
             addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
         }
 
-        itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.Callback() {
-            private var orderChanged = false
+        itemTouchHelper = buildItemTouchHelper()
+        itemTouchHelper.attachToRecyclerView(binding.recyclerView)
+
+        setupFilterChip()
+        setupSelectionBar()
+
+        binding.buttonSubToggle.setOnClickListener { cycleViewMode() }
+        binding.buttonListMenu.setOnClickListener { showListActions() }
+        binding.layoutProgress.setOnClickListener { cycleProgressDisplay() }
+
+        observeFlows()
+    }
+
+    private fun buildItemTouchHelper(): ItemTouchHelper {
+        var orderChanged = false
+        return ItemTouchHelper(object : ItemTouchHelper.Callback() {
 
             override fun getMovementFlags(rv: RecyclerView, vh: RecyclerView.ViewHolder) =
                 if (adapter.isSelectMode) makeMovementFlags(0, 0)
@@ -183,9 +195,9 @@ class DeliveryListFragment : Fragment() {
                 }
             }
         })
-        itemTouchHelper!!.attachToRecyclerView(binding.recyclerView)
+    }
 
-        // フィルターチップ（3状態: すべて → 未完了のみ → 完了のみ）
+    private fun setupFilterChip() {
         binding.chipIncomplete.typeface = android.graphics.Typeface.DEFAULT_BOLD
         binding.chipIncomplete.text = "すべて"
         binding.chipIncomplete.isCheckable = false
@@ -197,12 +209,12 @@ class DeliveryListFragment : Fragment() {
             }
             applyFilter()
         }
+    }
 
+    private fun setupSelectionBar() {
         binding.buttonSelect.visibility = View.GONE
-        // 「✕ キャンセル」ボタン → 選択モードを直接解除
         binding.buttonSelect.setOnClickListener { exitSelectMode() }
 
-        // 「戻る」ボタンで選択モードを解除
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner,
             object : androidx.activity.OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
@@ -215,7 +227,6 @@ class DeliveryListFragment : Fragment() {
                 }
             })
 
-        // 選択した配達先を完了にする
         binding.buttonMarkCompleted.setOnClickListener {
             val selected = adapter.selectedIds.toSet()
             if (selected.isEmpty()) return@setOnClickListener
@@ -223,7 +234,6 @@ class DeliveryListFragment : Fragment() {
             exitSelectMode()
         }
 
-        // 選択した配達先を未完了に戻す
         binding.buttonResetCompleted.setOnClickListener {
             val selected = adapter.selectedIds.toSet()
             if (selected.isEmpty()) return@setOnClickListener
@@ -231,7 +241,6 @@ class DeliveryListFragment : Fragment() {
             exitSelectMode()
         }
 
-        // 選択削除ボタン（Undo 付き）
         binding.buttonDeleteSelected.setOnClickListener {
             val selected = adapter.selectedIds.toSet()
             if (selected.isEmpty()) return@setOnClickListener
@@ -248,14 +257,12 @@ class DeliveryListFragment : Fragment() {
                 .show()
         }
 
-        // 時間帯一括設定ボタン
         binding.buttonSetTimeSlot.setOnClickListener {
             val selected = adapter.selectedIds
             if (selected.isEmpty()) return@setOnClickListener
             showBatchTimeSlotDialog(selected)
         }
 
-        // 全選択/全解除ボタン
         binding.buttonSelectAll.setOnClickListener {
             val list = viewModel.deliveries.value
             if (adapter.selectedIds.size == list.size) {
@@ -265,25 +272,30 @@ class DeliveryListFragment : Fragment() {
             }
             updateSelectionUI()
         }
+    }
 
-        binding.buttonSubToggle.setOnClickListener { cycleViewMode() }
-
-        binding.buttonListMenu.setOnClickListener { showListActions() }
-
-        binding.layoutProgress.setOnClickListener {
-            progressDisplayMode = when (progressDisplayMode) {
-                ProgressDisplay.COUNT     -> ProgressDisplay.PERCENT
-                ProgressDisplay.PERCENT   -> ProgressDisplay.REMAINING
-                ProgressDisplay.REMAINING -> ProgressDisplay.HIDDEN
-                ProgressDisplay.HIDDEN    -> ProgressDisplay.COUNT
-            }
-            applyFilter()
+    private fun cycleProgressDisplay() {
+        progressDisplayMode = when (progressDisplayMode) {
+            ProgressDisplay.COUNT     -> ProgressDisplay.PERCENT
+            ProgressDisplay.PERCENT   -> ProgressDisplay.REMAINING
+            ProgressDisplay.REMAINING -> ProgressDisplay.HIDDEN
+            ProgressDisplay.HIDDEN    -> ProgressDisplay.COUNT
         }
+        applyFilter()
+    }
 
+    private fun refreshAdapterGroupColor() {
+        val hex = viewModel.currentGroup()?.colorHex ?: "#F44336"
+        val c = try { android.graphics.Color.parseColor(hex) } catch (_: Exception) { android.graphics.Color.parseColor("#F44336") }
+        if (adapter.groupColor != c) {
+            adapter.groupColor = c
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.deliveries.collectLatest {
-                applyFilter()
-            }
+            viewModel.deliveries.collectLatest { applyFilter() }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -292,15 +304,6 @@ class DeliveryListFragment : Fragment() {
                 viewModel.clearEditRequest()
                 val delivery = viewModel.deliveries.value.find { it.id == id } ?: return@collectLatest
                 showItemOptions(delivery, showNavComplete = false)
-            }
-        }
-
-        fun refreshAdapterGroupColor() {
-            val hex = viewModel.currentGroup()?.colorHex ?: "#F44336"
-            val c = try { android.graphics.Color.parseColor(hex) } catch (_: Exception) { android.graphics.Color.parseColor("#F44336") }
-            if (adapter.groupColor != c) {
-                adapter.groupColor = c
-                adapter.notifyDataSetChanged()
             }
         }
 
@@ -317,7 +320,6 @@ class DeliveryListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.groups.collectLatest { refreshAdapterGroupColor() }
         }
-
     }
 
     internal fun enterSelectMode() {
