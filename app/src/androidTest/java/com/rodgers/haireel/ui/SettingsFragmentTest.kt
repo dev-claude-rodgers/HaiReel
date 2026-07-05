@@ -102,4 +102,37 @@ class SettingsFragmentTest {
                 .perform(click())
         }
     }
+
+    @Test
+    fun settings_テーマピッカーダイアログが表示される() {
+        launchSettings().use {
+            onView(withId(R.id.rowTheme)).perform(click())
+            onView(withText("テーマカラーを選択"))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()))
+            onView(withText("キャンセル"))
+                .inRoot(isDialog())
+                .perform(click())
+        }
+    }
+
+    @Test
+    fun settings_テーマカラーをティールに変更できる() {
+        launchSettings().use {
+            onView(withId(R.id.rowTheme)).perform(click())
+            onView(withText("ティール"))
+                .inRoot(isDialog())
+                .perform(click())
+        }
+        // recreate 後: BottomNav が再表示される
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            onView(withId(R.id.nav_settings)).perform(click())
+            onView(withId(R.id.tvThemeName)).check(matches(withText("ティール")))
+            // テストの独立性のためブルーに戻す
+            onView(withId(R.id.rowTheme)).perform(click())
+            onView(withText("ブルー"))
+                .inRoot(isDialog())
+                .perform(click())
+        }
+    }
 }

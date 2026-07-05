@@ -5,6 +5,7 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.rodgers.haireel.db.TenkoDao
 import com.rodgers.haireel.db.WorkRecordDao
 import com.rodgers.haireel.model.TenkoRecord
+import com.rodgers.haireel.model.WorkRecord
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -212,5 +213,123 @@ class TenkoViewModelTest {
         val record = makeRecord(viewModel.todayDate())
         viewModel.restore(record)
         coVerify { mockDao.insert(record) }
+    }
+
+    // ── restoreAll ────────────────────────────────────────────
+
+    @Test
+    fun `restoreAllで全レコードがinsertされる`() = runTest {
+        val records = listOf(
+            makeRecord("2026-06-01"),
+            makeRecord("2026-06-02"),
+            makeRecord("2026-06-03")
+        )
+        viewModel.restoreAll(records)
+        coVerify(exactly = 3) { mockDao.insert(any()) }
+    }
+
+    // ── deleteMonth ───────────────────────────────────────────
+
+    @Test
+    fun `deleteMonthでdao_deleteByMonthが呼ばれる`() = runTest {
+        viewModel.deleteMonth("2026-06")
+        coVerify { mockDao.deleteByMonth("2026-06") }
+    }
+
+    // ── deleteMonthWithUndo ───────────────────────────────────
+
+    @Test
+    fun `deleteMonthWithUndoでコールバックに削除前レコードが渡される`() = runTest {
+        val records = listOf(makeRecord("2026-06-01"), makeRecord("2026-06-02"))
+        coEvery { mockDao.getAllByMonth("2026-06") } returns records
+        var callbackResult: List<TenkoRecord>? = null
+        viewModel.deleteMonthWithUndo("2026-06") { callbackResult = it }
+        assertEquals(records, callbackResult)
+        coVerify { mockDao.deleteByMonth("2026-06") }
+    }
+
+    // ── setNoWork ─────────────────────────────────────────────
+
+    @Test
+    fun `setNoWorkでworkRecordDao_upsertが呼ばれる`() = runTest {
+        val date = viewModel.todayDate()
+        coEvery { mockWorkRecordDao.recordForDate(date, "") } returns null
+        viewModel.setNoWork(date, true)
+        coVerify { mockWorkRecordDao.upsert(any()) }
+    }
+
+    @Test
+    fun `setNoWorkで新規WorkRecordのnoWorkがtrueになる`() = runTest {
+        val date = viewModel.todayDate()
+        coEvery { mockWorkRecordDao.recordForDate(date, "") } returns null
+        val slot = slot<com.rodgers.haireel.model.WorkRecord>()
+        coEvery { mockWorkRecordDao.upsert(capture(slot)) } returns Unit
+        viewModel.setNoWork(date, true)
+        assertTrue(slot.captured.noWork)
+        assertEquals(date, slot.captured.date)
+    }
+
+    // ── saveBefore vehicleNumber ──────────────────────────────
+
+    @Test
+    fun `saveBeforeでvehicleNumberが空白のときnullになる`() = runTest {
+        val slot = slot<TenkoRecord>()
+        coEvery { mockDao.insert(capture(slot)) } returns Unit
+        viewModel.saveBefore(
+            date = viewModel.todayDate(), existing = null,
+            method = "対面", time = "08:00",
+            health = true, fatigue = false,
+            alcohol = 0.0, inspection = true,
+            instruction = "", checker = "",
+            vehicleNumber = ""
+        )
+        assertNull(slot.captured.vehicleNumber)
+    }
+
+    @Test
+    fun `saveBeforeでvehicleNumberが設定される`() = runTest {
+        val slot = slot<TenkoRecord>()
+        coEvery { mockDao.insert(capture(slot)) } returns Unit
+        viewModel.saveBefore(
+            date = viewModel.todayDate(), existing = null,
+            method = "対面", time = "08:00",
+            health = true, fatigue = false,
+            alcohol = 0.0, inspection = true,
+            instruction = "", checker = "",
+            vehicleNumber = "品川500 あ 1234"
+        )
+        assertEquals("品川500 あ 1234", slot.captured.vehicleNumber)
+    }
+
+    // ── saveAfter note ────────────────────────────────────────
+
+    @Test
+    fun `saveAfterでnoteが空白のときnullになる`() = runTest {
+        val slot = slot<TenkoRecord>()
+        coEvery { mockDao.insert(capture(slot)) } returns Unit
+        viewModel.saveAfter(
+            date = viewModel.todayDate(), existing = null,
+            method = "対面", time = "18:00",
+            health = true, fatigue = false,
+            alcohol = 0.0, accident = false, vehicle = true,
+            instruction = "", checker = "",
+            note = ""
+        )
+        assertNull(slot.captured.note)
+    }
+
+    @Test
+    fun `saveAfterでnoteが設定される`() = runTest {
+        val slot = slot<TenkoRecord>()
+        coEvery { mockDao.insert(capture(slot)) } returns Unit
+        viewModel.saveAfter(
+            date = viewModel.todayDate(), existing = null,
+            method = "対面", time = "18:00",
+            health = true, fatigue = false,
+            alcohol = 0.0, accident = false, vehicle = true,
+            instruction = "", checker = "",
+            note = "特記事項あり"
+        )
+        assertEquals("特記事項あり", slot.captured.note)
     }
 }

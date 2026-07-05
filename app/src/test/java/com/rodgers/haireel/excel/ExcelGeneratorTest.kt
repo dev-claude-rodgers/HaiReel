@@ -304,4 +304,119 @@ class ExcelGeneratorTest {
         assertTrue("ALCチェック列ラベルが含まれる", sheet.contains("ALCチェック"))
         assertTrue("ALCチェック値◯が含まれる", sheet.contains("◯"))
     }
+
+    // ── エッジケース ──────────────────────────────────────────
+
+    @Test
+    fun `generate_全件noWorkのとき集計値が空になる`() {
+        val records = listOf(
+            com.rodgers.haireel.model.WorkRecord(date = "2026-06-01", deliveryCount = 50, income = 20000, noWork = true),
+            com.rodgers.haireel.model.WorkRecord(date = "2026-06-02", deliveryCount = 30, income = 15000, noWork = true)
+        )
+        val pattern = com.rodgers.haireel.model.ReportPattern(
+            id = 0,
+            excelColumns = listOf(
+                com.rodgers.haireel.model.ExcelColumn(com.rodgers.haireel.model.ColumnType.DELIVERY_COUNT, "件数"),
+                com.rodgers.haireel.model.ExcelColumn(com.rodgers.haireel.model.ColumnType.INCOME, "収入")
+            )
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        assertFalse("noWorkの件数50が含まれない", sheet.contains("50件"))
+        assertFalse("noWorkの収入20000が含まれない", sheet.contains("20,000円"))
+    }
+
+    @Test
+    fun `generate_WORKING_HOURS列の稼働時間合計がXMLに出力される`() {
+        val records = listOf(
+            com.rodgers.haireel.model.WorkRecord(
+                date = "2026-06-01", startTime = "09:00", endTime = "17:00"
+            ),
+            com.rodgers.haireel.model.WorkRecord(
+                date = "2026-06-02", startTime = "09:00", endTime = "13:00"
+            )
+        )
+        val pattern = com.rodgers.haireel.model.ReportPattern(
+            id = 0,
+            excelColumns = listOf(
+                com.rodgers.haireel.model.ExcelColumn(com.rodgers.haireel.model.ColumnType.WORKING_HOURS, "稼働時間")
+            )
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        assertTrue("稼働時間列ラベルが含まれる", sheet.contains("稼働時間"))
+        assertTrue("8時間00分が含まれる", sheet.contains("8時間00分"))
+        assertTrue("4時間00分が含まれる", sheet.contains("4時間00分"))
+        // 1列の場合、合計ラベル（A+B マージ）が全列を占めるため totalValue は出力されない
+    }
+
+    @Test
+    fun `generate_PACKAGE_COUNT列がXMLに出力される`() {
+        val records = listOf(
+            com.rodgers.haireel.model.WorkRecord(
+                date = "2026-06-01", packageCount = 150
+            )
+        )
+        val pattern = com.rodgers.haireel.model.ReportPattern(
+            id = 0,
+            excelColumns = listOf(
+                com.rodgers.haireel.model.ExcelColumn(com.rodgers.haireel.model.ColumnType.PACKAGE_COUNT, "個数")
+            )
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        assertTrue("個数列ラベルが含まれる", sheet.contains("個数"))
+        assertTrue("150個が含まれる", sheet.contains("150個"))
+    }
+
+    @Test
+    fun `generate_INCOME列の各行収入がXMLに出力される`() {
+        val records = listOf(
+            com.rodgers.haireel.model.WorkRecord(date = "2026-06-01", income = 12000),
+            com.rodgers.haireel.model.WorkRecord(date = "2026-06-02", income = 8000)
+        )
+        val pattern = com.rodgers.haireel.model.ReportPattern(
+            id = 0,
+            excelColumns = listOf(
+                com.rodgers.haireel.model.ExcelColumn(com.rodgers.haireel.model.ColumnType.INCOME, "収入")
+            )
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        assertTrue("収入列ラベルが含まれる", sheet.contains("収入"))
+        assertTrue("12,000円が含まれる", sheet.contains("12,000円"))
+        assertTrue("8,000円が含まれる", sheet.contains("8,000円"))
+    }
+
+    @Test
+    fun `generate_単一列のとき正常にXMLが生成される`() {
+        val records = listOf(
+            com.rodgers.haireel.model.WorkRecord(date = "2026-06-01", deliveryCount = 10)
+        )
+        val pattern = com.rodgers.haireel.model.ReportPattern(
+            id = 0,
+            excelColumns = listOf(
+                com.rodgers.haireel.model.ExcelColumn(com.rodgers.haireel.model.ColumnType.DELIVERY_COUNT, "件数")
+            )
+        )
+        val file = gen.generate(records, "2026-06", pattern)
+        assertTrue("XLSXファイルが生成される", file.exists() && file.length() > 0)
+        val zip = java.util.zip.ZipFile(file)
+        val sheet = zip.getInputStream(zip.getEntry("xl/worksheets/sheet1.xml"))
+            .bufferedReader().readText()
+        zip.close()
+        assertTrue("件数が含まれる", sheet.contains("10件"))
+    }
 }
