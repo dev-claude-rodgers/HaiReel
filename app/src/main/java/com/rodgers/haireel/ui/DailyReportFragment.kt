@@ -294,12 +294,7 @@ class DailyReportFragment : Fragment() {
     }
 
     private fun calcIncome(pattern: com.rodgers.haireel.model.ReportPattern, delivCount: Int, workMinutes: Int, packageCount: Int = delivCount): Int =
-        when (pattern.paymentType) {
-            0 -> pattern.unitPrice * packageCount   // 個数×単価
-            1 -> pattern.unitPrice                  // 車建て（日当）
-            2 -> pattern.unitPrice * (workMinutes / 60)  // 時間制
-            else -> 0
-        }
+        com.rodgers.haireel.util.calcIncome(pattern, delivCount, workMinutes, packageCount)
 
     // ─────── 今日ボタン ───────
     fun openTodayDialog() {
