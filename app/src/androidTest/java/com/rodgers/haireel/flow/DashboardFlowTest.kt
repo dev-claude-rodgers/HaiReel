@@ -72,4 +72,35 @@ class DashboardFlowTest {
             assert(before[0] != (v as android.widget.TextView).text.toString())
         }
     }
+
+    // ── 収支タブ（DashboardFragment） ────────────────────────────
+
+    @Test
+    fun dashboardTab_tvYear_isDisplayed() {
+        onView(withText("収支")).perform(click())
+        onView(withId(R.id.tvYear)).check(matches(isDisplayed()))
+    }
+
+    @Test
+    fun dashboardTab_prevYearButton_isDisplayed() {
+        onView(withText("収支")).perform(click())
+        onView(withId(R.id.btnPrevYear)).check(matches(isDisplayed()))
+    }
+
+    @Test
+    fun dashboardTab_nextYearButton_isDisplayed() {
+        onView(withText("収支")).perform(click())
+        onView(withId(R.id.btnNextYear)).check(matches(isDisplayed()))
+    }
+
+    @Test
+    fun dashboardTab_prevYear_changesYearText() {
+        onView(withText("収支")).perform(click())
+        val before = arrayOfNulls<String>(1)
+        onView(withId(R.id.tvYear)).check { v, _ -> before[0] = (v as android.widget.TextView).text.toString() }
+        onView(withId(R.id.btnPrevYear)).perform(click())
+        onView(withId(R.id.tvYear)).check { v, _ ->
+            assert(before[0] != (v as android.widget.TextView).text.toString())
+        }
+    }
 }

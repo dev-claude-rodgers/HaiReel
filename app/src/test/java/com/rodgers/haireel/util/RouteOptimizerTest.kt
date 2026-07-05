@@ -65,4 +65,49 @@ class RouteOptimizerTest {
         val result = RouteOptimizer.optimize(list, 35.0, 139.0)
         assertEquals(listOf(1, 2, 3), result.map { it.order })
     }
+
+    @Test
+    fun `3点の近傍法連鎖で正しい順に並ぶ`() {
+        // 出発(35.0,139.0) から A(35.1)→B(35.3)→C(36.0) の順になるはず
+        val a = delivery(1, 35.1, 139.0)
+        val b = delivery(2, 35.3, 139.0)
+        val c = delivery(3, 36.0, 139.0)
+        val result = RouteOptimizer.optimize(listOf(c, b, a), 35.0, 139.0)
+        assertEquals(listOf(1, 2, 3), result.map { it.order })
+    }
+
+    @Test
+    fun `ジオコード済みと未ジオコードが混在するとき順序が保たれる`() {
+        val near = delivery(1, 35.1, 139.0)
+        val far  = delivery(2, 36.0, 139.0)
+        val ug3  = ungeocoded(3)
+        val ug4  = ungeocoded(4)
+        val result = RouteOptimizer.optimize(listOf(ug3, far, near, ug4), 35.0, 139.0)
+        // 前半2件はジオコード済み（近い順）
+        assertEquals(1, result[0].order)
+        assertEquals(2, result[1].order)
+        // 後半2件は未ジオコード（元の順序）
+        assertEquals(3, result[2].order)
+        assertEquals(4, result[3].order)
+    }
+
+    @Test
+    fun `出発点と同一座標の地点は最初に選ばれる`() {
+        val atStart = delivery(1, 35.0, 139.0)
+        val far     = delivery(2, 36.0, 139.0)
+        val result  = RouteOptimizer.optimize(listOf(far, atStart), 35.0, 139.0)
+        assertEquals(1, result[0].order)
+    }
+
+    @Test
+    fun `未ジオコードが複数あるとき元の相対順序を保つ`() {
+        val geocoded = delivery(1, 35.1, 139.0)
+        val ug2      = ungeocoded(2)
+        val ug3      = ungeocoded(3)
+        // ug2 → ug3 の順で入力 → 後半もその順で出てくる
+        val result   = RouteOptimizer.optimize(listOf(geocoded, ug2, ug3), 35.0, 139.0)
+        assertEquals(1, result[0].order)
+        assertEquals(2, result[1].order)
+        assertEquals(3, result[2].order)
+    }
 }

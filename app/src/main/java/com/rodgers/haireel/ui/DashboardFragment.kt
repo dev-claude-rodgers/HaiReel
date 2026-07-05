@@ -50,32 +50,35 @@ class DashboardFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         viewModel.refresh()
+        setupDropdown()
+        setupYearNavigation()
+        observeFlows()
+    }
 
-        // ── 取引先ドロップダウン
+    private fun setupDropdown() {
         dropdownAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, dropdownNames)
         binding.spinnerAssignment.setAdapter(dropdownAdapter)
         binding.spinnerAssignment.setOnItemClickListener { _, _, position, _ ->
             if (!suppressSelection) viewModel.setPatternId(dropdownIds.getOrElse(position) { -1 })
         }
+    }
 
+    private fun setupYearNavigation() {
+        binding.btnPrevYear.setOnClickListener { viewModel.previousYear() }
+        binding.btnNextYear.setOnClickListener { viewModel.nextYear() }
+    }
+
+    private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.patterns.collectLatest { patterns -> updateDropdown(patterns) }
         }
-
-        // ── 年ナビゲーション
-        binding.btnPrevYear.setOnClickListener { viewModel.previousYear() }
-        binding.btnNextYear.setOnClickListener { viewModel.nextYear() }
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.year.collectLatest { year ->
                 binding.tvYear.text = "${year}年"
                 binding.btnNextYear.isEnabled = !viewModel.isCurrentYear()
             }
         }
-
-        // ── 月次サマリー
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.monthlySummaries.collectLatest { summaries ->
                 if (summaries.isEmpty()) return@collectLatest

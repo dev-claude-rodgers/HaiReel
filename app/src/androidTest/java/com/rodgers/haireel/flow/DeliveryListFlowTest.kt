@@ -77,4 +77,36 @@ class DeliveryListFlowTest {
     fun deliveryList_filterChip_isDisplayed() {
         onView(withId(R.id.chipIncomplete)).check(matches(isDisplayed()))
     }
+
+    // ── フィルタサイクル ──────────────────────────────────────────
+
+    @Test
+    fun deliveryList_filterChip_initialTextIsAll() {
+        onView(withId(R.id.chipIncomplete)).check(matches(withText("すべて")))
+    }
+
+    @Test
+    fun deliveryList_filterChip_clickOnce_showsIncomplete() {
+        onView(withId(R.id.chipIncomplete)).perform(click())
+        onView(withId(R.id.chipIncomplete)).check(matches(withText("未完了")))
+    }
+
+    @Test
+    fun deliveryList_filterChip_clickTwice_showsCompleted() {
+        onView(withId(R.id.chipIncomplete)).perform(click())
+        onView(withId(R.id.chipIncomplete)).perform(click())
+        onView(withId(R.id.chipIncomplete)).check(matches(withText("完了")))
+    }
+
+    @Test
+    fun deliveryList_leaveAndReturn_listIsStillDisplayed() {
+        onView(withId(R.id.nav_report)).perform(click())
+        onView(withId(R.id.nav_list)).perform(click())
+        onView(withId(R.id.recyclerView)).check(matches(isDisplayed()))
+    }
+
+    @Test
+    fun deliveryList_buttonSubToggle_isClickable() {
+        onView(withId(R.id.buttonSubToggle)).check(matches(isClickable()))
+    }
 }
