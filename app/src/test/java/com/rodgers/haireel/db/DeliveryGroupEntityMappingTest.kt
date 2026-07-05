@@ -66,7 +66,30 @@ class DeliveryGroupEntityMappingTest {
     fun `colorHexのデフォルト値はエンティティと一致する`() {
         val group = DeliveryGroup(id = "g6", name = "デフォルト色")
         val entity = group.toEntity(0)
-        // DeliveryGroup.colorHex と DeliveryGroupEntity.colorHex のデフォルトが一致
         assertEquals(group.colorHex, entity.colorHex)
+    }
+
+    @Test
+    fun `name空文字のround-tripで空文字が保持される`() {
+        val restored = DeliveryGroup(id = "g7", name = "").toEntity(0).toGroup()
+        assertEquals("", restored.name)
+    }
+
+    @Test
+    fun `colorHex空文字のround-tripで空文字が保持される`() {
+        val restored = DeliveryGroup(id = "g8", name = "テスト", colorHex = "").toEntity(0).toGroup()
+        assertEquals("", restored.colorHex)
+    }
+
+    @Test
+    fun `patternIdが0のround-tripで0が保持される`() {
+        val restored = DeliveryGroup(id = "g9", name = "テスト", patternId = 0).toEntity(0).toGroup()
+        assertEquals(0, restored.patternId)
+    }
+
+    @Test
+    fun `sortOrderを指定するとentityに保存される`() {
+        val entity = DeliveryGroup(id = "g10", name = "テスト").toEntity(sortOrder = 5)
+        assertEquals(5, entity.sortOrder)
     }
 }

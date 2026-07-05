@@ -127,4 +127,29 @@ class DeliveryEntityMappingTest {
         val restored = baseDelivery().copy(photoUris = emptyList()).toEntity("g1").toDelivery()
         assertTrue(restored.photoUris?.isEmpty() == true)
     }
+
+    @Test
+    fun `isCompleted=falseのデフォルト値はround-tripで保持される`() {
+        val restored = baseDelivery().copy(isCompleted = false).toEntity("g1").toDelivery()
+        assertFalse(restored.isCompleted)
+    }
+
+    @Test
+    fun `rooms空リストはround-trip後も空リスト`() {
+        val restored = baseDelivery().copy(rooms = emptyList()).toEntity("g1").toDelivery()
+        assertNotNull(restored.rooms)
+        assertTrue(restored.rooms!!.isEmpty())
+    }
+
+    @Test
+    fun `nameKanaフィールドが保持される`() {
+        val restored = baseDelivery().copy(nameKana = "シンジュクテン").toEntity("g1").toDelivery()
+        assertEquals("シンジュクテン", restored.nameKana)
+    }
+
+    @Test
+    fun `groupIdはtoEntityで指定した値が設定される`() {
+        val entity = baseDelivery().toEntity("group-xyz")
+        assertEquals("group-xyz", entity.groupId)
+    }
 }
