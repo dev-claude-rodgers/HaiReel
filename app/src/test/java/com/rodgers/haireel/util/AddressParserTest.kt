@@ -111,4 +111,49 @@ class AddressParserTest {
         assertEquals("新宿店", result[0].name)
         assertEquals("東京都新宿区", result[0].address)
     }
+
+    // ── toFullWidth ───────────────────────────────────────────
+
+    @Test
+    fun `toFullWidthで半角数字を全角に変換する`() {
+        assertEquals("１２３", AddressParser.toFullWidth("123"))
+    }
+
+    @Test
+    fun `toFullWidthで半角英字を全角に変換する`() {
+        assertEquals("ａｂｃＡＢＣ", AddressParser.toFullWidth("abcABC"))
+    }
+
+    @Test
+    fun `toFullWidthでハイフンを全角ハイフンに変換する`() {
+        assertEquals("ａ１－Ｂ", AddressParser.toFullWidth("a1-B"))
+    }
+
+    @Test
+    fun `toFullWidthで全角文字は変換されない`() {
+        assertEquals("東京都", AddressParser.toFullWidth("東京都"))
+    }
+
+    // ── extractAreaKey ────────────────────────────────────────
+
+    @Test
+    fun `extractAreaKeyで丁目まで抽出される`() {
+        assertEquals("東京都新宿区西新宿1丁目", AddressParser.extractAreaKey("東京都新宿区西新宿1丁目1-1"))
+    }
+
+    @Test
+    fun `extractAreaKeyで区レベルまで抽出される`() {
+        assertEquals("大阪府大阪市北区", AddressParser.extractAreaKey("大阪府大阪市北区梅田1-1"))
+    }
+
+    @Test
+    fun `extractAreaKeyで町レベルまで抽出される`() {
+        // [区町村] regex で 町 がマッチする（区 と 町 の両方が含まれる場合は最後の一致）
+        assertEquals("神奈川県川崎市中原区小杉町", AddressParser.extractAreaKey("神奈川県川崎市中原区小杉町1-1-1"))
+    }
+
+    @Test
+    fun `extractAreaKeyで空文字は空文字を返す`() {
+        assertEquals("", AddressParser.extractAreaKey(""))
+    }
 }

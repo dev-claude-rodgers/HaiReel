@@ -95,4 +95,28 @@ class SettingsFlowTest {
         onView(withText("🔑 Google APIキー設定")).check(matches(isDisplayed()))
         pressBack()
     }
+
+    @Test
+    fun settingsTab_themeRowIsDisplayed() {
+        onView(withId(R.id.rowTheme)).check(matches(isDisplayed()))
+    }
+
+    @Test
+    fun settingsTab_appSettingsDialog_opensAndCloses() {
+        onView(withId(R.id.rowAppSettings)).perform(click())
+        onView(withText("アプリ設定")).check(matches(isDisplayed()))
+        pressBack()
+    }
+
+    @Test
+    fun settingsTab_helpDialog_canCloseWithButton() {
+        onView(withId(R.id.rowHelp)).perform(scrollTo(), click())
+        onView(withText("❓ 使い方・ヘルプ")).check(matches(isDisplayed()))
+        onView(withText("閉じる")).perform(click())
+    }
+
+    @Test
+    fun settingsTab_licenseRowIsDisplayed() {
+        onView(withId(R.id.rowLicense)).check(matches(isDisplayed()))
+    }
 }

@@ -135,4 +135,47 @@ class PatternStorageTest {
         val ids = PatternStorage.getIds(ctx)
         assertTrue("デフォルトパターンがidsに追加される", ids.isNotEmpty())
     }
+
+    // ── getActiveId / setActiveId ─────────────────────────────────
+
+    @Test
+    fun `初期状態でgetActiveIdはマイナス1を返す`() {
+        assertEquals(-1, PatternStorage.getActiveId(ctx))
+    }
+
+    @Test
+    fun `setActiveIdで設定した値をgetActiveIdで取得できる`() {
+        PatternStorage.save(ctx, ReportPattern(id = 60, title = "アクティブ"))
+        PatternStorage.setActiveId(ctx, 60)
+        assertEquals(60, PatternStorage.getActiveId(ctx))
+    }
+
+    @Test
+    fun `setActiveIdを複数回呼ぶと最後の値が返る`() {
+        PatternStorage.save(ctx, ReportPattern(id = 70, title = "A"))
+        PatternStorage.save(ctx, ReportPattern(id = 71, title = "B"))
+        PatternStorage.setActiveId(ctx, 70)
+        PatternStorage.setActiveId(ctx, 71)
+        assertEquals(71, PatternStorage.getActiveId(ctx))
+    }
+
+    // ── getAll 複数パターン ──────────────────────────────────────
+
+    @Test
+    fun `複数パターン保存後のgetAllは全件含む`() {
+        PatternStorage.save(ctx, ReportPattern(id = 80, title = "P1", closingDay = 15))
+        PatternStorage.save(ctx, ReportPattern(id = 81, title = "P2", closingDay = 20))
+        PatternStorage.save(ctx, ReportPattern(id = 82, title = "P3", closingDay = 25))
+        val all = PatternStorage.getAll(ctx)
+        assertEquals(3, all.size)
+        assertTrue(all.any { it.title == "P1" && it.closingDay == 15 })
+        assertTrue(all.any { it.title == "P2" && it.closingDay == 20 })
+        assertTrue(all.any { it.title == "P3" && it.closingDay == 25 })
+    }
+
+    @Test
+    fun `getActiveは未設定のときensureDefaultのパターンを返す`() {
+        val active = PatternStorage.getActive(ctx)
+        assertNotNull(active)
+    }
 }

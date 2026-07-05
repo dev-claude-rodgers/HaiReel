@@ -37,11 +37,14 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.rowAppSettings.setOnClickListener { showAppSettingsDialog() }
+        setupRows()
+        setupBackup()
+        observeFlows()
+    }
 
+    private fun setupRows() {
         val ctx = requireContext()
-
-        // テーマカラー
+        binding.rowAppSettings.setOnClickListener { showAppSettingsDialog() }
         val themeNames = mapOf(
             "blue"   to "ブルー（デフォルト）",
             "teal"   to "ティール",
@@ -54,7 +57,6 @@ class SettingsFragment : Fragment() {
         )
         binding.tvThemeName.text = themeNames[AppSettings.getThemeKey(ctx)] ?: "ブルー（デフォルト）"
         binding.rowTheme.setOnClickListener { showThemePickerDialog() }
-
         binding.tvApiKeyStatus.text = if (AppSettings.hasUserApiKey(ctx))
             "設定済み（自分のAPIキーを使用中）" else "未設定（住所変換・地図機能が使えません）"
         binding.rowApiKey.setOnClickListener {
@@ -72,23 +74,9 @@ class SettingsFragment : Fragment() {
                 showApiKeyWizard()
             }
         }
-
         addBackgroundRow()
-
-        binding.rowBackupCreate.setOnClickListener { createBackup() }
-        binding.rowBackupRestore.setOnClickListener {
-            (activity as? com.rodgers.haireel.MainActivity)?.launchRestoreFilePicker { uri ->
-                if (uri == null) return@launchRestoreFilePicker
-                handleRestoreUri(uri)
-            }
-        }
-        // ライセンス状態を表示
         updateLicenseStatus()
         binding.rowLicense.setOnClickListener { showLicensePurchaseDialog() }
-        // サブスク状態が変化したら表示を更新
-        viewLifecycleOwner.lifecycleScope.launch {
-            com.rodgers.haireel.util.BillingManager.subscriptionState.collect { updateLicenseStatus() }
-        }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
         binding.rowContact.setOnClickListener {
             val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
@@ -108,6 +96,22 @@ class SettingsFragment : Fragment() {
         }
         binding.rowPrivacy.setOnClickListener { showPrivacyPolicyDialog() }
         binding.rowExit.setOnClickListener { activity?.finishAffinity() }
+    }
+
+    private fun setupBackup() {
+        binding.rowBackupCreate.setOnClickListener { createBackup() }
+        binding.rowBackupRestore.setOnClickListener {
+            (activity as? com.rodgers.haireel.MainActivity)?.launchRestoreFilePicker { uri ->
+                if (uri == null) return@launchRestoreFilePicker
+                handleRestoreUri(uri)
+            }
+        }
+    }
+
+    private fun observeFlows() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.rodgers.haireel.util.BillingManager.subscriptionState.collect { updateLicenseStatus() }
+        }
     }
 
     private fun handleRestoreUri(uri: android.net.Uri) {
