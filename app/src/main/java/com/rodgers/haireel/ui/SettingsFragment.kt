@@ -34,49 +34,7 @@ class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
 
-
-    private fun doRestore(ctx: android.content.Context, uri: android.net.Uri, password: String? = null) {
-        val appCtx = ctx.applicationContext  // Fragmentのライフサイクルに依存しないApplicationContextを使用
-        Toast.makeText(appCtx, "復元中...", Toast.LENGTH_SHORT).show()
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                BackupManager.restoreBackup(appCtx, uri, password)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(appCtx, "復元しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
-                }
-                kotlinx.coroutines.delay(1500)
-                val launchIntent = appCtx.packageManager.getLaunchIntentForPackage(appCtx.packageName)
-                if (launchIntent != null) {
-                    launchIntent.addFlags(
-                        android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
-                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    )
-                    // AlarmManagerで500ms後に起動予約してからkillProcessする。
-                    // startActivity直後にkillすると起動前にプロセスが死ぬため。
-                    val pi = android.app.PendingIntent.getActivity(
-                        appCtx, 0, launchIntent,
-                        android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                    )
-                    val alarmManager = appCtx.getSystemService(android.app.AlarmManager::class.java)
-                    alarmManager.set(
-                        android.app.AlarmManager.RTC,
-                        System.currentTimeMillis() + 500L,
-                        pi
-                    )
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(appCtx, "アプリをランチャーから開いてください", Toast.LENGTH_LONG).show()
-                    }
-                    kotlinx.coroutines.delay(2000)
-                }
-                android.os.Process.killProcess(android.os.Process.myPid())
-            } catch (e: Throwable) {
-                withContext(Dispatchers.Main) {
-                    appCtx.showErrorDialog("復元エラー", e.localizedMessage ?: "不明なエラーが発生しました。\nバックアップファイルを確認してください。")
-                }
-            }
-        }
-    }
+    private val backupHandler by lazy { SettingsBackupHandler(requireContext().applicationContext) }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -186,12 +144,12 @@ class SettingsFragment : Fragment() {
                             Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
                             return@setPositiveButton
                         }
-                        doRestore(ctx, uri, pw)
+                        backupHandler.doRestore(uri, pw)
                     }
                     .setNegativeButton("キャンセル", null)
                     .show()
             } else {
-                doRestore(ctx, uri)
+                backupHandler.doRestore(uri)
             }
         }
     }
@@ -692,7 +650,7 @@ class SettingsFragment : Fragment() {
         val ctx = requireContext()
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val file = withContext(Dispatchers.IO) { BackupManager.createBackup(ctx) }
+                val file = backupHandler.createBackup()
                 val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
                 val mime = if (file.name.endsWith(".rbe")) "application/octet-stream" else "application/zip"
                 val intent = Intent(Intent.ACTION_SEND).apply {
