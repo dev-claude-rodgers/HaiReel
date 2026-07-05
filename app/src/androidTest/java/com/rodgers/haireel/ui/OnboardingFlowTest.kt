@@ -1,12 +1,14 @@
-﻿package com.rodgers.haireel.ui
+package com.rodgers.haireel.ui
 
+import android.content.Context
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
-import com.rodgers.haireel.R
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -14,17 +16,26 @@ import org.junit.runner.RunWith
 @LargeTest
 class OnboardingFlowTest {
 
+    @Before
+    fun setUp() {
+        // オンボーディング未完了状態にして Activity がスキップされないようにする
+        ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("kado_settings", Context.MODE_PRIVATE)
+            .edit().putBoolean("onboarding_done", false).commit()
+    }
+
     @Test
     fun onboarding_スキップボタンが表示される() {
         ActivityScenario.launch(OnboardingActivity::class.java).use {
-            onView(withId(R.id.btnSkip)).check(matches(isDisplayed()))
+            // プログラマティックUIのためテキストで検索
+            onView(withText("スキップ")).check(matches(isDisplayed()))
         }
     }
 
     @Test
-    fun onboarding_ViewPagerが表示される() {
+    fun onboarding_次へボタンが表示される() {
         ActivityScenario.launch(OnboardingActivity::class.java).use {
-            onView(withId(R.id.viewPager)).check(matches(isDisplayed()))
+            onView(withText("次へ")).check(matches(isDisplayed()))
         }
     }
 }

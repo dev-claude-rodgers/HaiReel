@@ -163,7 +163,7 @@ class ExtendedFlowTest {
 
     @Test
     fun deliveryList_mapToggle_buttonVisible() {
-        onView(withId(R.id.buttonMapToggle)).check(matches(isDisplayed()))
+        onView(withId(R.id.buttonSubToggle)).check(matches(isDisplayed()))
     }
 
     // ── 収支タブ詳細 ────────────────────────────────────────────

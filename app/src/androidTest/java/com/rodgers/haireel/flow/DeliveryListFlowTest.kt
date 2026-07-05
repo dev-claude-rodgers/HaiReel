@@ -70,7 +70,7 @@ class DeliveryListFlowTest {
 
     @Test
     fun deliveryList_mapToggleButton_isDisplayed() {
-        onView(withId(R.id.buttonMapToggle)).check(matches(isDisplayed()))
+        onView(withId(R.id.buttonSubToggle)).check(matches(isDisplayed()))
     }
 
     @Test
