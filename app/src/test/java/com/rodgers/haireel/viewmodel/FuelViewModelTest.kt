@@ -1,10 +1,50 @@
 package com.rodgers.haireel.viewmodel
 
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.rodgers.haireel.db.FuelRecordDao
+import com.rodgers.haireel.db.VehicleDao
 import com.rodgers.haireel.model.FuelRecord
+import com.rodgers.haireel.model.Vehicle
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class FuelViewModelTest {
+
+    @get:Rule
+    val instantTaskRule = InstantTaskExecutorRule()
+
+    private val testDispatcher = UnconfinedTestDispatcher()
+    private lateinit var dao: FuelRecordDao
+    private lateinit var vehicleDao: VehicleDao
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        dao        = mockk(relaxed = true)
+        vehicleDao = mockk(relaxed = true)
+        every { dao.getAllFlow() }        returns flowOf(emptyList())
+        every { vehicleDao.getAllFlow() } returns flowOf(emptyList())
+    }
+
+    @After
+    fun tearDown() { Dispatchers.resetMain() }
+
+    private fun makeVm() = FuelViewModel(dao, vehicleDao)
 
     private fun makeRecord(id: Long, odometer: Int, liters: Float) = FuelRecord(
         id = id,
@@ -15,13 +55,8 @@ class FuelViewModelTest {
         odometer = odometer
     )
 
-    private fun makeVm(): FuelViewModel {
-        val dao       = io.mockk.mockk<com.rodgers.haireel.db.FuelRecordDao>(relaxed = true)
-        val vehicleDao = io.mockk.mockk<com.rodgers.haireel.db.VehicleDao>(relaxed = true)
-        io.mockk.every { dao.getAllFlow() } returns kotlinx.coroutines.flow.flowOf(emptyList())
-        io.mockk.every { vehicleDao.getAllFlow() } returns kotlinx.coroutines.flow.flowOf(emptyList())
-        return FuelViewModel(dao, vehicleDao)
-    }
+    private fun makeVehicle(id: Long = 1L, name: String = "軽自動車") =
+        Vehicle(id = id, name = name)
 
     // ── 空リスト ────────────────────────────────────────────────
 
@@ -133,5 +168,62 @@ class FuelViewModelTest {
         val entries = vm.entriesFrom(records)
         assertNull(entries[1].distanceKm)
         assertNull(entries[1].fuelEconomy)
+    }
+
+    @Test
+    fun `オドメーターが前回と同じ場合distanceKmはnull`() {
+        val vm = makeVm()
+        val records = listOf(
+            makeRecord(1, 10000, 40f),
+            makeRecord(2, 10000, 40f)  // 差分0 → takeIf { it > 0 } で null
+        )
+        val entries = vm.entriesFrom(records)
+        assertNull(entries[1].distanceKm)
+    }
+
+    // ── upsert / delete (DAO 呼び出し) ───────────────────────────
+
+    @Test
+    fun `upsertでdao_upsertが呼ばれる`() = runTest(testDispatcher) {
+        val vm = makeVm()
+        val record = makeRecord(1, 10000, 40f)
+
+        vm.upsert(record)
+        advanceUntilIdle()
+
+        coVerify { dao.upsert(record) }
+    }
+
+    @Test
+    fun `deleteでdao_deleteが呼ばれる`() = runTest(testDispatcher) {
+        val vm = makeVm()
+        val record = makeRecord(1, 10000, 40f)
+
+        vm.delete(record)
+        advanceUntilIdle()
+
+        coVerify { dao.delete(record) }
+    }
+
+    @Test
+    fun `upsertVehicleでvehicleDao_upsertが呼ばれる`() = runTest(testDispatcher) {
+        val vm = makeVm()
+        val vehicle = makeVehicle(name = "テスト車両")
+
+        vm.upsertVehicle(vehicle)
+        advanceUntilIdle()
+
+        coVerify { vehicleDao.upsert(vehicle) }
+    }
+
+    @Test
+    fun `deleteVehicleでvehicleDao_deleteが呼ばれる`() = runTest(testDispatcher) {
+        val vm = makeVm()
+        val vehicle = makeVehicle()
+
+        vm.deleteVehicle(vehicle)
+        advanceUntilIdle()
+
+        coVerify { vehicleDao.delete(vehicle) }
     }
 }
