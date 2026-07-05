@@ -332,4 +332,51 @@ class TenkoViewModelTest {
         )
         assertEquals("特記事項あり", slot.captured.note)
     }
+
+    // ── recordsForMonth / allRecordsForMonth ──────────────────
+
+    @Test
+    fun `recordsForMonthでdao_getByMonthが呼ばれる`() = runTest {
+        val records = listOf(makeRecord("2026-06-01"), makeRecord("2026-06-02"))
+        coEvery { mockDao.getByMonth("2026-06", "") } returns records
+
+        val result = viewModel.recordsForMonth("2026-06")
+
+        assertEquals(records, result)
+    }
+
+    @Test
+    fun `recordsForMonthはcurrentAssignmentIdを渡す`() = runTest {
+        viewModel.setAssignmentId("job_99")
+        coEvery { mockDao.getByMonth("2026-06", "job_99") } returns emptyList()
+
+        viewModel.recordsForMonth("2026-06")
+
+        coVerify { mockDao.getByMonth("2026-06", "job_99") }
+    }
+
+    @Test
+    fun `allRecordsForMonthでdao_getAllByMonthが呼ばれる`() = runTest {
+        val records = listOf(makeRecord("2026-06-01"), makeRecord("2026-06-02"))
+        coEvery { mockDao.getAllByMonth("2026-06") } returns records
+
+        val result = viewModel.allRecordsForMonth("2026-06")
+
+        assertEquals(records, result)
+    }
+
+    @Test
+    fun `allRecordsForMonthは全assignmentIdのレコードを返す`() = runTest {
+        viewModel.setAssignmentId("job_01")
+        val records = listOf(
+            makeRecord("2026-06-01", "job_01"),
+            makeRecord("2026-06-02", "job_02")
+        )
+        coEvery { mockDao.getAllByMonth("2026-06") } returns records
+
+        val result = viewModel.allRecordsForMonth("2026-06")
+
+        assertEquals(2, result.size)
+        assertTrue(result.any { it.assignmentId == "job_02" })
+    }
 }

@@ -466,4 +466,60 @@ class DeliveryViewModelTest {
         assertEquals("", viewModel.currentGroupId.value)
         assertTrue(viewModel.deliveries.value.isEmpty())
     }
+
+    // ── requestEditDelivery / clearEditRequest ─────────────────
+
+    @Test
+    fun `requestEditDeliveryでopenEditForDeliveryが設定される`() {
+        viewModel.requestEditDelivery("d1")
+        assertEquals("d1", viewModel.openEditForDelivery.value)
+    }
+
+    @Test
+    fun `clearEditRequestでopenEditForDeliveryがnullになる`() {
+        viewModel.requestEditDelivery("d1")
+        viewModel.clearEditRequest()
+        assertNull(viewModel.openEditForDelivery.value)
+    }
+
+    @Test
+    fun `requestEditDelivery後に別のIDを設定すると上書きされる`() {
+        viewModel.requestEditDelivery("d1")
+        viewModel.requestEditDelivery("d2")
+        assertEquals("d2", viewModel.openEditForDelivery.value)
+    }
+
+    // ── generateRooms ─────────────────────────────────────────
+
+    @Test
+    fun `generateRoomsで対象IDのroomsが設定される`() {
+        viewModel.generateRooms("d1", listOf("101", "102", "103"))
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertEquals(3, d1?.roomList?.size)
+        assertEquals("101", d1?.roomList?.get(0)?.number)
+    }
+
+    @Test
+    fun `generateRoomsで空リストを渡すとroomsが空になる`() {
+        viewModel.generateRooms("d1", listOf("101"))
+        viewModel.generateRooms("d1", emptyList())
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertTrue(d1?.roomList?.isEmpty() == true)
+    }
+
+    @Test
+    fun `generateRoomsで存在しないIDは他の配達先に影響しない`() {
+        viewModel.generateRooms("存在しないID", listOf("101"))
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertTrue(d1?.roomList?.isEmpty() == true)
+    }
+
+    // ── clearGeocodingFailure ─────────────────────────────────
+
+    @Test
+    fun `clearGeocodingFailureでgeocodingFailedCountが0になる`() {
+        viewModel._geocodingFailedCount.value = 5
+        viewModel.clearGeocodingFailure()
+        assertEquals(0, viewModel.geocodingFailedCount.value)
+    }
 }

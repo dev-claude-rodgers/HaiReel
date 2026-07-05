@@ -37,6 +37,7 @@ class DashboardViewModelTest {
         every { mockDao.recordsForPeriodFlow(any(), any(), any()) } returns flowOf(emptyList())
         every { mockDao.recordsForYearFlow(any()) } returns flowOf(emptyList())
         coEvery { mockGroupDao.getAll() } returns emptyList()
+        every { mockDao.recordsForPeriodFlow(any(), any()) } returns flowOf(emptyList())
         vm = DashboardViewModel(mockApp, mockDao, mockGroupDao)
     }
 
@@ -103,6 +104,60 @@ class DashboardViewModelTest {
         // stateIn の初期値を確認
         val summaries = vm2.monthlySummaries.value
         assertEquals(0, summaries.size)
+    }
+
+    // ── patternId 操作 ────────────────────────────────────────
+
+    @Test
+    fun `初期patternIdは-1`() {
+        assertEquals(-1, vm.patternId.value)
+    }
+
+    @Test
+    fun `setPatternIdでpatternIdが更新される`() {
+        vm.setPatternId(3)
+        assertEquals(3, vm.patternId.value)
+    }
+
+    @Test
+    fun `setPatternIdに-1を渡すと全取引先モードに戻る`() {
+        vm.setPatternId(5)
+        vm.setPatternId(-1)
+        assertEquals(-1, vm.patternId.value)
+    }
+
+    @Test
+    fun `setPatternIdを連続して呼ぶと最後の値が残る`() {
+        vm.setPatternId(1)
+        vm.setPatternId(2)
+        vm.setPatternId(3)
+        assertEquals(3, vm.patternId.value)
+    }
+
+    // ── year 初期値・境界 ─────────────────────────────────────
+
+    @Test
+    fun `year初期値は今年`() {
+        assertEquals(LocalDate.now().year, vm.year.value)
+    }
+
+    @Test
+    fun `nextYearを連続して呼んでも今年を超えない`() {
+        val current = vm.year.value
+        repeat(10) { vm.nextYear() }
+        assertEquals(current, vm.year.value)
+    }
+
+    @Test
+    fun `previousYear後にyearが今年未満になる`() {
+        val current = vm.year.value
+        vm.previousYear()
+        assertTrue(vm.year.value < current)
+    }
+
+    @Test
+    fun `monthlySummaries初期値はemptyList`() {
+        assertEquals(emptyList<DashboardViewModel.MonthlySummary>(), vm.monthlySummaries.value)
     }
 
 }
