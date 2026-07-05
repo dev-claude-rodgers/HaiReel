@@ -26,6 +26,7 @@ class SettingsFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val backupHandler by lazy { SettingsBackupHandler(requireContext().applicationContext) }
+    private val resetHandler  by lazy { SettingsResetHandler(requireContext().applicationContext) }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -151,47 +152,12 @@ class SettingsFragment : Fragment() {
     }
 
     private fun testApiKey(ctx: android.content.Context) {
-        val loadingDlg = MaterialAlertDialogBuilder(ctx)
-            .setTitle("🔍 APIキーを確認中...")
-            .setMessage("東京都千代田区への接続テストを実行しています。")
-            .setCancelable(false)
-            .create()
-        loadingDlg.show()
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            val result = try {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    com.rodgers.haireel.util.GeocodingClient.geocode("東京都千代田区")
-                }
-            } catch (_: Exception) { null }
-
-            loadingDlg.dismiss()
-
-            if (!isAdded) return@launch
-
-            if (result != null) {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("✅ APIキーは正常に動作しています")
-                    .setMessage("住所検索・地図機能がご利用いただけます。\n\nテスト結果: ${result.formattedAddress}")
-                    .setPositiveButton("OK", null)
-                    .show()
-                binding.tvApiKeyStatus.text = "設定済み・動作確認済み"
-            } else {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("❌ APIキーが機能していません")
-                    .setMessage(
-                        "以下を確認してください。\n\n" +
-                        "• APIキーが正しくコピーされているか\n" +
-                        "• Geocoding APIが有効化されているか\n" +
-                        "• Google Cloudの課金設定が完了しているか\n\n" +
-                        "設定を修正してから再度お試しください。"
-                    )
-                    .setPositiveButton("再設定する") { _, _ -> showApiKeyWizard() }
-                    .setNegativeButton("閉じる", null)
-                    .show()
-                binding.tvApiKeyStatus.text = "設定済み・動作確認NG（要確認）"
-            }
-        }
+        testApiKey(
+            ctx           = ctx,
+            scope         = viewLifecycleOwner.lifecycleScope,
+            onStatusChanged = { if (isAdded) binding.tvApiKeyStatus.text = it },
+            onShowWizard  = { showApiKeyWizard() }
+        )
     }
 
     private fun showApiKeyWizard() {
@@ -295,37 +261,8 @@ class SettingsFragment : Fragment() {
 
     private fun showLicensePurchaseDialog() {
         if (!isAdded) return
-        val ctx = requireContext()
-        val act = activity ?: return
-        val s = com.rodgers.haireel.util.AppSettings
-
-        if (s.isSubscriptionActive(ctx)) {
-            // 有効なサブスク → 管理画面へ
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-                .setTitle("プレミアム会員")
-                .setMessage("現在プレミアムプランをご利用中です。\n\nプランの変更・解約は Google Play → 定期購入 から行えます。")
-                .setPositiveButton("Google Play で管理") { _, _ ->
-                    try {
-                        startActivity(android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
-                        ))
-                    } catch (_: Exception) {}
-                }
-                .setNegativeButton("閉じる", null)
-                .show()
-            return
-        }
-
-        // 未登録 / 試用中 → MainActivity の共通購入ダイアログを使用
-        val bm = com.rodgers.haireel.util.BillingManager
-        (act as? com.rodgers.haireel.MainActivity)
-            ?.buildSubscriptionDialog(
-                ctx,
-                onYearly  = { bm.launchSubscription(act, bm.PRODUCT_YEARLY) },
-                onMonthly = { bm.launchSubscription(act, bm.PRODUCT_MONTHLY) }
-            )
-            ?.show()
+        val act = activity as? androidx.fragment.app.FragmentActivity ?: return
+        showLicensePurchaseDialog(requireContext(), act)
     }
 
     private fun showResetDataDialog() {
@@ -335,43 +272,8 @@ class SettingsFragment : Fragment() {
             .setTitle("⚠️ データをすべて初期化")
             .setMessage("日報・配達先・ルート・帳票パターン・署名を含むすべてのデータを削除します。\n\nこの操作は元に戻せません。\n\n先にバックアップを作成することをおすすめします。")
             .setPositiveButton("初期化する") { _, _ ->
-                val appCtx2 = ctx.applicationContext
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO).launch {
-                    try {
-                        val db = com.rodgers.haireel.db.AppDatabase.getInstance(appCtx2)
-                        db.workRecordDao().deleteAll()
-                        db.deliveryDao().deleteAll()
-                        db.deliveryGroupDao().deleteAll()
-                        db.tenkoDao().deleteAll()
-                        db.geocodingCacheDao().deleteAll()
-                        // SharedPreferences をクリア
-                        appCtx2.getSharedPreferences(com.rodgers.haireel.util.AppSettings.PREFS, android.content.Context.MODE_PRIVATE)
-                            .edit().clear().apply()
-                        appCtx2.getSharedPreferences("delivery_prefs", android.content.Context.MODE_PRIVATE)
-                            .edit().clear().apply()
-                        appCtx2.getSharedPreferences("report_patterns", android.content.Context.MODE_PRIVATE)
-                            .edit().clear().apply()
-                        // 暗号化設定をクリア（APIキー・ライセンスキー・バックアップパスワード）
-                        com.rodgers.haireel.util.AppSettings.clearSensitiveData(appCtx2)
-                        // 署名を削除
-                        for (type in listOf(com.rodgers.haireel.util.SignatureStorage.TYPE_DRIVER, com.rodgers.haireel.util.SignatureStorage.TYPE_CLIENT)) {
-                            com.rodgers.haireel.util.SignatureStorage.fileFor(appCtx2, type).delete()
-                        }
-                        withContext(Dispatchers.Main) {
-                            android.widget.Toast.makeText(appCtx2, "初期化が完了しました。アプリを再起動します。", android.widget.Toast.LENGTH_LONG).show()
-                        }
-                        kotlinx.coroutines.delay(1500)
-                        val intent2 = appCtx2.packageManager.getLaunchIntentForPackage(appCtx2.packageName)
-                        if (intent2 != null) {
-                            intent2.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            appCtx2.startActivity(intent2)
-                        }
-                        android.os.Process.killProcess(android.os.Process.myPid())
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            appCtx2.showErrorDialog("初期化エラー", e.localizedMessage ?: "データの初期化に失敗しました。")
-                        }
-                    }
+                resetHandler.resetAllData { msg ->
+                    ctx.showErrorDialog("初期化エラー", msg)
                 }
             }
             .setNegativeButton("キャンセル", null)

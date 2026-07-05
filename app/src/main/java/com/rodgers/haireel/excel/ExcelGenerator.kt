@@ -57,50 +57,11 @@ class ExcelGenerator(private val context: Context) {
         val recordMap = records.associateBy { it.date }
 
         val workRecords = records.filter { !it.noWork }
-        val totalMins   = workRecords.sumOf { it.workingMinutes }
-        val totalDeliv  = workRecords.sumOf { it.deliveryCount }
-        val totalPkg    = workRecords.sumOf { it.packageCount }
-        val totalDist   = workRecords.sumOf { it.distanceKm.toDouble() }
-        val totalHours  = "%d時間%02d分".format(totalMins / 60, totalMins % 60)
-        val workingDays = workRecords.sumOf { 1 + it.endDateOffset }
-
-        val totalFuel   = workRecords.sumOf { it.fuelCost }
-        val totalIncome = workRecords.sumOf { it.income }
-
-        val columns = pattern.excelColumns.map { col ->
-            when (col.type) {
-                ColumnType.START_TIME    -> ColDef(col.label, { it?.startTime ?: "" })
-                ColumnType.END_TIME      -> ColDef(col.label, {
-                    if (it == null) "" else if (it.endDateOffset > 0) "${it.endTime}(+${it.endDateOffset}日)" else it.endTime
-                })
-                ColumnType.WORKING_HOURS -> ColDef(col.label, { it?.workingHoursText ?: "" }, totalHours)
-                ColumnType.DELIVERY_COUNT -> ColDef(col.label,
-                    { r -> r?.deliveryCount?.takeIf { it > 0 }?.let { "${it}件" } ?: "" },
-                    if (totalDeliv > 0) "${totalDeliv}件" else "")
-                ColumnType.PACKAGE_COUNT -> ColDef(col.label,
-                    { r -> r?.packageCount?.takeIf { it > 0 }?.let { "${it}個" } ?: "" },
-                    if (totalPkg > 0) "${totalPkg}個" else "")
-                ColumnType.DISTANCE      -> ColDef(col.label,
-                    { r -> r?.distanceKm?.takeIf { it > 0f }?.let { "%.0fkm".format(it) } ?: "" },
-                    if (totalDist > 0) "%.0fkm".format(totalDist) else "")
-                ColumnType.FUEL_COST     -> ColDef(col.label,
-                    { r -> r?.fuelCost?.takeIf { it > 0 }?.let { "%,d円".format(it) } ?: "" },
-                    if (totalFuel > 0) "%,d円".format(totalFuel) else "")
-                ColumnType.METER_START   -> ColDef(col.label,
-                    { r -> r?.startMeter?.takeIf { it > 0 }?.let { "${it}km" } ?: "" })
-                ColumnType.METER_END     -> ColDef(col.label,
-                    { r -> r?.endMeter?.takeIf { it > 0 }?.let { "${it}km" } ?: "" })
-                ColumnType.INCOME        -> ColDef(col.label,
-                    { r -> r?.income?.takeIf { it > 0 }?.let { "%,d円".format(it) } ?: "" },
-                    if (totalIncome > 0) "%,d円".format(totalIncome) else "")
-                ColumnType.AREA          -> ColDef(col.label, { it?.area ?: "" })
-                ColumnType.REMARKS       -> ColDef(col.label, { it?.remarks ?: "" })
-                ColumnType.ALC_CHECK     -> ColDef(col.label, { it?.alcCheck ?: "" })
-            }
-        }
+        val totals      = WorkTotals.from(workRecords)
+        val columns     = buildColDefs(pattern, totals)
 
         val hasSig = driverSig != null || clientSig != null
-        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, workingDays, hasSig, portrait, periodLabel)
+        val output = sheetXml(allDays, recordMap, columns, year, month, pattern, totals.workingDays, hasSig, portrait, periodLabel)
 
         var relCount = 0
         val driverRelId = driverSig?.let { ++relCount }
@@ -176,6 +137,62 @@ class ExcelGenerator(private val context: Context) {
         // Yu Gothic 10pt: 全角≒2.2u / 半角≒1.1u → displayLen×1.1 + 余白2u
         return maxOf(8.0, minOf(60.0, max * 1.1 + 2.0))
     }
+
+    private data class WorkTotals(
+        val totalMins: Int,
+        val totalDeliv: Int,
+        val totalPkg: Int,
+        val totalDist: Double,
+        val totalFuel: Int,
+        val totalIncome: Int,
+        val workingDays: Int
+    ) {
+        val totalHours: String get() = "%d時間%02d分".format(totalMins / 60, totalMins % 60)
+        companion object {
+            fun from(workRecords: List<WorkRecord>) = WorkTotals(
+                totalMins   = workRecords.sumOf { it.workingMinutes },
+                totalDeliv  = workRecords.sumOf { it.deliveryCount },
+                totalPkg    = workRecords.sumOf { it.packageCount },
+                totalDist   = workRecords.sumOf { it.distanceKm.toDouble() },
+                totalFuel   = workRecords.sumOf { it.fuelCost },
+                totalIncome = workRecords.sumOf { it.income },
+                workingDays = workRecords.sumOf { 1 + it.endDateOffset }
+            )
+        }
+    }
+
+    private fun buildColDefs(pattern: ReportPattern, t: WorkTotals): List<ColDef> =
+        pattern.excelColumns.map { col ->
+            when (col.type) {
+                ColumnType.START_TIME     -> ColDef(col.label, { it?.startTime ?: "" })
+                ColumnType.END_TIME       -> ColDef(col.label, {
+                    if (it == null) "" else if (it.endDateOffset > 0) "${it.endTime}(+${it.endDateOffset}日)" else it.endTime
+                })
+                ColumnType.WORKING_HOURS  -> ColDef(col.label, { it?.workingHoursText ?: "" }, t.totalHours)
+                ColumnType.DELIVERY_COUNT -> ColDef(col.label,
+                    { r -> r?.deliveryCount?.takeIf { it > 0 }?.let { "${it}件" } ?: "" },
+                    if (t.totalDeliv  > 0) "${t.totalDeliv}件" else "")
+                ColumnType.PACKAGE_COUNT  -> ColDef(col.label,
+                    { r -> r?.packageCount?.takeIf { it > 0 }?.let { "${it}個" } ?: "" },
+                    if (t.totalPkg   > 0) "${t.totalPkg}個" else "")
+                ColumnType.DISTANCE       -> ColDef(col.label,
+                    { r -> r?.distanceKm?.takeIf { it > 0f }?.let { "%.0fkm".format(it) } ?: "" },
+                    if (t.totalDist  > 0) "%.0fkm".format(t.totalDist) else "")
+                ColumnType.FUEL_COST      -> ColDef(col.label,
+                    { r -> r?.fuelCost?.takeIf { it > 0 }?.let { "%,d円".format(it) } ?: "" },
+                    if (t.totalFuel  > 0) "%,d円".format(t.totalFuel) else "")
+                ColumnType.METER_START    -> ColDef(col.label,
+                    { r -> r?.startMeter?.takeIf { it > 0 }?.let { "${it}km" } ?: "" })
+                ColumnType.METER_END      -> ColDef(col.label,
+                    { r -> r?.endMeter?.takeIf { it > 0 }?.let { "${it}km" } ?: "" })
+                ColumnType.INCOME         -> ColDef(col.label,
+                    { r -> r?.income?.takeIf { it > 0 }?.let { "%,d円".format(it) } ?: "" },
+                    if (t.totalIncome > 0) "%,d円".format(t.totalIncome) else "")
+                ColumnType.AREA           -> ColDef(col.label, { it?.area ?: "" })
+                ColumnType.REMARKS        -> ColDef(col.label, { it?.remarks ?: "" })
+                ColumnType.ALC_CHECK      -> ColDef(col.label, { it?.alcCheck ?: "" })
+            }
+        }
 
     private fun sc(col: String, row: Int, v: String, s: Int = 0): String {
         val attr = if (s > 0) """ s="$s"""" else ""
