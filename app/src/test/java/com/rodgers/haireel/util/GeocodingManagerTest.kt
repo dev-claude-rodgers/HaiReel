@@ -2,6 +2,7 @@
 
 import com.rodgers.haireel.db.GeocodingCacheDao
 import com.rodgers.haireel.db.GeocodingCacheEntity
+import com.rodgers.haireel.model.Delivery
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import kotlinx.coroutines.test.runTest
@@ -201,5 +202,104 @@ class GeocodingManagerTest {
         manager.evictExpiredCache()
 
         coVerify(exactly = 1) { mockCache.evictExpired(any()) }
+    }
+
+    // ── batchGeocode ──────────────────────────────────────────
+
+    @Test
+    fun `batchGeocode_isRequestDeniedがtrueのとき即座にdeliveries件数を返す`() = runTest {
+        every { mockClient.isRequestDenied } returns true
+
+        val deliveries = listOf(
+            Delivery(id = "d1", order = 0, address = "東京都新宿区1-1-1"),
+            Delivery(id = "d2", order = 1, address = "東京都渋谷区2-2-2")
+        )
+        val failed = manager.batchGeocode(
+            deliveries = deliveries,
+            areaHint = "",
+            isInArea = { true },
+            extractLocalPart = { it },
+            isGroupActive = { true },
+            onProgress = { _, _ -> },
+            onResult = {}
+        )
+
+        assertEquals(2, failed)
+        coVerify(exactly = 0) { mockClient.geocode(any()) }
+    }
+
+    @Test
+    fun `batchGeocode_空リストのとき失敗数0を返す`() = runTest {
+        every { mockClient.isRequestDenied } returns false
+        every { mockClient.hasBias() } returns true
+        every { mockClient.biasLat } returns 35.68
+        every { mockClient.biasLng } returns 139.70
+        every { mockClient.setBias(any(), any()) } just Runs
+
+        val failed = manager.batchGeocode(
+            deliveries = emptyList(),
+            areaHint = "",
+            isInArea = { true },
+            extractLocalPart = { it },
+            isGroupActive = { true },
+            onProgress = { _, _ -> },
+            onResult = {}
+        )
+
+        assertEquals(0, failed)
+    }
+
+    @Test
+    fun `batchGeocode_isGroupActiveがfalseのとき最初の件で中断する`() = runTest {
+        every { mockClient.isRequestDenied } returns false
+        every { mockClient.hasBias() } returns true
+        every { mockClient.biasLat } returns 35.68
+        every { mockClient.biasLng } returns 139.70
+        every { mockClient.setBias(any(), any()) } just Runs
+
+        var onResultCalled = false
+        val failed = manager.batchGeocode(
+            deliveries = listOf(
+                Delivery(id = "d1", order = 0, address = "東京都新宿区1-1-1")
+            ),
+            areaHint = "",
+            isInArea = { true },
+            extractLocalPart = { it },
+            isGroupActive = { false },
+            onProgress = { _, _ -> },
+            onResult = { onResultCalled = true }
+        )
+
+        assertEquals(0, failed)
+        assertFalse(onResultCalled)
+        coVerify(exactly = 0) { mockClient.geocode(any()) }
+    }
+
+    @Test
+    fun `batchGeocode_isGeocoded済みの配達はgeocode APIをスキップする`() = runTest {
+        every { mockClient.isRequestDenied } returns false
+        every { mockClient.hasBias() } returns true
+        every { mockClient.biasLat } returns 35.68
+        every { mockClient.biasLng } returns 139.70
+        every { mockClient.setBias(any(), any()) } just Runs
+
+        val progressList = mutableListOf<Pair<Int, Int>>()
+        var onResultCalled = false
+        val failed = manager.batchGeocode(
+            deliveries = listOf(
+                Delivery(id = "d1", order = 0, address = "東京都新宿区1-1-1", isGeocoded = true, lat = 35.68, lng = 139.70)
+            ),
+            areaHint = "",
+            isInArea = { true },
+            extractLocalPart = { it },
+            isGroupActive = { true },
+            onProgress = { c, t -> progressList.add(c to t) },
+            onResult = { onResultCalled = true }
+        )
+
+        assertEquals(0, failed)
+        assertEquals(1, progressList.size)
+        assertFalse(onResultCalled)
+        coVerify(exactly = 0) { mockClient.geocode(any()) }
     }
 }

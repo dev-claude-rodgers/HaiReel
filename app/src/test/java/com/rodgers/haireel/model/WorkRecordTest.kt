@@ -130,6 +130,34 @@ class WorkRecordTest {
         assertEquals("", r.workingHoursText)
     }
 
+    // ── noWork フィールド ─────────────────────────────────────
+
+    @Test
+    fun `noWorkのデフォルト値はfalse`() {
+        val r = WorkRecord(date = "2026-06-01")
+        assertFalse(r.noWork)
+    }
+
+    @Test
+    fun `noWork=trueのときworkingMinutesは時刻から計算される`() {
+        // noWork フラグは WorkRecord 自体の計算に影響しない
+        val r = WorkRecord(date = "2026-06-01", startTime = "09:00", endTime = "18:00", noWork = true)
+        assertEquals(540, r.workingMinutes)
+    }
+
+    @Test
+    fun `noWork=trueのときworkingHoursTextは正常に返る`() {
+        val r = WorkRecord(date = "2026-06-01", startTime = "09:00", endTime = "18:00", noWork = true)
+        assertEquals("9時間00分", r.workingHoursText)
+    }
+
+    @Test
+    fun `noWork=trueでstartTimeが空のときworkingMinutesは0`() {
+        val r = WorkRecord(date = "2026-06-01", startTime = "", endTime = "", noWork = true)
+        assertEquals(0, r.workingMinutes)
+        assertEquals("", r.workingHoursText)
+    }
+
     // ── TenkoRecord.beforeDone / afterDone ────────────────────
 
     @Test

@@ -522,4 +522,66 @@ class DeliveryViewModelTest {
         viewModel.clearGeocodingFailure()
         assertEquals(0, viewModel.geocodingFailedCount.value)
     }
+
+    // ── DeliveryViewModelGroups: 未カバー領域 ──────────────────
+
+    @Test
+    fun `copyGroupでコピー元の配達先がコピー先のallDeliveriesに追加される`() {
+        val d1 = makeDelivery("d1", order = 1)
+        val d2 = makeDelivery("d2", order = 2)
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to listOf(d1, d2))
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        vm.copyGroup(group.id)
+
+        val newGroupId = vm.groups.value.last().id
+        val copied = vm.allDeliveries.value[newGroupId]
+        assertEquals(2, copied?.size)
+    }
+
+    @Test
+    fun `copyGroupでコピー元の配達先が空のときグループだけ追加される`() {
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to emptyList())
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val before = vm.groups.value.size
+        vm.copyGroup(group.id)
+
+        assertEquals(before + 1, vm.groups.value.size)
+        val newGroupId = vm.groups.value.last().id
+        assertTrue(vm.allDeliveries.value[newGroupId].isNullOrEmpty())
+    }
+
+    @Test
+    fun `deleteGroup_現在グループ以外を削除しても現在グループは変わらない`() {
+        val group2 = DeliveryGroup(id = "g2", name = "グループ2")
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group, group2),
+            allDeliveries = mapOf(group.id to emptyList(), group2.id to emptyList())
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        vm.switchGroup(group.id)
+        vm.deleteGroup(group2.id)
+
+        assertEquals(group.id, vm.currentGroupId.value)
+        assertEquals(1, vm.groups.value.size)
+    }
+
+    @Test
+    fun `renameGroupでグループ名が更新されてもdeliveriesは変わらない`() {
+        val d1 = makeDelivery("d1", order = 1)
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to listOf(d1))
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        vm.renameGroup(group.id, "新しい名前")
+
+        assertEquals("新しい名前", vm.groups.value.first().name)
+        assertEquals(1, vm.deliveries.value.size)
+    }
 }
