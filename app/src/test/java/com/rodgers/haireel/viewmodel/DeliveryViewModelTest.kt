@@ -40,6 +40,8 @@ class DeliveryViewModelTest {
     private val group = DeliveryGroup(id = "g1", name = "テストグループ")
     private fun makeDelivery(id: String, order: Int = 1, completed: Boolean = false) =
         Delivery(id = id, order = order, address = "東京都新宿区$id", isCompleted = completed)
+    private fun makeNamedDelivery(id: String, name: String, address: String, order: Int = 1) =
+        Delivery(id = id, order = order, name = name, address = address)
 
     @Before
     fun setUp() {
@@ -220,5 +222,178 @@ class DeliveryViewModelTest {
         val before = viewModel.deliveries.value.size
         viewModel.deleteDelivery("存在しないID")
         assertEquals(before, viewModel.deliveries.value.size)
+    }
+
+    // ── 選択操作 ──────────────────────────────────────────────
+
+    @Test
+    fun `markSelectedCompletedで対象だけ完了になる`() {
+        viewModel.markSelectedCompleted(setOf("d1"))
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        val d2 = viewModel.deliveries.value.find { it.id == "d2" }
+        assertTrue(d1?.isCompleted == true)
+        assertFalse(d2?.isCompleted == true)
+    }
+
+    @Test
+    fun `resetSelectedCompletedで対象だけ未完了に戻る`() {
+        viewModel.markAllCompleted()
+        viewModel.resetSelectedCompleted(setOf("d1"))
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        val d2 = viewModel.deliveries.value.find { it.id == "d2" }
+        assertFalse(d1?.isCompleted == true)
+        assertTrue(d2?.isCompleted == true)
+    }
+
+    @Test
+    fun `setSelectModeでisSelectModeが変わる`() {
+        assertFalse(viewModel.isSelectMode.value)
+        viewModel.setSelectMode(true)
+        assertTrue(viewModel.isSelectMode.value)
+        viewModel.setSelectMode(false)
+        assertFalse(viewModel.isSelectMode.value)
+    }
+
+    // ── エラー・状態管理 ─────────────────────────────────────
+
+    @Test
+    fun `clearErrorでerrorMessageがnullになる`() {
+        coEvery { mockRepo.loadInitialData() } throws RuntimeException("テストエラー")
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        assertNotNull(vm.errorMessage.value)
+        vm.clearError()
+        assertNull(vm.errorMessage.value)
+    }
+
+    @Test
+    fun `setMapFilterでmapFilterが変わる`() {
+        assertNull(viewModel.mapFilter.value)
+        viewModel.setMapFilter(setOf("d1"))
+        assertEquals(setOf("d1"), viewModel.mapFilter.value)
+        viewModel.setMapFilter(null)
+        assertNull(viewModel.mapFilter.value)
+    }
+
+    @Test
+    fun `setVisibleGroupsでvisibleGroupIdsが変わる`() {
+        assertNull(viewModel.visibleGroupIds.value)
+        viewModel.setVisibleGroups(setOf("g1"))
+        assertEquals(setOf("g1"), viewModel.visibleGroupIds.value)
+    }
+
+    // ── グループ属性変更 ──────────────────────────────────────
+
+    @Test
+    fun `changeGroupColorでグループのカラーが変わる`() {
+        viewModel.changeGroupColor(group.id, "#FF5722")
+        val g = viewModel.groups.value.find { it.id == group.id }
+        assertEquals("#FF5722", g?.colorHex)
+    }
+
+    @Test
+    fun `linkPatternToGroupでpatternIdが変わる`() {
+        viewModel.linkPatternToGroup(group.id, 42)
+        val g = viewModel.groups.value.find { it.id == group.id }
+        assertEquals(42, g?.patternId)
+    }
+
+    // ── 名前・ふりがな更新 ────────────────────────────────────
+
+    @Test
+    fun `updateNameKanaでふりがなが更新される`() {
+        viewModel.updateNameKana("d1", "とうきょうとしんじゅくく")
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertEquals("とうきょうとしんじゅくく", d1?.nameKana)
+    }
+
+    @Test
+    fun `updateNameAndAddressOnlyで名前と住所が更新される`() {
+        viewModel.updateNameAndAddressOnly("d1", "佐藤商店", "東京都渋谷区1-1", null)
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertEquals("佐藤商店", d1?.name)
+        assertEquals("東京都渋谷区1-1", d1?.address)
+    }
+
+    @Test
+    fun `updateNameAndAddressOnlyで空の名前はnullになる`() {
+        viewModel.updateNameAndAddressOnly("d1", "", "東京都渋谷区1-1", null)
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertNull(d1?.name)
+    }
+
+    // ── 候補適用 ──────────────────────────────────────────────
+
+    @Test
+    fun `applyCandidateで座標と住所が更新される`() {
+        viewModel.applyCandidate("d1", "テスト商店", "東京都千代田区1-1", 35.68, 139.76)
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertEquals(35.68, d1?.lat ?: 0.0, 0.001)
+        assertEquals(139.76, d1?.lng ?: 0.0, 0.001)
+        assertTrue(d1?.isGeocoded == true)
+    }
+
+    @Test
+    fun `applyCandidateで名前が空の場合は既存名を維持する`() {
+        viewModel.updateNameAndAddressOnly("d1", "既存の名前", "東京都新宿区d1", null)
+        viewModel.applyCandidate("d1", "", "東京都千代田区1-1", 35.68, 139.76)
+        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
+        assertEquals("既存の名前", d1?.name)
+    }
+
+    // ── searchDeliveriesByName ────────────────────────────────
+
+    @Test
+    fun `searchDeliveriesByName_1文字以下のクエリは空リストを返す`() {
+        assertEquals(emptyList<Any>(), viewModel.searchDeliveriesByName("あ"))
+        assertEquals(emptyList<Any>(), viewModel.searchDeliveriesByName(""))
+    }
+
+    @Test
+    fun `searchDeliveriesByName_名前がnullの配達先はヒットしない`() {
+        val result = viewModel.searchDeliveriesByName("新宿")
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `searchDeliveriesByName_名前でマッチする配達先を返す`() {
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to listOf(
+                makeNamedDelivery("d1", "山田商店", "東京都新宿区1"),
+                makeNamedDelivery("d2", "鈴木薬局", "東京都渋谷区2")
+            ))
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val result = vm.searchDeliveriesByName("山田")
+        assertEquals(1, result.size)
+        assertEquals("山田商店", result[0].name)
+    }
+
+    @Test
+    fun `searchDeliveriesByName_住所でもマッチする`() {
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to listOf(
+                makeNamedDelivery("d1", "テスト店", "東京都渋谷区神南1-1")
+            ))
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val result = vm.searchDeliveriesByName("渋谷区")
+        assertEquals(1, result.size)
+    }
+
+    @Test
+    fun `searchDeliveriesByName_excludeIdで指定IDは除外される`() {
+        coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
+            groups = listOf(group),
+            allDeliveries = mapOf(group.id to listOf(
+                makeNamedDelivery("d1", "テスト商店", "東京都新宿区1"),
+                makeNamedDelivery("d2", "テスト薬局", "東京都新宿区2")
+            ))
+        )
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val result = vm.searchDeliveriesByName("テスト", excludeId = "d1")
+        assertTrue(result.none { it.id == "d1" })
+        assertTrue(result.any { it.id == "d2" })
     }
 }
