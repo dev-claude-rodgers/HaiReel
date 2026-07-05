@@ -36,6 +36,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.BillingManager
 import com.rodgers.haireel.util.TtsManager
+import com.rodgers.haireel.util.applyAppTheme
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.viewmodel.DeliveryViewModel
 import com.rodgers.haireel.viewmodel.*
@@ -89,6 +90,7 @@ class MainActivity : AppCompatActivity() {
                 set.start()
             }
         }
+        applyAppTheme()
         super.onCreate(savedInstanceState)
         // 初回起動日を記録
         AppSettings.ensureInstallDate(this)
@@ -444,7 +446,6 @@ class MainActivity : AppCompatActivity() {
                 "クラッシュ監視: Firebase Crashlytics\n\n" +
                 "── v1.0.0 リリース内容 ──\n" +
                 "・配達先管理・地図表示・ルート最適化\n" +
-                "・荷室レイアウト（写真＋ピン管理）\n" +
                 "・点呼記録（乗務前・乗務後）\n" +
                 "・日報・帳票 Excel 出力\n" +
                 "・近くの施設を探す（コンビニ・駐車場・ATM・薬局など）\n" +

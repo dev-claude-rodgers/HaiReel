@@ -72,7 +72,7 @@ class SettingsFragment : Fragment() {
                 android.os.Process.killProcess(android.os.Process.myPid())
             } catch (e: Throwable) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(appCtx, "復元に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+                    appCtx.showErrorDialog("復元エラー", e.localizedMessage ?: "不明なエラーが発生しました。\nバックアップファイルを確認してください。")
                 }
             }
         }
@@ -90,6 +90,21 @@ class SettingsFragment : Fragment() {
         binding.rowAppSettings.setOnClickListener { showAppSettingsDialog() }
 
         val ctx = requireContext()
+
+        // テーマカラー
+        val themeNames = mapOf(
+            "blue"   to "ブルー（デフォルト）",
+            "teal"   to "ティール",
+            "green"  to "グリーン",
+            "orange" to "オレンジ",
+            "purple" to "パープル",
+            "red"    to "レッド",
+            "indigo" to "インディゴ",
+            "brown"  to "アース",
+        )
+        binding.tvThemeName.text = themeNames[AppSettings.getThemeKey(ctx)] ?: "ブルー（デフォルト）"
+        binding.rowTheme.setOnClickListener { showThemePickerDialog() }
+
         binding.tvApiKeyStatus.text = if (AppSettings.hasUserApiKey(ctx))
             "設定済み（自分のAPIキーを使用中）" else "未設定（住所変換・地図機能が使えません）"
         binding.rowApiKey.setOnClickListener {
@@ -251,7 +266,7 @@ class SettingsFragment : Fragment() {
                 .also { it.bottomMargin = (8*dp).toInt() }
         })
         root.addView(android.widget.TextView(ctx).apply {
-            text = "※ APIキーを設定しなくても、住所管理・日報・点呼・荷室管理は使えます。後からでも変更可能です。"
+            text = "※ APIキーを設定しなくても、住所管理・日報・点呼は使えます。後からでも変更可能です。"
             textSize = 12f; setTextColor(onSurfaceVar)
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
                 .also { it.bottomMargin = (16*dp).toInt() }
@@ -429,6 +444,89 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun showThemePickerDialog() {
+        val ctx = requireContext()
+        val dp  = ctx.resources.displayMetrics.density
+        val currentKey = AppSettings.getThemeKey(ctx)
+
+        data class ThemeOption(val key: String, val nameJa: String, val colorHex: String)
+        val themes = listOf(
+            ThemeOption("blue",   "ブルー",    "#1565C0"),
+            ThemeOption("teal",   "ティール",  "#006A6A"),
+            ThemeOption("green",  "グリーン",  "#2E7D32"),
+            ThemeOption("orange", "オレンジ",  "#C84B00"),
+            ThemeOption("purple", "パープル",  "#6750A4"),
+            ThemeOption("red",    "レッド",    "#BA1A1A"),
+            ThemeOption("indigo", "インディゴ","#3949AB"),
+            ThemeOption("brown",  "アース",    "#795548"),
+        )
+
+        val onSurface = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
+        }
+
+        for (row in 0..1) {
+            val rowLayout = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .also { it.bottomMargin = (12 * dp).toInt() }
+            }
+            for (col in 0..3) {
+                val t = themes[row * 4 + col]
+                val color = Color.parseColor(t.colorHex)
+                val isSelected = t.key == currentKey
+
+                val cell = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    isClickable = true; isFocusable = true
+                    val ripple = android.util.TypedValue().also {
+                        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
+                    }.resourceId
+                    setBackgroundResource(ripple)
+                }
+
+                // 色丸（選択中はチェックマーク付き）
+                cell.addView(TextView(ctx).apply {
+                    text = if (isSelected) "✓" else ""
+                    textSize = 22f; setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                        setColor(color)
+                        if (isSelected) setStroke((3 * dp).toInt(), Color.WHITE)
+                    }
+                    layoutParams = LinearLayout.LayoutParams((52 * dp).toInt(), (52 * dp).toInt())
+                        .also { it.gravity = Gravity.CENTER }
+                })
+
+                cell.addView(TextView(ctx).apply {
+                    text = t.nameJa; textSize = 11f; gravity = Gravity.CENTER
+                    setTextColor(if (isSelected) color else onSurface)
+                    if (isSelected) setTypeface(typeface, Typeface.BOLD)
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                        .also { it.topMargin = (4 * dp).toInt() }
+                })
+
+                cell.setOnClickListener {
+                    AppSettings.setThemeKey(ctx, t.key)
+                    requireActivity().recreate()
+                }
+                rowLayout.addView(cell)
+            }
+            root.addView(rowLayout)
+        }
+
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("テーマカラーを選択")
+            .setView(root)
+            .setNegativeButton("キャンセル", null)
+            .show()
+    }
+
     private fun addBackgroundRow() {
         val ctx = requireContext()
         val dp  = ctx.resources.displayMetrics.density
@@ -604,7 +702,7 @@ class SettingsFragment : Fragment() {
                 }
                 startActivity(Intent.createChooser(intent, "バックアップを保存"))
             } catch (e: Exception) {
-                Toast.makeText(ctx, "バックアップに失敗しました", Toast.LENGTH_LONG).show()
+                ctx.showErrorDialog("バックアップエラー", e.localizedMessage ?: "バックアップの作成に失敗しました。\nストレージの空き容量を確認してください。")
             }
         }
     }
@@ -699,7 +797,7 @@ class SettingsFragment : Fragment() {
                         android.os.Process.killProcess(android.os.Process.myPid())
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(appCtx2, "初期化に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", android.widget.Toast.LENGTH_LONG).show()
+                            appCtx2.showErrorDialog("初期化エラー", e.localizedMessage ?: "データの初期化に失敗しました。")
                         }
                     }
                 }
@@ -870,11 +968,6 @@ Android 8.0（API 26）以上"""
         note("→ チップで「すべて / 未完了のみ / 完了のみ」を切り替えられます")
         item("④ 点呼タブで乗務前後の点呼を記録する")
         item("⑤ 報告タブで日報（収入・走行距離）を記録してExcel出力")
-
-        section("🚛 荷室レイアウト")
-        item("配達タブのトグルボタン（リスト → 地図 → 荷室）で荷室画面に切り替えます。")
-        item("写真を撮影またはギャラリーから選択してピンで積載位置を記録します。")
-        note("ピンをタップすると備考や状態を入力できます。")
 
         section("🔑 Google APIキーについて")
         item("住所検索・地図機能にGoogle APIキーが必要です。")

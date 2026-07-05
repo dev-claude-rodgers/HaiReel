@@ -1,6 +1,7 @@
 ﻿package com.rodgers.haireel.ui
 
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -74,10 +75,11 @@ class TenkoFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         adapter = TenkoMonthAdapter(
-            onBeforeClick = { date, rec -> showBeforeDialog(date, rec) },
-            onAfterClick  = { date, rec -> showAfterDialog(date, rec) },
-            onAddTrip     = { date -> showBeforeDialog(date, null) },
-            onLongPress   = { rec -> confirmDelete(rec) }
+            onBeforeClick  = { date, rec -> showBeforeDialog(date, rec) },
+            onAfterClick   = { date, rec -> showAfterDialog(date, rec) },
+            onAddTrip      = { date -> showBeforeDialog(date, null) },
+            onLongPress    = { rec -> confirmDelete(rec) },
+            onNoWorkToggle = { date, noWork -> viewModel.setNoWork(date, noWork) }
         )
         binding.recyclerTenko.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -106,6 +108,12 @@ class TenkoFragment : Fragment() {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.noWorkDates.collect {
+                rebuildList(viewModel.yearMonth.value)
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
             deliveryViewModel.currentGroupId.collectLatest { groupId ->
                 viewModel.setAssignmentId(groupId)
             }
@@ -116,10 +124,16 @@ class TenkoFragment : Fragment() {
         val (y, m) = ym.split("-").map { it.toInt() }
         val daysInMonth = YearMonth.of(y, m).lengthOfMonth()
         val recordsByDate = viewModel.monthRecords.value.groupBy { it.date }
+        val noWorkSet = viewModel.noWorkDates.value
         val today = viewModel.todayDate()
         val items = (1..daysInMonth).map { day ->
             val dateStr = "%04d-%02d-%02d".format(y, m, day)
-            TenkoMonthAdapter.DayRow(dateStr, recordsByDate[dateStr] ?: emptyList(), dateStr == today)
+            TenkoMonthAdapter.DayRow(
+                dateStr,
+                recordsByDate[dateStr] ?: emptyList(),
+                dateStr == today,
+                noWork = dateStr in noWorkSet
+            )
         }
         adapter.submitList(items)
 
@@ -142,10 +156,11 @@ class TenkoFragment : Fragment() {
 
 // ── 月全日付アダプター ──
 class TenkoMonthAdapter(
-    private val onBeforeClick: (String, TenkoRecord?) -> Unit,
-    private val onAfterClick:  (String, TenkoRecord?) -> Unit,
-    private val onAddTrip:     (String) -> Unit,
-    private val onLongPress:   (TenkoRecord) -> Unit = {}
+    private val onBeforeClick:   (String, TenkoRecord?) -> Unit,
+    private val onAfterClick:    (String, TenkoRecord?) -> Unit,
+    private val onAddTrip:       (String) -> Unit,
+    private val onLongPress:     (TenkoRecord) -> Unit = {},
+    private val onNoWorkToggle:  (String, Boolean) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -153,7 +168,7 @@ class TenkoMonthAdapter(
         private const val TYPE_RECORDS = 1
     }
 
-    data class DayRow(val date: String, val records: List<TenkoRecord>, val isToday: Boolean)
+    data class DayRow(val date: String, val records: List<TenkoRecord>, val isToday: Boolean, val noWork: Boolean = false)
 
     private val items = mutableListOf<DayRow>()
 
@@ -204,6 +219,7 @@ class TenkoMonthAdapter(
         private val tvDayLabel: TextView = view.findViewById(R.id.tvDayLabel)
         private val chipBefore: TextView = view.findViewById(R.id.chipBefore)
         private val chipAfter:  TextView = view.findViewById(R.id.chipAfter)
+        private val chipNoWork: TextView = view.findViewById(R.id.chipNoWork)
 
         fun bind(row: DayRow) {
             val ctx = itemView.context
@@ -226,26 +242,57 @@ class TenkoMonthAdapter(
             tvDayLabel.text = "${day}（${wd}）"
             tvDayLabel.setTextColor(dayColor)
 
-            val beforeFg = ContextCompat.getColor(ctx, R.color.colorTenkoBefore)
-            val beforeBg = ContextCompat.getColor(ctx, R.color.colorTenkoBeforeBg)
-            chipBefore.setTextColor(beforeFg)
-            chipBefore.background = GradientDrawable().apply {
-                setColor(beforeBg)
-                setStroke((1.5f * dp).toInt(), beforeFg)
-                cornerRadius = 6 * dp
-            }
+            val noWorkFg = Color.parseColor("#E65100")
+            val noWorkBg = Color.parseColor("#20FF9800")
 
-            val afterFg = ContextCompat.getColor(ctx, R.color.colorTenkoAfter)
-            val afterBg = ContextCompat.getColor(ctx, R.color.colorTenkoAfterBg)
-            chipAfter.setTextColor(afterFg)
-            chipAfter.background = GradientDrawable().apply {
-                setColor(afterBg)
-                setStroke((1.5f * dp).toInt(), afterFg)
-                cornerRadius = 6 * dp
-            }
+            if (row.noWork) {
+                chipBefore.visibility = View.GONE
+                chipAfter.visibility  = View.GONE
+                chipNoWork.visibility = View.VISIBLE
+                chipNoWork.alpha      = 1f
+                chipNoWork.text       = "休日"
+                chipNoWork.setTextColor(noWorkFg)
+                chipNoWork.background = GradientDrawable().apply {
+                    setColor(noWorkBg)
+                    setStroke((1.5f * dp).toInt(), noWorkFg)
+                    cornerRadius = 6 * dp
+                }
+                chipNoWork.setOnClickListener { onNoWorkToggle(row.date, false) }
+            } else {
+                chipBefore.visibility = View.VISIBLE
+                chipAfter.visibility  = View.VISIBLE
+                chipNoWork.visibility = View.VISIBLE
+                chipNoWork.alpha      = 0.4f
+                chipNoWork.text       = "休"
+                chipNoWork.setTextColor(ContextCompat.getColor(ctx, R.color.colorWeekdayText))
+                chipNoWork.background = GradientDrawable().apply {
+                    setColor(Color.TRANSPARENT)
+                    setStroke((1.5f * dp).toInt(), ContextCompat.getColor(ctx, R.color.colorWeekdayText))
+                    cornerRadius = 6 * dp
+                }
+                chipNoWork.setOnClickListener { onNoWorkToggle(row.date, true) }
 
-            chipBefore.setOnClickListener { onBeforeClick(row.date, null) }
-            chipAfter.setOnClickListener  { onAfterClick(row.date, null) }
+                val beforeFg = ContextCompat.getColor(ctx, R.color.colorTenkoBefore)
+                val beforeBg = ContextCompat.getColor(ctx, R.color.colorTenkoBeforeBg)
+                chipBefore.setTextColor(beforeFg)
+                chipBefore.background = GradientDrawable().apply {
+                    setColor(beforeBg)
+                    setStroke((1.5f * dp).toInt(), beforeFg)
+                    cornerRadius = 6 * dp
+                }
+
+                val afterFg = ContextCompat.getColor(ctx, R.color.colorTenkoAfter)
+                val afterBg = ContextCompat.getColor(ctx, R.color.colorTenkoAfterBg)
+                chipAfter.setTextColor(afterFg)
+                chipAfter.background = GradientDrawable().apply {
+                    setColor(afterBg)
+                    setStroke((1.5f * dp).toInt(), afterFg)
+                    cornerRadius = 6 * dp
+                }
+
+                chipBefore.setOnClickListener { onBeforeClick(row.date, null) }
+                chipAfter.setOnClickListener  { onAfterClick(row.date, null) }
+            }
         }
     }
 
@@ -344,6 +391,20 @@ class TenkoMonthAdapter(
                 setTypeface(null, Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
             })
+            if (row.noWork) {
+                headerRow.addView(TextView(ctx).apply {
+                    text = "休日"; textSize = 12f
+                    setTextColor(Color.parseColor("#E65100"))
+                    setTypeface(null, Typeface.BOLD)
+                    setPadding((6*dp).toInt(), (3*dp).toInt(), (6*dp).toInt(), (3*dp).toInt())
+                    background = GradientDrawable().apply {
+                        setColor(Color.parseColor("#20FF9800"))
+                        setStroke((1*dp).toInt(), Color.parseColor("#E65100"))
+                        cornerRadius = 6*dp
+                    }
+                    layoutParams = LinearLayout.LayoutParams(WRAP, WRAP).also { it.marginStart = (8*dp).toInt() }
+                })
+            }
             root.addView(headerRow)
 
             row.records.forEachIndexed { idx, rec ->

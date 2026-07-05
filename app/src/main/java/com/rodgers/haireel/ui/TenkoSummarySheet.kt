@@ -31,7 +31,15 @@ internal fun TenkoFragment.showMonthSummary() {
     // 当月表示中は今日までを「有効日数」とし、未来の日付を未記録に含めない
     val today         = LocalDate.now()
     val isCurrentMonth = today.year == y && today.monthValue == m
-    val effectiveDays = if (isCurrentMonth) today.dayOfMonth else daysInMonth
+    val noWorkDates = viewModel.noWorkDates.value
+    val noWorkCount = if (isCurrentMonth) {
+        noWorkDates.count { date ->
+            try { !LocalDate.parse(date).isAfter(today) } catch (e: Exception) { false }
+        }
+    } else {
+        noWorkDates.size
+    }
+    val effectiveDays = (if (isCurrentMonth) today.dayOfMonth else daysInMonth) - noWorkCount
 
     val daysWithBefore    = records.count { it.beforeDone }
     val daysWithAfter     = records.count { it.afterDone }
@@ -224,6 +232,10 @@ internal fun TenkoFragment.showMonthSummary() {
                 statRow("⚠️", "前のみ（後が未記録）", "${daysBeforeOnly}便", cOrange)
             if (daysAfterOnly > 0)
                 statRow("⚠️", "後のみ（前が未記録）", "${daysAfterOnly}便", cOrange)
+        }
+        if (noWorkCount > 0) {
+            divider()
+            statRow("🛌", "稼働なし", "${noWorkCount}日", cOrange)
         }
         divider()
         val noRecordLabel = if (isCurrentMonth) "未記録（当日まで）" else "未記録"

@@ -51,7 +51,7 @@ class InputActivity : AppCompatActivity() {
             if (isXlsx) handleXlsxFile(uri) else handleCsvFile(uri)
 
         } catch (e: Exception) {
-            Toast.makeText(this, "ファイルの読み込みに失敗しました", Toast.LENGTH_SHORT).show()
+            showErrorDialog("ファイル読み込みエラー", "ファイルの読み込みに失敗しました。\n対応形式: CSV / TSV / Excel (.xlsx)\n\n詳細: ${e.localizedMessage ?: "不明なエラー"}")
         }
     }
 

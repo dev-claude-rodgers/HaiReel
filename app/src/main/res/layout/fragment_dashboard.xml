@@ -211,15 +211,22 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- 今週の実績カード -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/weekSummaryCard"
+        <!-- 案件フィルタードロップダウン -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/assignmentFilterLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardElevation="2dp"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/colorReportPrimaryBg"/>
+            android:layout_marginBottom="12dp"
+            android:hint="取引先">
+
+            <AutoCompleteTextView
+                android:id="@+id/spinnerAssignment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none"
+                android:textSize="14sp"/>
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- グラフタイトル + 凡例 -->
         <LinearLayout

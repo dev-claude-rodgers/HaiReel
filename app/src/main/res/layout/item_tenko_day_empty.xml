@@ -50,4 +50,16 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <TextView
+        android:id="@+id/chipNoWork"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="休"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
+
 </LinearLayout>

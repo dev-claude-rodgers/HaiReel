@@ -69,6 +69,14 @@ class ReportViewModel @Inject constructor(
 
     fun delete(record: WorkRecord) = viewModelScope.launch { dao.delete(record) }
 
+    fun setNoWork(date: String, isNoWork: Boolean) = viewModelScope.launch {
+        val aid = _assignmentId.value
+        val existing = dao.recordForDate(date, aid)
+        val record = existing?.copy(noWork = isNoWork)
+            ?: WorkRecord(date = date, assignmentId = aid, noWork = isNoWork)
+        dao.upsert(record)
+    }
+
     suspend fun recordForDate(date: String): WorkRecord? = dao.recordForDate(date, _assignmentId.value)
 
     suspend fun recordsForPeriod(startDate: String, endDate: String): List<WorkRecord> =

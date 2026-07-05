@@ -39,6 +39,7 @@ import com.rodgers.haireel.databinding.FragmentDailyReportBinding
 import com.rodgers.haireel.excel.ExcelGenerator
 import com.rodgers.haireel.model.ColumnType
 import com.rodgers.haireel.model.ReportPattern
+import com.rodgers.haireel.model.FuelRecord
 import com.rodgers.haireel.model.WorkRecord
 import com.rodgers.haireel.util.GeocodingClient
 
@@ -72,6 +73,7 @@ class DailyReportFragment : Fragment() {
     val deliveryViewModel: DeliveryViewModel by activityViewModels()
     val reportViewModel: ReportViewModel by viewModels()
     val tenkoViewModel: com.rodgers.haireel.viewmodel.TenkoViewModel by activityViewModels()
+    val fuelViewModel: com.rodgers.haireel.viewmodel.FuelViewModel by viewModels()
     private lateinit var adapter: DayEntryAdapter
 
     private val monthFmt = DateTimeFormatter.ofPattern("yyyy-MM")
@@ -80,6 +82,8 @@ class DailyReportFragment : Fragment() {
     var fuelEfficiencyKmL: Float  = 0f
     var vehicleTypeName:   String = "軽自動車"
     var fuelTypeName:      String = "レギュラー"
+
+    private var currentFuelRecords: List<FuelRecord> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -97,7 +101,8 @@ class DailyReportFragment : Fragment() {
         adapter = DayEntryAdapter(
             onTap    = { entry -> openEditForDate(entry.date) },
             onDelete = { record -> confirmDelete(record) },
-            onShare  = { record -> shareRecord(record) }
+            onShare  = { record -> shareRecord(record) },
+            onNoWork = { date, noWork -> reportViewModel.setNoWork(date, noWork) }
         )
 
         binding.recyclerReport.apply {
@@ -191,7 +196,7 @@ class DailyReportFragment : Fragment() {
                 try {
                     val days = generateDayEntries(records, ym, cd)
                     adapter.submitList(days)
-                    updateSummary(records)
+                    updateSummary(records, currentFuelRecords)
                     binding.tvEmptyReport.visibility  = View.GONE
                     binding.recyclerReport.visibility = View.VISIBLE
                     val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -209,6 +214,12 @@ class DailyReportFragment : Fragment() {
             }
         }
 
+        viewLifecycleOwner.lifecycleScope.launch {
+            fuelViewModel.records.collect { fuelRecords ->
+                currentFuelRecords = fuelRecords
+                updateSummary(reportViewModel.records.value, fuelRecords)
+            }
+        }
 
     }
 
@@ -227,15 +238,25 @@ class DailyReportFragment : Fragment() {
             }.toList()
     }
 
-    private fun updateSummary(records: List<WorkRecord>) {
+    private fun updateSummary(records: List<WorkRecord>, fuelRecords: List<FuelRecord> = emptyList()) {
         if (!isAdded) return
         binding.tvSummaryDays.text       = "${records.count { !it.noWork }}日稼働"
         binding.tvSummaryDeliveries.text = "配達 ${records.sumOf { it.deliveryCount }}件"
         binding.tvSummaryDistance.text   = "走行 ${"%.0f".format(records.sumOf { it.distanceKm.toDouble() })}km"
         val pattern     = currentPattern()
         val totalIncome = records.sumOf { it.income }
-        val totalFuel   = records.sumOf { it.fuelCost }
-        val balance     = totalIncome - totalFuel
+
+        // 給油記録がある期間は実費を優先、なければ推定値を使用
+        val (startStr, endStr) = ReportViewModel.computePeriod(
+            reportViewModel.yearMonth.value, reportViewModel.closingDay.value)
+        val actualFuelCost = fuelRecords
+            .filter { it.date >= startStr && it.date <= endStr }
+            .sumOf { it.totalCost }
+        val estimatedFuelCost = records.sumOf { it.fuelCost }
+        val totalFuel  = if (actualFuelCost > 0) actualFuelCost else estimatedFuelCost
+        val fuelIsReal = actualFuelCost > 0
+
+        val balance = totalIncome - totalFuel
         val trackIncome = pattern.excelColumns.any { it.type == ColumnType.INCOME } || pattern.paymentType != 3 || totalIncome > 0
         if (trackIncome && totalIncome > 0) {
             binding.tvSummaryIncome.visibility = View.VISIBLE
@@ -245,7 +266,8 @@ class DailyReportFragment : Fragment() {
         }
         if (totalFuel > 0) {
             binding.tvSummaryFuel.visibility = View.VISIBLE
-            binding.tvSummaryFuel.text = "支出 %,d円".format(totalFuel)
+            binding.tvSummaryFuel.text = if (fuelIsReal) "実燃料費 %,d円".format(totalFuel)
+                                         else "支出（推定） %,d円".format(totalFuel)
         } else {
             binding.tvSummaryFuel.visibility = View.GONE
         }
@@ -837,7 +859,8 @@ class DailyReportFragment : Fragment() {
 class DayEntryAdapter(
     private val onTap:    (DailyReportFragment.DayEntry) -> Unit,
     private val onDelete: (WorkRecord) -> Unit,
-    private val onShare:  (WorkRecord) -> Unit
+    private val onShare:  (WorkRecord) -> Unit,
+    private val onNoWork: (String, Boolean) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<DayEntryAdapter.VH>() {
 
     private val items = mutableListOf<DailyReportFragment.DayEntry>()
@@ -943,12 +966,20 @@ class DayEntryAdapter(
             root.addView(headerRow)
 
             if (r == null) {
-                // 空日 → 記録追加ボタン
+                // 空日 → 休み or 記録追加
                 val addRow = LinearLayout(ctx).apply {
-                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
+                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 }
+                addRow.addView(android.view.View(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+                })
+                addRow.addView(android.widget.Button(ctx).apply {
+                    text = "休"; isAllCaps = false; textSize = 12f
+                    setTextColor(android.graphics.Color.parseColor("#E65100")); background = null
+                    setOnClickListener { onNoWork(entry.date, true) }
+                })
                 addRow.addView(android.widget.Button(ctx).apply {
                     text = "+ 記録する"; isAllCaps = false; textSize = 12f
                     setTextColor(primaryColor); background = null
@@ -956,19 +987,19 @@ class DayEntryAdapter(
                 })
                 root.addView(addRow)
             } else if (r.noWork) {
-                // 稼働なし
+                // 稼働なし → タップで稼働に戻せる
                 val noWorkRow = LinearLayout(ctx).apply {
                     orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 }
-                if (r.remarks.isNotBlank()) {
-                    noWorkRow.addView(tv("休み  ${r.remarks}", 13f, secondaryColor)
-                        .also { it.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
-                } else {
-                    noWorkRow.addView(tv("休み", 13f, secondaryColor)
-                        .also { it.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
-                }
+                val restLabel = if (r.remarks.isNotBlank()) "休み  ${r.remarks}" else "休み"
+                noWorkRow.addView(tv(restLabel, 13f, android.graphics.Color.parseColor("#E65100"))
+                    .also {
+                        it.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        it.setOnClickListener { onNoWork(entry.date, false) }
+                        it.isClickable = true
+                    })
                 noWorkRow.addView(android.widget.Button(ctx).apply {
                     text = "編集"; isAllCaps = false; textSize = 11f
                     setTextColor(primaryColor); background = null

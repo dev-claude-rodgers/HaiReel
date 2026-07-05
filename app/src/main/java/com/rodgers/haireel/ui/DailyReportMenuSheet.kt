@@ -55,6 +55,7 @@ internal fun DailyReportFragment.showReportMenu() {
     val currentPatternName = currentPattern().title
     row("📋", "帳票パターンを選択", "現在: $currentPatternName") { showPatternListDialog() }
     row("⛽", "燃料費設定", "車種・ガソリン単価・燃費を設定する") { showFareCalculationDialog() }
+    row("🛢️", "給油記録", "給油量・単価を記録して実燃費を計算") { showFuelRecordSheet(fuelViewModel) }
     row("🖊️", "作業者署名を設定", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
     row("🤝", "取引先署名を設定", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
     divider()

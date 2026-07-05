@@ -1,8 +1,5 @@
 ﻿package com.rodgers.haireel.ui
 
-import android.graphics.BitmapFactory
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -14,11 +11,12 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.request.CachePolicy
 import com.rodgers.haireel.R
 import com.rodgers.haireel.model.Delivery
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.TimeSlotColor
-import java.util.concurrent.Executors
 
 class DeliveryAdapter(
     private val onTap: (Delivery) -> Unit = {},
@@ -33,9 +31,6 @@ class DeliveryAdapter(
     var isSelectMode = false
     val selectedIds = mutableSetOf<String>()
     var groupColor: Int = android.graphics.Color.parseColor("#F44336")
-    private val imageExecutor = Executors.newFixedThreadPool(2)
-    private val mainHandler = Handler(Looper.getMainLooper())
-
     var isDragging = false
 
     fun submitList(list: List<Delivery>) {
@@ -77,11 +72,6 @@ class DeliveryAdapter(
     override fun getItemCount() = items.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(items[position])
-
-    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
-        super.onDetachedFromRecyclerView(recyclerView)
-        imageExecutor.shutdownNow()
-    }
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val tvOrder: TextView = view.findViewById(R.id.tvOrder)
@@ -190,15 +180,13 @@ class DeliveryAdapter(
                     val iv = ImageView(itemView.context).apply {
                         layoutParams = LinearLayout.LayoutParams(size, size).also { lp -> lp.marginEnd = margin }
                         scaleType = ImageView.ScaleType.CENTER_CROP
-                        tag = path
                         setOnClickListener { onPhotoClick(delivery, index) }
                     }
                     layoutPhotos.addView(iv)
-                    imageExecutor.execute {
-                        val bmp = try {
-                            BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = 4 })
-                        } catch (_: Exception) { null }
-                        mainHandler.post { if (iv.tag == path) iv.setImageBitmap(bmp) }
+                    iv.load(path) {
+                        crossfade(true)
+                        memoryCachePolicy(CachePolicy.ENABLED)
+                        diskCachePolicy(CachePolicy.ENABLED)
                     }
                 }
             } else {

@@ -17,6 +17,7 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.util.AppSettings
+import com.rodgers.haireel.util.hasPermission
 import com.rodgers.haireel.util.ReminderReceiver
 import com.rodgers.haireel.util.themeColor
 import java.util.Calendar
@@ -270,10 +271,7 @@ internal fun TenkoFragment.showReminderDialog() {
     val WRAP  = LinearLayout.LayoutParams.WRAP_CONTENT
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        val granted = ContextCompat.checkSelfPermission(ctx,
-            android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (!granted) {
+        if (!ctx.hasPermission(android.Manifest.permission.POST_NOTIFICATIONS)) {
             notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             return
         }

@@ -3,6 +3,9 @@
 import android.content.Context
 import android.content.SharedPreferences
 import com.rodgers.haireel.db.AppDatabase
+import com.rodgers.haireel.db.DeliveryGroupDao
+import com.rodgers.haireel.db.FuelRecordDao
+import com.rodgers.haireel.db.VehicleDao
 import com.rodgers.haireel.db.GeocodingCacheDao
 import com.rodgers.haireel.db.KnownAddressDao
 import com.rodgers.haireel.db.TenkoDao
@@ -50,6 +53,18 @@ object AppModule {
     @Provides
     @Singleton
     fun provideKnownAddressDao(db: AppDatabase): KnownAddressDao = db.knownAddressDao()
+
+    @Provides
+    @Singleton
+    fun provideDeliveryGroupDao(db: AppDatabase): DeliveryGroupDao = db.deliveryGroupDao()
+
+    @Provides
+    @Singleton
+    fun provideFuelRecordDao(db: AppDatabase): FuelRecordDao = db.fuelRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideVehicleDao(db: AppDatabase): VehicleDao = db.vehicleDao()
 
     @Provides
     @Singleton

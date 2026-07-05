@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rodgers.haireel.db.TenkoDao
+import com.rodgers.haireel.db.WorkRecordDao
 import com.rodgers.haireel.model.TenkoRecord
+import com.rodgers.haireel.model.WorkRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,7 +27,8 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class TenkoViewModel @Inject constructor(
     app: Application,
-    private val dao: TenkoDao
+    private val dao: TenkoDao,
+    private val workRecordDao: WorkRecordDao
 ) : AndroidViewModel(app) {
     private val monthFmt = DateTimeFormatter.ofPattern("yyyy-MM")
 
@@ -38,6 +42,21 @@ class TenkoViewModel @Inject constructor(
         combine(_yearMonth, _assignmentId) { ym, aid -> ym to aid }
             .flatMapLatest { (ym, aid) -> dao.getByMonthFlow(ym, aid) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val noWorkDates: StateFlow<Set<String>> =
+        combine(_yearMonth, _assignmentId) { ym, aid -> ym to aid }
+            .flatMapLatest { (ym, aid) ->
+                workRecordDao.noWorkDatesForMonthFlow(ym, aid).map { it.toSet() }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun setNoWork(date: String, isNoWork: Boolean) = viewModelScope.launch {
+        val aid = _assignmentId.value
+        val existing = workRecordDao.recordForDate(date, aid)
+        val record = existing?.copy(noWork = isNoWork)
+            ?: WorkRecord(date = date, assignmentId = aid, noWork = isNoWork)
+        workRecordDao.upsert(record)
+    }
 
     fun setAssignmentId(id: String) { _assignmentId.value = id }
 

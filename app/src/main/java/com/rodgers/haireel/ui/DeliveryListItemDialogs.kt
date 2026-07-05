@@ -35,6 +35,7 @@ import com.rodgers.haireel.model.Delivery
 import com.rodgers.haireel.model.Room
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
+import com.rodgers.haireel.util.hasPermission
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.util.TimeSlotColor
 import com.rodgers.haireel.viewmodel.DeliveryViewModel
@@ -299,7 +300,7 @@ internal fun DeliveryListFragment.showPhotoAddOptions(deliveryId: String) {
             .setTitle("写真を追加")
             .setItems(arrayOf("カメラで撮影", "ギャラリーから選択")) { _, which ->
                 when (which) {
-                    0 -> if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+                    0 -> if (requireContext().hasPermission(Manifest.permission.CAMERA))
                             launchCamera(deliveryId)
                          else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     1 -> galleryLauncher.launch("image/*")

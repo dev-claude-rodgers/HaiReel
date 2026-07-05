@@ -74,7 +74,7 @@ class DeliveryListFragment : Fragment() {
 
     enum class ProgressDisplay { COUNT, PERCENT, REMAINING, HIDDEN }
 
-    enum class ViewMode { LIST, MAP, VAN }
+    enum class ViewMode { LIST, MAP }
     internal var viewMode = ViewMode.LIST
 
     internal var pendingPhotoDeliveryId: String? = null
@@ -215,6 +215,22 @@ class DeliveryListFragment : Fragment() {
                 }
             })
 
+        // 選択した配達先を完了にする
+        binding.buttonMarkCompleted.setOnClickListener {
+            val selected = adapter.selectedIds.toSet()
+            if (selected.isEmpty()) return@setOnClickListener
+            viewModel.markSelectedCompleted(selected)
+            exitSelectMode()
+        }
+
+        // 選択した配達先を未完了に戻す
+        binding.buttonResetCompleted.setOnClickListener {
+            val selected = adapter.selectedIds.toSet()
+            if (selected.isEmpty()) return@setOnClickListener
+            viewModel.resetSelectedCompleted(selected)
+            exitSelectMode()
+        }
+
         // 選択削除ボタン（Undo 付き）
         binding.buttonDeleteSelected.setOnClickListener {
             val selected = adapter.selectedIds.toSet()
@@ -250,10 +266,7 @@ class DeliveryListFragment : Fragment() {
             updateSelectionUI()
         }
 
-        binding.buttonMapToggle.setOnClickListener { cycleViewMode() }
-        binding.buttonSubToggle.setOnClickListener {
-            viewMode = ViewMode.LIST; applyViewMode()
-        }
+        binding.buttonSubToggle.setOnClickListener { cycleViewMode() }
 
         binding.buttonListMenu.setOnClickListener { showListActions() }
 
@@ -336,11 +349,22 @@ class DeliveryListFragment : Fragment() {
     internal fun updateSelectionUI() {
         val count = adapter.selectedIds.size
         val total = viewModel.deliveries.value.size
-        binding.buttonDeleteSelected.text = if (count > 0) "削除($count)" else "削除"
-        binding.buttonDeleteSelected.isEnabled = count > 0
+        val hasSelection = count > 0
+        binding.buttonDeleteSelected.text = if (hasSelection) "削除($count)" else "削除"
+        binding.buttonDeleteSelected.isEnabled = hasSelection
         binding.buttonSelectAll.text = if (count == total && total > 0) "全解除" else "全選択"
-        binding.buttonSetTimeSlot.isEnabled = count > 0
-        binding.buttonSetTimeSlot.text = if (count > 0) "🕐($count)" else "🕐 時間帯"
+        binding.buttonSetTimeSlot.isEnabled = hasSelection
+        binding.buttonSetTimeSlot.text = if (hasSelection) "🕐($count)" else "🕐 時間帯"
+
+        // 完了のみ表示中は「完了にする」不要、未完了のみ表示中は「未完了に戻す」不要
+        val showMarkCompleted  = filterMode != FilterMode.COMPLETED
+        val showResetCompleted = filterMode != FilterMode.INCOMPLETE
+        binding.buttonMarkCompleted.visibility  = if (showMarkCompleted)  View.VISIBLE else View.GONE
+        binding.buttonResetCompleted.visibility = if (showResetCompleted) View.VISIBLE else View.GONE
+        binding.buttonMarkCompleted.isEnabled  = hasSelection && showMarkCompleted
+        binding.buttonResetCompleted.isEnabled = hasSelection && showResetCompleted
+        binding.buttonMarkCompleted.text  = if (hasSelection) "✅ 完了($count)"   else "✅ 完了にする"
+        binding.buttonResetCompleted.text = if (hasSelection) "↩ 未完了($count)" else "↩ 未完了に戻す"
     }
 
     internal fun applyFilter() {
@@ -394,51 +418,36 @@ class DeliveryListFragment : Fragment() {
         }
     }
 
-    /** リスト→地図→荷室→リスト と順番に切り替え */
+    /** リスト→地図→リスト と切り替え */
     internal fun cycleViewMode() {
         viewMode = when (viewMode) {
             ViewMode.LIST -> ViewMode.MAP
-            ViewMode.MAP  -> ViewMode.VAN
-            ViewMode.VAN  -> ViewMode.LIST
+            ViewMode.MAP  -> ViewMode.LIST
         }
         applyViewMode()
     }
 
     internal fun applyViewMode() {
-        val isMap = viewMode == ViewMode.MAP
-        val isVan = viewMode == ViewMode.VAN
+        val isMap  = viewMode == ViewMode.MAP
         val isList = viewMode == ViewMode.LIST
 
-        binding.mapContainer.visibility  = if (isMap) View.VISIBLE else View.GONE
-        binding.vanContainer.visibility  = if (isVan) View.VISIBLE else View.GONE
-        binding.recyclerView.visibility  = if (isList) View.VISIBLE else View.GONE
+        binding.mapContainer.visibility   = if (isMap)  View.VISIBLE else View.GONE
+        binding.recyclerView.visibility   = if (isList) View.VISIBLE else View.GONE
         binding.layoutProgress.isClickable = isList
         binding.layoutProgress.visibility  = if (isList) View.VISIBLE else View.GONE
-        binding.textEmpty.visibility     = if (isList) View.VISIBLE else View.GONE
-        binding.chipIncomplete.visibility = if (isList) View.VISIBLE else View.GONE
-        binding.buttonListMenu.visibility = if (isList) View.VISIBLE else View.GONE
+        binding.textEmpty.visibility      = if (isList) View.VISIBLE else View.GONE
+        binding.chipIncomplete.visibility  = if (isList) View.VISIBLE else View.GONE
+        binding.buttonListMenu.visibility  = if (isList) View.VISIBLE else View.GONE
 
-        binding.buttonSubToggle.visibility = if (isMap) View.VISIBLE else View.GONE
-
-        binding.buttonMapToggle.text = when (viewMode) {
+        binding.buttonSubToggle.text = when (viewMode) {
             ViewMode.LIST -> getString(R.string.btn_map_toggle)
-            ViewMode.MAP  -> "🚐 荷室"
-            ViewMode.VAN  -> "リスト"
+            ViewMode.MAP  -> "📋 リスト"
         }
 
         if (isMap && childFragmentManager.findFragmentByTag("map") == null) {
             childFragmentManager.beginTransaction()
                 .add(R.id.mapContainer, MapFragment(), "map")
                 .commitAllowingStateLoss()
-        }
-        if (isVan && childFragmentManager.findFragmentByTag("van") == null) {
-            try {
-                childFragmentManager.beginTransaction()
-                    .add(R.id.vanContainer, VanLayoutFragment(), "van")
-                    .commitAllowingStateLoss()
-            } catch (e: Exception) {
-                android.util.Log.e("VanLayout", "Fragment追加エラー", e)
-            }
         }
         if (isList) applyFilter()
     }

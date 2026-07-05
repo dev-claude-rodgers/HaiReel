@@ -26,6 +26,9 @@ interface WorkRecordDao {
     @Query("SELECT * FROM work_records WHERE date LIKE :year || '%' ORDER BY date ASC")
     fun recordsForYearFlow(year: String): Flow<List<WorkRecord>>
 
+    @Query("SELECT date FROM work_records WHERE date LIKE :yearMonth || '%' AND (:assignmentId = '' OR assignmentId = :assignmentId) AND noWork = 1 ORDER BY date ASC")
+    fun noWorkDatesForMonthFlow(yearMonth: String, assignmentId: String = ""): Flow<List<String>>
+
     @Query("SELECT * FROM work_records ORDER BY date DESC")
     suspend fun getAll(): List<WorkRecord>
 

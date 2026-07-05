@@ -7,11 +7,20 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * BottomSheet メニューの row・divider・header を共通化した拡張関数群。
  * DailyReportFragment / TenkoFragment / DeliveryListFragment で共有する。
  */
+
+fun Context.showErrorDialog(title: String, message: String) {
+    MaterialAlertDialogBuilder(this)
+        .setTitle(title)
+        .setMessage(message)
+        .setPositiveButton("閉じる", null)
+        .show()
+}
 
 fun LinearLayout.addMenuRow(
     emoji: String,

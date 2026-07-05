@@ -154,6 +154,7 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation(libs.billing)
+    implementation(libs.coil)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)

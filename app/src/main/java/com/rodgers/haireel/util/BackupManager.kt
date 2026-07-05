@@ -161,8 +161,8 @@ object BackupManager {
             zos.utf8Entry("groups.json",     groupsToJson(groups).toString())
             bundleDeliveryPhotos(context, deliveries, zos)   // deliveries.json より先に写真を書く
             zos.utf8Entry("deliveries.json", deliveriesToJson(deliveries).toString())
-            bundleVanLayoutPhotos(context, zos)
-            zos.utf8Entry("settings.json",   settingsToJson(context).toString())
+            zos.utf8Entry("settings.json",      settingsToJson(context).toString())
+            zos.utf8Entry("haireel_prefs.json", hairreelPrefsToJson(context).toString())
 
             for (type in listOf(SignatureStorage.TYPE_DRIVER, SignatureStorage.TYPE_CLIENT)) {
                 val sig = SignatureStorage.fileFor(context, type)
@@ -249,6 +249,9 @@ object BackupManager {
                     "settings.json" -> {
                         restoreSettings(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
                     }
+                    "haireel_prefs.json" -> {
+                        restoreHairreelPrefs(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
+                    }
                     "tenko.json" -> {
                         val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
                         db.tenkoDao().deleteAll()
@@ -328,9 +331,6 @@ object BackupManager {
                         if (entry.name.startsWith("photos/")) {
                             val key = entry.name.removePrefix("photos/").removeSuffix(".jpg")
                             photoBuffer[key] = bytes
-                        } else if (entry.name.startsWith("van_photos/")) {
-                            val fileName = entry.name.removePrefix("van_photos/")
-                            restoreVanPhoto(context, fileName, bytes)
                         }
                     }
                 }
@@ -339,26 +339,6 @@ object BackupManager {
             }
         }
         } // end withTransaction
-    }
-
-    private fun bundleVanLayoutPhotos(context: Context, zos: ZipOutputStream) {
-        val dir = File(context.filesDir, "van_layout")
-        if (!dir.exists()) return
-        dir.listFiles()?.forEach { file ->
-            if (!file.isFile) return@forEach
-            try {
-                zos.putNextEntry(ZipEntry("van_photos/${file.name}"))
-                file.inputStream().use { it.copyTo(zos) }
-                zos.closeEntry()
-            } catch (_: Exception) {}
-        }
-    }
-
-    private fun restoreVanPhoto(context: Context, fileName: String, bytes: ByteArray) {
-        try {
-            val dir = File(context.filesDir, "van_layout").also { it.mkdirs() }
-            File(dir, fileName).writeBytes(bytes)
-        } catch (_: Exception) {}
     }
 
     private fun bundleDeliveryPhotos(
@@ -495,6 +475,42 @@ object BackupManager {
             put("activeId",  activeId)
             put("patterns",  arr)
         }
+    }
+
+    private fun hairreelPrefsToJson(context: Context): JSONObject {
+        val prefs = context.getSharedPreferences("haireel_prefs", Context.MODE_PRIVATE)
+        val json = JSONObject()
+        prefs.all.forEach { (k, v) ->
+            when (v) {
+                is String  -> json.put(k, v)
+                is Int     -> json.put(k, v)
+                is Boolean -> json.put(k, v)
+                is Float   -> json.put(k, v)
+                is Long    -> json.put(k, v)
+                is Set<*>  -> json.put(k, JSONArray(v.toList()))
+            }
+        }
+        return json
+    }
+
+    private fun restoreHairreelPrefs(context: Context, json: JSONObject) {
+        val prefs = context.getSharedPreferences("haireel_prefs", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        editor.clear()
+        json.keys().forEach { key ->
+            when (val v = json.get(key)) {
+                is String  -> editor.putString(key, v)
+                is Int     -> editor.putInt(key, v)
+                is Boolean -> editor.putBoolean(key, v)
+                is Double  -> editor.putFloat(key, v.toFloat())
+                is Long    -> editor.putLong(key, v)
+                is JSONArray -> {
+                    val set = (0 until v.length()).map { v.getString(it) }.toSet()
+                    editor.putStringSet(key, set)
+                }
+            }
+        }
+        editor.apply()
     }
 
     private fun settingsToJson(context: Context): JSONObject {

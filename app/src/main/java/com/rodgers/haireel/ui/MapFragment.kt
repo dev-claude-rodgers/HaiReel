@@ -25,6 +25,7 @@ import com.rodgers.haireel.R
 import com.rodgers.haireel.databinding.FragmentMapBinding
 import com.rodgers.haireel.model.Delivery
 import com.rodgers.haireel.util.GeocodingClient
+import com.rodgers.haireel.util.hasPermission
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.util.MarkerIconFactory
 import com.rodgers.haireel.util.TimeSlotColor
@@ -108,6 +109,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private var pendingPinLocation: LatLng? = null
     private var tileOverlay: TileOverlay? = null
     internal var rainRadarVisible = false
+    private var lastMarkerSignature: Int = Int.MIN_VALUE
+    private var cachedSlotTemplates: List<com.rodgers.haireel.util.AppSettings.TimeSlotTemplate> = emptyList()
+    private var slotTemplateCacheMs: Long = 0L
 
     internal data class NearbyPlace(val name: String, val address: String, val lat: Double, val lng: Double)
 
@@ -340,6 +344,21 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         if (_binding == null) return  // onDestroyView後の呼び出しを安全にスキップ
         val map = googleMap ?: return
         val cm  = clusterManager ?: return
+
+        // 表示内容が変わっていなければフルリビルドをスキップ
+        val filter = viewModel.mapFilter.value
+        val visibleGroups = viewModel.visibleGroupIds.value
+        val newSig = run {
+            var h = visibleGroups.hashCode() * 31 + filter.hashCode()
+            allMap.forEach { (gId, list) ->
+                h = h * 31 + gId.hashCode()
+                list.forEach { d -> h = h * 31 + (d.id.hashCode() xor d.isCompleted.hashCode() xor d.lat.toBits().toInt() xor d.lng.toBits().toInt()) }
+            }
+            h
+        }
+        if (newSig == lastMarkerSignature) return
+        lastMarkerSignature = newSig
+
         map.clear()
         cm.clearItems()
         markers.clear()
@@ -361,19 +380,23 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         val groups = viewModel.groups.value
-        val filter = viewModel.mapFilter.value
         val currentGroupId = viewModel.currentGroupId.value
         // visibleGroups に currentGroupId が含まれていない場合はリスト切替後の古い値なので null 扱い
-        val rawVisible = viewModel.visibleGroupIds.value
-        val visibleGroups = if (rawVisible != null && currentGroupId !in rawVisible) null else rawVisible
+        val rawVisible = visibleGroups  // シグネチャ計算時に取得済み
+        val effectiveVisibleGroups = if (rawVisible != null && currentGroupId !in rawVisible) null else rawVisible
         val bounds = LatLngBounds.Builder()
         var hasAny = false
 
-        val slotTemplates = com.rodgers.haireel.util.AppSettings.getTimeSlotTemplatesWithColor(requireContext())
+        val now = System.currentTimeMillis()
+        if (now - slotTemplateCacheMs > 5_000L) {
+            cachedSlotTemplates = com.rodgers.haireel.util.AppSettings.getTimeSlotTemplatesWithColor(requireContext())
+            slotTemplateCacheMs = now
+        }
+        val slotTemplates = cachedSlotTemplates
         val clusterItems = mutableListOf<DeliveryClusterItem>()
 
         groups.forEach outer@{ group ->
-            val shouldShow = if (visibleGroups != null) group.id in visibleGroups
+            val shouldShow = if (effectiveVisibleGroups != null) group.id in effectiveVisibleGroups
                              else group.id == currentGroupId
             if (!shouldShow) return@outer
             val list = allMap[group.id] ?: return@outer
@@ -441,14 +464,12 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
 
     private fun checkLocationPermission() {
-        val granted = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (granted) enableMyLocation()
+        if (requireContext().hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) enableMyLocation()
         else locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
 
     private fun enableMyLocation() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) return
+        if (!requireContext().hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) return
         @Suppress("MissingPermission", "DEPRECATION")
         googleMap?.let { map ->
             map.isMyLocationEnabled = true
@@ -500,6 +521,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         info: com.rodgers.haireel.util.RainRadarManager.RadarInfo
     ): com.google.android.gms.maps.model.TileProvider {
         val maxZoom = 5
+        // ズームアウト時に同一タイルが複数セルから参照されるためキャッシュで重複通信を防ぐ
+        val rawCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
         return object : com.google.android.gms.maps.model.TileProvider {
             override fun getTile(x: Int, y: Int, zoom: Int): com.google.android.gms.maps.model.Tile {
                 return try {
@@ -507,14 +530,18 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                     val tz = minOf(zoom, maxZoom)
                     val tx = x shr diff
                     val ty = y shr diff
-                    val conn = (java.net.URL("${info.host}${info.path}/256/$tz/$tx/$ty/6/1_1.png")
-                        .openConnection() as java.net.HttpURLConnection).also {
-                            it.connectTimeout = 5000; it.readTimeout = 5000
+                    val cacheKey = "$tz/$tx/$ty"
+                    val rawBytes = rawCache.getOrPut(cacheKey) {
+                        val conn = (java.net.URL("${info.host}${info.path}/256/$tz/$tx/$ty/6/1_1.png")
+                            .openConnection() as java.net.HttpURLConnection).also {
+                                it.connectTimeout = 5000; it.readTimeout = 5000
+                            }
+                        if (conn.responseCode != 200) return emptyTile()
+                        val bytes = conn.inputStream.use { it.readBytes() }
+                        if (bytes.size < 4 || bytes[0] != 0x89.toByte() || bytes[1] != 0x50.toByte()) {
+                            return emptyTile()
                         }
-                    if (conn.responseCode != 200) return emptyTile()
-                    val rawBytes = conn.inputStream.use { it.readBytes() }
-                    if (rawBytes.size < 4 || rawBytes[0] != 0x89.toByte() || rawBytes[1] != 0x50.toByte()) {
-                        return emptyTile()
+                        bytes
                     }
                     if (diff == 0) {
                         return com.google.android.gms.maps.model.Tile(256, 256, rawBytes)

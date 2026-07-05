@@ -53,7 +53,7 @@ internal fun DailyReportFragment.exportNippo(ctx: android.content.Context, ym: S
             val file = ExcelGenerator(ctx).generate(records, ym, pattern, driverSig, clientSig, assignmentName, portrait = true)
             shareExcel(ctx, file)
         } catch (e: Exception) {
-            Toast.makeText(ctx, "Excel出力エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+            ctx.showErrorDialog("Excel出力エラー", e.localizedMessage ?: "Excelファイルの作成に失敗しました。\nストレージの空き容量を確認してください。")
         }
     }
 }
@@ -65,7 +65,7 @@ internal fun DailyReportFragment.exportTenko(ctx: android.content.Context, ym: S
             val file = TenkoExcelGenerator(ctx).generate(records, ym)
             shareExcel(ctx, file)
         } catch (e: Exception) {
-            Toast.makeText(ctx, "点呼簿出力エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+            ctx.showErrorDialog("点呼簿出力エラー", e.localizedMessage ?: "点呼簿の作成に失敗しました。\nストレージの空き容量を確認してください。")
         }
     }
 }
@@ -126,32 +126,33 @@ internal fun DailyReportFragment.shareReportText() {
                 appendLine()
             }
             appendLine()
-            val workDays = records.sumOf { 1 + it.endDateOffset }
+            val workRecords = records.filter { !it.noWork }
+            val workDays = workRecords.sumOf { 1 + it.endDateOffset }
             appendLine("稼働日数: ${workDays}日")
             cols.forEach { col ->
                 when (col.type) {
                     ColumnType.DELIVERY_COUNT -> {
-                        val total = records.sumOf { it.deliveryCount }
+                        val total = workRecords.sumOf { it.deliveryCount }
                         if (total > 0) appendLine("合計${col.label}: ${total}件")
                     }
                     ColumnType.PACKAGE_COUNT  -> {
-                        val total = records.sumOf { it.packageCount }
+                        val total = workRecords.sumOf { it.packageCount }
                         if (total > 0) appendLine("合計${col.label}: ${total}個")
                     }
                     ColumnType.INCOME         -> {
-                        val total = records.sumOf { it.income }
+                        val total = workRecords.sumOf { it.income }
                         if (total > 0) appendLine("合計${col.label}: ${"%,d".format(total)}円")
                     }
                     ColumnType.FUEL_COST      -> {
-                        val total = records.sumOf { it.fuelCost }
+                        val total = workRecords.sumOf { it.fuelCost }
                         if (total > 0) appendLine("合計${col.label}: ${"%,d".format(total)}円")
                     }
                     ColumnType.DISTANCE       -> {
-                        val total = records.sumOf { it.distanceKm.toDouble() }
+                        val total = workRecords.sumOf { it.distanceKm.toDouble() }
                         if (total > 0) appendLine("合計${col.label}: %.0fkm".format(total))
                     }
                     ColumnType.WORKING_HOURS  -> {
-                        val totalMin = records.sumOf { it.workingMinutes }
+                        val totalMin = workRecords.sumOf { it.workingMinutes }
                         if (totalMin > 0) appendLine("合計${col.label}: %d時間%02d分".format(totalMin / 60, totalMin % 60))
                     }
                     else -> {}

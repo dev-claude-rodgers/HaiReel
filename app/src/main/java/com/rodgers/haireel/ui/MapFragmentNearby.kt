@@ -80,6 +80,11 @@ import kotlinx.coroutines.withContext
 
         lifecycleScope.launch {
             val places = fetchNearbyPlaces(lat, lng, type, keyword)
+            if (places == null) {
+                // 通信エラー（電波弱い・タイムアウト）
+                if (isAdded) Toast.makeText(ctx, "通信エラーです。電波の良い場所で再試行してください。", Toast.LENGTH_LONG).show()
+                return@launch
+            }
             if (places.isEmpty()) {
                 Toast.makeText(ctx, "近くに${label}が見つかりません。別の場所を試してください。", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -105,10 +110,11 @@ import kotlinx.coroutines.withContext
         }
     }
 
-    private suspend fun MapFragment.fetchNearbyPlaces(lat: Double, lng: Double, type: String, keyword: String): List<MapFragment.NearbyPlace> =
+    // null = 通信エラー / emptyList = 取得成功だが件数ゼロ
+    private suspend fun MapFragment.fetchNearbyPlaces(lat: Double, lng: Double, type: String, keyword: String): List<MapFragment.NearbyPlace>? =
         withContext(Dispatchers.IO) {
             try {
-                val appCtx = context ?: return@withContext emptyList()
+                val appCtx = context ?: return@withContext null
                 val userKey = com.rodgers.haireel.util.AppSettings.getUserApiKey(appCtx)
                 val apiKey = if (userKey.isNotBlank()) userKey
                              else com.rodgers.haireel.BuildConfig.MAPS_API_KEY
@@ -117,7 +123,11 @@ import kotlinx.coroutines.withContext
                 if (type.isNotEmpty()) sb.append("&type=$type")
                 if (keyword.isNotEmpty()) sb.append("&keyword=${java.net.URLEncoder.encode(keyword, "UTF-8")}")
 
-                val json = org.json.JSONObject(java.net.URL(sb.toString()).readText())
+                val conn = (java.net.URL(sb.toString()).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 8000; readTimeout = 8000
+                }
+                if (conn.responseCode != 200) return@withContext null
+                val json = org.json.JSONObject(conn.inputStream.use { it.reader().readText() })
                 val results = json.optJSONArray("results") ?: return@withContext emptyList()
                 (0 until minOf(results.length(), 20)).mapNotNull { i ->
                     val r = results.optJSONObject(i) ?: return@mapNotNull null
@@ -129,6 +139,8 @@ import kotlinx.coroutines.withContext
                         lng     = loc.getDouble("lng")
                     )
                 }
-            } catch (_: Exception) { emptyList() }
+            } catch (_: java.net.UnknownHostException) { null }
+              catch (_: java.net.SocketTimeoutException) { null }
+              catch (_: Exception) { null }
         }
 

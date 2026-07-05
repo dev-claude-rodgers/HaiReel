@@ -49,58 +49,6 @@ class DeliveryViewModel @Inject constructor(
 
     private val prefs = app.getSharedPreferences("haireel_prefs", android.content.Context.MODE_PRIVATE)
 
-    // ─── バン荷室レイアウト（複数ビュー対応）─────────────────────
-    private val _vanLayout = MutableStateFlow(com.rodgers.haireel.model.VanLayout())
-    val vanLayout: StateFlow<com.rodgers.haireel.model.VanLayout> = _vanLayout.asStateFlow()
-
-    fun loadVanLayout(groupId: String) {
-        val json = prefs.getString("van_layout2_$groupId", null) ?: return
-        runCatching {
-            val arr = org.json.JSONArray(json)
-            val views = (0 until arr.length()).map { vi ->
-                val v = arr.getJSONObject(vi)
-                val pinsArr = v.optJSONArray("pins")
-                val pins = if (pinsArr != null) (0 until pinsArr.length()).map { pi ->
-                    val p = pinsArr.getJSONObject(pi)
-                    com.rodgers.haireel.model.VanLayoutPin(
-                        id = p.getString("id"),
-                        xPercent = p.getDouble("x").toFloat(),
-                        yPercent = p.getDouble("y").toFloat(),
-                        deliveryId = p.getString("deliveryId"),
-                        orderLabel = p.getInt("orderLabel")
-                    )
-                } else emptyList()
-                com.rodgers.haireel.model.VanView(
-                    id = v.getString("id"),
-                    name = v.getString("name"),
-                    photoUri = v.optString("photoUri", ""),
-                    pins = pins
-                )
-            }
-            _vanLayout.value = com.rodgers.haireel.model.VanLayout(views)
-        }
-    }
-
-    fun saveVanLayout(groupId: String, layout: com.rodgers.haireel.model.VanLayout) {
-        _vanLayout.value = layout
-        val arr = org.json.JSONArray()
-        layout.views.forEach { view ->
-            val pinsArr = org.json.JSONArray()
-            view.pins.forEach { pin ->
-                pinsArr.put(org.json.JSONObject().apply {
-                    put("id", pin.id); put("x", pin.xPercent.toDouble())
-                    put("y", pin.yPercent.toDouble()); put("deliveryId", pin.deliveryId)
-                    put("orderLabel", pin.orderLabel)
-                })
-            }
-            arr.put(org.json.JSONObject().apply {
-                put("id", view.id); put("name", view.name)
-                put("photoUri", view.photoUri); put("pins", pinsArr)
-            })
-        }
-        prefs.edit().putString("van_layout2_$groupId", arr.toString()).apply()
-    }
-
     companion object {
         private const val TAG = "DeliveryViewModel"
     }
@@ -390,6 +338,22 @@ class DeliveryViewModel @Inject constructor(
     fun resetAllCompleted() {
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { it.copy(isCompleted = false) }
+        commitDeliveries(groupId, updated)
+    }
+
+    fun markSelectedCompleted(ids: Set<String>) {
+        val groupId = _currentGroupId.value
+        val updated = _deliveries.value.map { d ->
+            if (d.id in ids) d.copy(isCompleted = true) else d
+        }
+        commitDeliveries(groupId, updated)
+    }
+
+    fun resetSelectedCompleted(ids: Set<String>) {
+        val groupId = _currentGroupId.value
+        val updated = _deliveries.value.map { d ->
+            if (d.id in ids) d.copy(isCompleted = false) else d
+        }
         commitDeliveries(groupId, updated)
     }
 

@@ -13,6 +13,91 @@
         <item name="postSplashScreenTheme">@style/Theme.HaiReel</item>
     </style>
 
+    <!-- ── カラーテーマ variants ── -->
+    <style name="Theme.HaiReel.Teal" parent="Theme.HaiReel">
+        <item name="colorPrimary">#006A6A</item>
+        <item name="colorPrimaryVariant">#00504F</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#9CF1F1</item>
+        <item name="colorOnPrimaryContainer">#002020</item>
+        <item name="colorSecondary">#006A6A</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#9CF1F1</item>
+        <item name="colorOnSecondaryContainer">#002020</item>
+    </style>
+
+    <style name="Theme.HaiReel.Green" parent="Theme.HaiReel">
+        <item name="colorPrimary">#2E7D32</item>
+        <item name="colorPrimaryVariant">#1B5E20</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#B6F0B2</item>
+        <item name="colorOnPrimaryContainer">#002203</item>
+        <item name="colorSecondary">#2E7D32</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#B6F0B2</item>
+        <item name="colorOnSecondaryContainer">#002203</item>
+    </style>
+
+    <style name="Theme.HaiReel.Orange" parent="Theme.HaiReel">
+        <item name="colorPrimary">#C84B00</item>
+        <item name="colorPrimaryVariant">#993800</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#FFDBCB</item>
+        <item name="colorOnPrimaryContainer">#341000</item>
+        <item name="colorSecondary">#C84B00</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FFDBCB</item>
+        <item name="colorOnSecondaryContainer">#341000</item>
+    </style>
+
+    <style name="Theme.HaiReel.Purple" parent="Theme.HaiReel">
+        <item name="colorPrimary">#6750A4</item>
+        <item name="colorPrimaryVariant">#4A2E8A</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#EADDFF</item>
+        <item name="colorOnPrimaryContainer">#21005D</item>
+        <item name="colorSecondary">#6750A4</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#EADDFF</item>
+        <item name="colorOnSecondaryContainer">#21005D</item>
+    </style>
+
+    <style name="Theme.HaiReel.Red" parent="Theme.HaiReel">
+        <item name="colorPrimary">#BA1A1A</item>
+        <item name="colorPrimaryVariant">#8C1212</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#FFDAD6</item>
+        <item name="colorOnPrimaryContainer">#410002</item>
+        <item name="colorSecondary">#BA1A1A</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FFDAD6</item>
+        <item name="colorOnSecondaryContainer">#410002</item>
+    </style>
+
+    <style name="Theme.HaiReel.Indigo" parent="Theme.HaiReel">
+        <item name="colorPrimary">#3949AB</item>
+        <item name="colorPrimaryVariant">#283593</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#DEE0FF</item>
+        <item name="colorOnPrimaryContainer">#000C62</item>
+        <item name="colorSecondary">#3949AB</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#DEE0FF</item>
+        <item name="colorOnSecondaryContainer">#000C62</item>
+    </style>
+
+    <style name="Theme.HaiReel.Brown" parent="Theme.HaiReel">
+        <item name="colorPrimary">#795548</item>
+        <item name="colorPrimaryVariant">#5D4037</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#FFDBCF</item>
+        <item name="colorOnPrimaryContainer">#2E1500</item>
+        <item name="colorSecondary">#795548</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FFDBCF</item>
+        <item name="colorOnSecondaryContainer">#2E1500</item>
+    </style>
+
     <style name="BottomNavText">
         <item name="android:textSize">12sp</item>
         <item name="android:textStyle">bold</item>

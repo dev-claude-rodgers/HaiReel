@@ -127,7 +127,7 @@ internal fun DeliveryListFragment.importList(text: String) {
             }
         } catch (e: Exception) {
             android.util.Log.e("DeliveryImport", "パース失敗", e)
-            android.widget.Toast.makeText(ctx, "読み込みに失敗しました（形式を確認してください）", android.widget.Toast.LENGTH_SHORT).show()
+            ctx.showErrorDialog("読み込みエラー", "住所データの読み込みに失敗しました。\nファイルの形式（CSV / TSV / Excel）を確認してください。\n\n詳細: ${e.localizedMessage ?: "不明なエラー"}")
             return
         }
         if (toAdd.isEmpty()) {
@@ -241,17 +241,8 @@ internal fun DeliveryListFragment.proceedWithImport(toAdd: List<Delivery>, repla
             android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show()
         }
 
-        // ── Step C: エリアチェック（1件以下はスキップ）
-        if (toAdd.size <= 1) {
-            val verb = if (replace) "置き換え" else "追加"
-            AlertDialog.Builder(ctx)
-                .setTitle("${toAdd.size}件をインポート")
-                .setMessage("「$routeName」に${verb}します。よろしいですか？")
-                .setPositiveButton(verb) { _, _ -> doImport(toAdd) }
-                .setNegativeButton("キャンセル", null)
-                .show()
-            return
-        }
+        // 1件以下はエリアチェック不要 → 直接インポート
+        if (toAdd.size <= 1) { doImport(toAdd); return }
 
         val prefRegex = Regex("""[^\s]+[都道府県]""")
 
@@ -311,14 +302,8 @@ internal fun DeliveryListFragment.proceedWithImport(toAdd: List<Delivery>, repla
             return
         }
 
-        // 単一エリアかつ混在なし → 通常確認
-        val verb = if (replace) "置き換え" else "追加"
-        AlertDialog.Builder(ctx)
-            .setTitle("${toAdd.size}件をインポート")
-            .setMessage("「$routeName」に${verb}します。よろしいですか？")
-            .setPositiveButton(verb) { _, _ -> doImport(toAdd) }
-            .setNegativeButton("キャンセル", null)
-            .show()
+        // 単一エリアかつ混在なし → Step B で確認済みのため直接インポート
+        doImport(toAdd)
     }
 
 private fun looksLikeCsvOrTsv(text: String): Boolean {

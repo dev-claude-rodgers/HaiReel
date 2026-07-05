@@ -15,6 +15,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.rodgers.haireel.MainActivity
 import com.rodgers.haireel.R
 import com.rodgers.haireel.util.AppSettings
+import com.rodgers.haireel.util.applyAppTheme
 import com.rodgers.haireel.util.themeColor
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,7 +33,7 @@ class OnboardingActivity : AppCompatActivity() {
         Page(
             "🚚",
             "HaiReelへようこそ",
-            "宅配ドライバーの業務をスマホ一台で完結。\n配達・日報・点呼・収支・荷室をまとめて管理できます。\n\n📦 7日間フル機能を無料体験\n💳 その後は月額¥300 または 年額¥2,980\n⚡ Google Playで安全に決済"
+            "宅配ドライバーの業務をスマホ一台で完結。\n配達・日報・点呼・収支をまとめて管理できます。\n\n📦 7日間フル機能を無料体験\n💳 その後は月額¥300 または 年額¥2,980\n⚡ Google Playで安全に決済"
         ),
         Page(
             "📥",
@@ -45,19 +46,15 @@ class OnboardingActivity : AppCompatActivity() {
             "住所を追加したら地図ボタンをタップ。\n\nピンが表示されたら\n「ルート最適化」で\n現在地から最短順に自動整列できます。"
         ),
         Page(
-            "🚛",
-            "荷室レイアウトで積載管理",
-            "配達タブのトグル（リスト→地図→荷室）で\n荷室画面に切り替えられます。\n\n車内の写真を撮ってピンで\n荷物の位置や状態をメモできます。"
-        ),
-        Page(
             "🔑",
             "地図にはAPIキーが必要です",
-            "設定 → Google APIキー設定から登録できます。\n\nGoogle Cloudで無料取得でき、\n個人利用は無料枠内に収まります。\n\nキーなしでも住所管理・日報・\n点呼・荷室管理は使えます。"
+            "設定 → Google APIキー設定から登録できます。\n\nGoogle Cloudで無料取得でき、\n個人利用は無料枠内に収まります。\n\nキーなしでも住所管理・日報・\n点呼は使えます。"
         )
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
+        applyAppTheme()
         super.onCreate(savedInstanceState)
 
         // オンボーディング済みならMainActivityに直接遷移

@@ -336,4 +336,9 @@ object AppSettings {
     // ── 音声案内（TTS）設定 ──────────────────────────────────────
     fun isTtsEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("tts_enabled", false)
     fun setTtsEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("tts_enabled", v).apply()
+
+    // ── テーマカラー ──────────────────────────────────────────────
+    // "blue" | "teal" | "green" | "orange" | "purple" | "red" | "indigo" | "brown"
+    fun getThemeKey(ctx: Context): String = prefs(ctx).getString("app_theme", "blue") ?: "blue"
+    fun setThemeKey(ctx: Context, key: String) = prefs(ctx).edit().putString("app_theme", key).apply()
 }

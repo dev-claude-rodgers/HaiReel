@@ -1,7 +1,6 @@
 ﻿package com.rodgers.haireel.ui
 
 import android.content.Intent
-import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.rodgers.haireel.excel.TenkoExcelGenerator
@@ -15,7 +14,7 @@ internal fun TenkoFragment.exportTenko() {
         try {
             val records = viewModel.recordsForMonth(ym)
             if (records.isEmpty()) {
-                Toast.makeText(ctx, "この月の点呼記録はまだありません", Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(ctx, "この月の点呼記録はまだありません", android.widget.Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val file = TenkoExcelGenerator(ctx).generate(records, ym, portrait = true)
@@ -27,7 +26,7 @@ internal fun TenkoFragment.exportTenko() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }, "${y}年${m}月 点呼簿を共有"))
         } catch (e: Exception) {
-            Toast.makeText(ctx, "出力エラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+            ctx.showErrorDialog("出力エラー", e.localizedMessage ?: "点呼簿の出力に失敗しました。\nストレージの空き容量を確認してください。")
         }
     }
 }
