@@ -182,6 +182,11 @@ class ExcelGenerator(private val context: Context) {
         return """<c r="$col$row"$attr t="inlineStr"><is><t>${v.esc()}</t></is></c>"""
     }
 
+    private data class SigRows(
+        val sig1Row: Int, val sig2Row: Int,
+        val rightStart: Int, val rightEnd: Int
+    )
+
     private fun sheetXml(
         allDays: List<LocalDate>,
         recordMap: Map<String, WorkRecord>,
@@ -191,56 +196,92 @@ class ExcelGenerator(private val context: Context) {
         workingDays: Int,
         hasSig: Boolean = false,
         portrait: Boolean = false,
-        periodLabel: String? = null   // 非nullのときタイトルに期間を表示
+        periodLabel: String? = null
     ): SheetOutput {
-        val sb = StringBuilder()
         val numCols    = columns.size + 1
         val lastLetter = colLetter(numCols - 1)
         val merges     = mutableListOf<String>()
         val dateFmt    = DateTimeFormatter.ofPattern("d日(E)", Locale.JAPANESE)
         val isoFmt     = DateTimeFormatter.ISO_LOCAL_DATE
+        val periodText   = periodLabel ?: "${year}年${month}月"
+        val closingLabel = if (pattern.closingDay >= 31) "月末締め" else "${pattern.closingDay}日"
+        val titleText    = if (periodLabel != null) "$periodLabel ${pattern.title}" else "${year}年${month}月 ${pattern.title}"
 
+        val sb = StringBuilder()
         sb.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""")
         sb.append("""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""")
         sb.append("""<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>""")
         sb.append("""<sheetFormatPr defaultRowHeight="14" customHeight="1"/>""")
+        sb.append(buildColWidths(allDays, recordMap, columns, isoFmt, dateFmt, periodText, closingLabel))
+        sb.append("<sheetData>")
+        appendHeaderRows(sb, merges, titleText, numCols, lastLetter, columns, pattern, periodText, closingLabel)
+        appendDataRows(sb, allDays, recordMap, columns, isoFmt, dateFmt)
+        val sigRows = appendSumAndStampRows(sb, merges, allDays.size, workingDays, numCols, columns)
+        sb.append("</sheetData>")
+        if (merges.isNotEmpty()) {
+            sb.append("""<mergeCells count="${merges.size}">""")
+            merges.forEach { sb.append("""<mergeCell ref="$it"/>""") }
+            sb.append("</mergeCells>")
+        }
+        sb.append("""<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>""")
+        sb.append("""<pageSetup paperSize="9" orientation="${if (portrait) "portrait" else "landscape"}" fitToWidth="1" fitToHeight="0"/>""")
+        if (hasSig) sb.append("""<drawing r:id="rId3"/>""")
+        sb.append("</worksheet>")
+        return SheetOutput(sb.toString(), sigRows.sig1Row, sigRows.sig2Row, sigRows.rightStart, sigRows.rightEnd)
+    }
 
-        val periodText   = periodLabel ?: "${year}年${month}月"
-        val closingLabel = if (pattern.closingDay >= 31) "月末締め" else "${pattern.closingDay}日"
-
-        sb.append("<cols>")
+    private fun buildColWidths(
+        allDays: List<LocalDate>,
+        recordMap: Map<String, WorkRecord>,
+        columns: List<ColDef>,
+        isoFmt: DateTimeFormatter,
+        dateFmt: DateTimeFormatter,
+        periodText: String,
+        closingLabel: String
+    ): String {
+        val sb = StringBuilder()
         val dateDisplays = allDays.map { day ->
             val r = recordMap[day.format(isoFmt)]
             if (r != null && r.endDateOffset > 0)
                 "${day.format(dateFmt)}〜${day.plusDays(r.endDateOffset.toLong()).format(dateFmt)}"
-            else
-                day.format(dateFmt)
+            else day.format(dateFmt)
         }
-        val dateW = calcWidth("日付", dateDisplays)
         val colWs = columns.mapIndexed { idx, col ->
-            val vals = allDays.mapNotNull { day -> recordMap[day.format(isoFmt)]?.let { col.getData(it) } } + listOf(col.totalValue)
+            val vals = allDays.mapNotNull { day -> recordMap[day.format(isoFmt)]?.let { col.getData(it) } } +
+                listOf(col.totalValue)
             val extras = buildList<String> {
-                if (idx == columns.size - 2)     { add("集計期間"); add("締め日") }
-                if (idx == columns.size - 1)     { add(periodText); add(closingLabel) }
+                if (idx == columns.size - 2) { add("集計期間"); add("締め日") }
+                if (idx == columns.size - 1) { add(periodText); add(closingLabel) }
             }
             calcWidth(col.header, vals + extras)
         }
-        sb.append("""<col min="1" max="1" width="${"%.2f".format(dateW)}" bestFit="1" customWidth="1"/>""")
+        sb.append("<cols>")
+        sb.append("""<col min="1" max="1" width="${"%.2f".format(calcWidth("日付", dateDisplays))}" bestFit="1" customWidth="1"/>""")
         colWs.forEachIndexed { idx, w ->
             val n = idx + 2
             sb.append("""<col min="$n" max="$n" width="${"%.2f".format(w)}" bestFit="1" customWidth="1"/>""")
         }
         sb.append("</cols>")
+        return sb.toString()
+    }
 
-        sb.append("<sheetData>")
-
-        val titleText  = if (periodLabel != null) "$periodLabel ${pattern.title}" else "${year}年${month}月 ${pattern.title}"
+    private fun appendHeaderRows(
+        sb: StringBuilder,
+        merges: MutableList<String>,
+        titleText: String,
+        numCols: Int,
+        lastLetter: String,
+        columns: List<ColDef>,
+        pattern: ReportPattern,
+        periodText: String,
+        closingLabel: String
+    ) {
         merges.add("A1:${lastLetter}1")
         sb.append("""<row r="1" ht="26" customHeight="1">""")
         sb.append(sc("A", 1, titleText, s = 3))
         sb.append("</row>")
 
-        val nameEndIdx = numCols - 3
+        val nameEndIdx   = numCols - 3
         val hasNameMerge = nameEndIdx >= 2
         if (hasNameMerge) {
             merges.add("B2:${colLetter(nameEndIdx)}2")
@@ -250,9 +291,7 @@ class ExcelGenerator(private val context: Context) {
         sb.append("""<row r="2">""")
         sb.append(sc("A", 2, "作業者", s = 8))
         sb.append(sc("B", 2, pattern.driverName))
-        if (hasNameMerge) {
-            for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 2, ""))
-        }
+        if (hasNameMerge) for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 2, ""))
         if (numCols >= 2) {
             sb.append(sc(colLetter(numCols - 2), 2, "集計期間", s = 8))
             sb.append(sc(lastLetter, 2, periodText))
@@ -262,9 +301,7 @@ class ExcelGenerator(private val context: Context) {
         sb.append("""<row r="3">""")
         sb.append(sc("A", 3, "取引先", s = 8))
         sb.append(sc("B", 3, pattern.clientName))
-        if (hasNameMerge) {
-            for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 3, ""))
-        }
+        if (hasNameMerge) for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 3, ""))
         if (numCols >= 2) {
             sb.append(sc(colLetter(numCols - 2), 3, "締め日", s = 8))
             sb.append(sc(lastLetter, 3, closingLabel))
@@ -275,18 +312,24 @@ class ExcelGenerator(private val context: Context) {
 
         sb.append("""<row r="5">""")
         sb.append(sc("A", 5, "日付", s = 1))
-        columns.forEachIndexed { idx, col ->
-            sb.append(sc(colLetter(idx + 1), 5, col.header, s = 1))
-        }
+        columns.forEachIndexed { idx, col -> sb.append(sc(colLetter(idx + 1), 5, col.header, s = 1)) }
         sb.append("</row>")
+    }
 
+    private fun appendDataRows(
+        sb: StringBuilder,
+        allDays: List<LocalDate>,
+        recordMap: Map<String, WorkRecord>,
+        columns: List<ColDef>,
+        isoFmt: DateTimeFormatter,
+        dateFmt: DateTimeFormatter
+    ) {
         val consumedDays = mutableSetOf<String>()
         for ((dateStr, record) in recordMap) {
             if (record.endDateOffset > 0) {
                 val start = LocalDate.parse(dateStr)
-                for (i in 1..record.endDateOffset) {
+                for (i in 1..record.endDateOffset)
                     consumedDays.add(start.plusDays(i.toLong()).format(isoFmt))
-                }
             }
         }
 
@@ -294,111 +337,72 @@ class ExcelGenerator(private val context: Context) {
             val row    = ri + 6
             val dayStr = day.format(isoFmt)
             val style  = if (ri % 2 == 0) 6 else 7
-
-            if (consumedDays.contains(dayStr)) {
-                sb.append("""<row r="$row">""")
-                sb.append(sc("A", row, "", s = style))
-                columns.forEachIndexed { ci, _ ->
-                    sb.append(sc(colLetter(ci + 1), row, "", s = style))
-                }
-                sb.append("</row>")
-                return@forEachIndexed
-            }
-
-            val record = recordMap[dayStr]
-            val dateDisplay = if (record != null && !record.noWork && record.endDateOffset > 0)
-                "${day.format(dateFmt)}〜${day.plusDays(record.endDateOffset.toLong()).format(dateFmt)}"
-            else
-                day.format(dateFmt)
             sb.append("""<row r="$row">""")
-            sb.append(sc("A", row, dateDisplay, s = style))
-            if (record != null && record.noWork) {
-                columns.forEachIndexed { ci, _ ->
-                    sb.append(sc(colLetter(ci + 1), row, "", s = style))
-                }
+            if (consumedDays.contains(dayStr)) {
+                sb.append(sc("A", row, "", s = style))
+                columns.forEachIndexed { ci, _ -> sb.append(sc(colLetter(ci + 1), row, "", s = style)) }
             } else {
-                columns.forEachIndexed { ci, col ->
-                    sb.append(sc(colLetter(ci + 1), row, col.getData(record), s = style))
-                }
+                val record = recordMap[dayStr]
+                val dateDisplay = if (record != null && !record.noWork && record.endDateOffset > 0)
+                    "${day.format(dateFmt)}〜${day.plusDays(record.endDateOffset.toLong()).format(dateFmt)}"
+                else day.format(dateFmt)
+                sb.append(sc("A", row, dateDisplay, s = style))
+                if (record != null && record.noWork)
+                    columns.forEachIndexed { ci, _ -> sb.append(sc(colLetter(ci + 1), row, "", s = style)) }
+                else
+                    columns.forEachIndexed { ci, col -> sb.append(sc(colLetter(ci + 1), row, col.getData(record), s = style)) }
             }
             sb.append("</row>")
         }
+    }
 
-        val sumRow = allDays.size + 6
-        val mergeEnd = minOf(numCols - 1, 2)
-        if (true) {
-            if (mergeEnd >= 1) merges.add("A${sumRow}:${colLetter(mergeEnd)}${sumRow}")
-            sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
-            sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))
-            for (ci in 1..mergeEnd) sb.append(sc(colLetter(ci), sumRow, "", s = 2))
-            columns.forEachIndexed { ci, col ->
-                if (ci > mergeEnd - 1) sb.append(sc(colLetter(ci + 1), sumRow, col.totalValue, s = 2))
-            }
-            sb.append("</row>")
-        } else {
-            sb.append("""<row r="$sumRow" ht="5" customHeight="1"/>""")
+    // 合計行と確認印欄を追加し、確認印の位置情報を返す
+    private fun appendSumAndStampRows(
+        sb: StringBuilder,
+        merges: MutableList<String>,
+        dayCount: Int,
+        workingDays: Int,
+        numCols: Int,
+        columns: List<ColDef>
+    ): SigRows {
+        val sumRow = dayCount + 6
+        // 合計ラベルは左端から最大3セル（A列 + 最大2列）をマージして表示する
+        val sumLabelSpan = minOf(numCols - 1, 2)
+        if (sumLabelSpan >= 1) merges.add("A${sumRow}:${colLetter(sumLabelSpan)}${sumRow}")
+        sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
+        sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))
+        for (ci in 1..sumLabelSpan) sb.append(sc(colLetter(ci), sumRow, "", s = 2))
+        columns.forEachIndexed { ci, col ->
+            if (ci >= sumLabelSpan) sb.append(sc(colLetter(ci + 1), sumRow, col.totalValue, s = 2))
         }
+        sb.append("</row>")
 
         sb.append("""<row r="${sumRow + 1}" ht="6" customHeight="1"/>""")
 
-        // 右端に縦2段で確認印欄を配置
-        val halfCols      = maxOf(1, numCols / 2)
-        val rightStartIdx = halfCols
+        // 右端半分に確認印欄を縦2段で配置
+        val rightStartIdx = maxOf(1, numCols / 2)
         val rightEndIdx   = numCols - 1
+        val sig1LabelRow  = sumRow + 2
+        val sig1StampRow  = sig1LabelRow + 1
+        val sig2LabelRow  = sig1StampRow + 1
+        val sig2StampRow  = sig2LabelRow + 1
 
-        val sig1LabelRow = sumRow + 2
-        val sig1StampRow = sig1LabelRow + 1
-        val sig2LabelRow = sig1StampRow + 1
-        val sig2StampRow = sig2LabelRow + 1
-
-        merges.add("${colLetter(rightStartIdx)}${sig1LabelRow}:${colLetter(rightEndIdx)}${sig1LabelRow}")
-        merges.add("${colLetter(rightStartIdx)}${sig1StampRow}:${colLetter(rightEndIdx)}${sig1StampRow}")
-        merges.add("${colLetter(rightStartIdx)}${sig2LabelRow}:${colLetter(rightEndIdx)}${sig2LabelRow}")
-        merges.add("${colLetter(rightStartIdx)}${sig2StampRow}:${colLetter(rightEndIdx)}${sig2StampRow}")
-
-        sb.append("""<row r="$sig1LabelRow" ht="20" customHeight="1">""")
-        for (ci in rightStartIdx..rightEndIdx)
-            sb.append(sc(colLetter(ci), sig1LabelRow, if (ci == rightStartIdx) "作業者確認印" else "", s = 11))
-        sb.append("</row>")
-
-        sb.append("""<row r="$sig1StampRow" ht="36" customHeight="1">""")
-        for (ci in rightStartIdx..rightEndIdx)
-            sb.append(sc(colLetter(ci), sig1StampRow, "", s = 9))
-        sb.append("</row>")
-
-        sb.append("""<row r="$sig2LabelRow" ht="20" customHeight="1">""")
-        for (ci in rightStartIdx..rightEndIdx)
-            sb.append(sc(colLetter(ci), sig2LabelRow, if (ci == rightStartIdx) "取引先確認印" else "", s = 11))
-        sb.append("</row>")
-
-        sb.append("""<row r="$sig2StampRow" ht="36" customHeight="1">""")
-        for (ci in rightStartIdx..rightEndIdx)
-            sb.append(sc(colLetter(ci), sig2StampRow, "", s = 9))
-        sb.append("</row>")
-
-        sb.append("</sheetData>")
-
-        if (merges.isNotEmpty()) {
-            sb.append("""<mergeCells count="${merges.size}">""")
-            merges.forEach { sb.append("""<mergeCell ref="$it"/>""") }
-            sb.append("</mergeCells>")
+        listOf(sig1LabelRow, sig1StampRow, sig2LabelRow, sig2StampRow).forEach { r ->
+            merges.add("${colLetter(rightStartIdx)}$r:${colLetter(rightEndIdx)}$r")
         }
 
-        sb.append("""<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>""")
-        sb.append("""<pageSetup paperSize="9" orientation="${if (portrait) "portrait" else "landscape"}" fitToWidth="1" fitToHeight="0"/>""")
-
-        if (hasSig) {
-            sb.append("""<drawing r:id="rId3"/>""")
+        fun stampRow(rowNum: Int, ht: String, label: String, style: Int) {
+            sb.append("""<row r="$rowNum" ht="$ht" customHeight="1">""")
+            for (ci in rightStartIdx..rightEndIdx)
+                sb.append(sc(colLetter(ci), rowNum, if (ci == rightStartIdx) label else "", s = style))
+            sb.append("</row>")
         }
+        stampRow(sig1LabelRow, "20", "作業者確認印", 11)
+        stampRow(sig1StampRow, "36", "",             9)
+        stampRow(sig2LabelRow, "20", "取引先確認印", 11)
+        stampRow(sig2StampRow, "36", "",             9)
 
-        sb.append("</worksheet>")
-        return SheetOutput(
-            xml        = sb.toString(),
-            sig1Row    = sig1StampRow,
-            sig2Row    = sig2StampRow,
-            rightStart = rightStartIdx,
-            rightEnd   = rightEndIdx
-        )
+        return SigRows(sig1StampRow, sig2StampRow, rightStartIdx, rightEndIdx)
     }
 
     private fun drawingXml(driverRelId: Int?, clientRelId: Int?, pos: SheetOutput): String {
