@@ -133,11 +133,11 @@ object BackupManager {
         return cipher.doFinal(enc)
     }
 
-    private fun Int.toByteArray4() = byteArrayOf(
+    internal fun Int.toByteArray4() = byteArrayOf(
         (this shr 24).toByte(), (this shr 16).toByte(),
         (this shr 8).toByte(),   this.toByte()
     )
-    private fun ByteArray.toInt4() =
+    internal fun ByteArray.toInt4() =
         ((this[0].toInt() and 0xFF) shl 24) or ((this[1].toInt() and 0xFF) shl 16) or
         ((this[2].toInt() and 0xFF) shl 8)  or  (this[3].toInt() and 0xFF)
 
@@ -411,7 +411,7 @@ object BackupManager {
         closeEntry()
     }
 
-    private fun recordsToJson(records: List<WorkRecord>): JSONArray {
+    internal fun recordsToJson(records: List<WorkRecord>): JSONArray {
         val arr = JSONArray()
         for (r in records) {
             arr.put(JSONObject().apply {
@@ -437,7 +437,7 @@ object BackupManager {
         return arr
     }
 
-    private fun recordFromJson(j: JSONObject) = WorkRecord(
+    internal fun recordFromJson(j: JSONObject) = WorkRecord(
         id            = j.optLong("id", 0L),
         date          = j.optString("date", ""),
         startTime     = j.optString("startTime", ""),
@@ -557,7 +557,7 @@ object BackupManager {
         }
     }
 
-    private fun tenkoToJson(list: List<com.rodgers.haireel.model.TenkoRecord>): JSONArray {
+    internal fun tenkoToJson(list: List<com.rodgers.haireel.model.TenkoRecord>): JSONArray {
         val arr = JSONArray()
         for (r in list) {
             arr.put(JSONObject().apply {
@@ -588,7 +588,7 @@ object BackupManager {
         return arr
     }
 
-    private fun tenkoFromJson(j: JSONObject) = com.rodgers.haireel.model.TenkoRecord(
+    internal fun tenkoFromJson(j: JSONObject) = com.rodgers.haireel.model.TenkoRecord(
         date              = j.getString("date"),
         assignmentId      = j.optString("assignmentId", ""),
         beforeMethod      = j.optString("beforeMethod").ifBlank { null },
