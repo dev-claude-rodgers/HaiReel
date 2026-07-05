@@ -142,7 +142,7 @@ class ExcelGenerator(private val context: Context) {
         replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     // 締め日から集計期間の開始日・終了日を返す（ReportViewModelと同ロジック）
-    private fun periodForPattern(yearMonth: String, closingDay: Int): Pair<String, String> {
+    internal fun periodForPattern(yearMonth: String, closingDay: Int): Pair<String, String> {
         val parsed = java.time.YearMonth.parse(yearMonth)
         val ym = LocalDate.of(parsed.year, parsed.monthValue, 1)
         val lastDay = ym.lengthOfMonth()
