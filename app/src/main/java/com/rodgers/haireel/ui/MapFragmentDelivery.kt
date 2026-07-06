@@ -475,7 +475,10 @@ import kotlinx.coroutines.withContext
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setTitle("📝 メモ")
             .setView(input)
-            .setPositiveButton("保存") { _, _ -> viewModel.editNote(delivery.id, input.text.toString().trim()) }
+            .setPositiveButton("保存") { _, _ ->
+                viewModel.editNote(delivery.id, input.text.toString().trim())
+                Toast.makeText(ctx, "メモを保存しました", Toast.LENGTH_SHORT).show()
+            }
             .setNeutralButton(if (delivery.note.isNullOrBlank()) null else "削除") { _, _ ->
                 viewModel.editNote(delivery.id, "")
             }

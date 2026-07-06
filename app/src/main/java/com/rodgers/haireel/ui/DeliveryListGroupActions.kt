@@ -735,6 +735,7 @@ internal fun DeliveryListFragment.showRenameGroupDialog() {
             if (name.isBlank()) { inputName.error = "ルート名を入力してください"; return@setOnClickListener }
             viewModel.renameGroup(group.id, name)
             viewModel.setAreaHint(inputArea.text.toString().trim())
+            android.widget.Toast.makeText(ctx, "「${name}」を保存しました", android.widget.Toast.LENGTH_SHORT).show()
             dlg.dismiss()
         }
         inputName.postDelayed({
@@ -762,6 +763,7 @@ internal fun DeliveryListFragment.showCreateGroupDialog() {
             if (name.isBlank()) { input.error = "ルート名を入力してください"; return@setOnClickListener }
             val group = viewModel.createGroup(name)
             viewModel.switchGroup(group.id)
+            android.widget.Toast.makeText(ctx, "「${name}」を作成しました", android.widget.Toast.LENGTH_SHORT).show()
             dlg.dismiss()
         }
     }

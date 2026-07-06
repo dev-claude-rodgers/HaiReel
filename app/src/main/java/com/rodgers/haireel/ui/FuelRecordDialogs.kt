@@ -467,8 +467,12 @@ private fun DailyReportFragment.showVehicleEditDialog(fuelViewModel: FuelViewMod
         .setView(nameInput)
         .setPositiveButton("保存") { _, _ ->
             val name = nameInput.text.toString().trim()
-            if (name.isNotBlank())
+            if (name.isNotBlank()) {
                 fuelViewModel.upsertVehicle((existing ?: Vehicle(name = name)).copy(name = name))
+                Toast.makeText(ctx, if (existing == null) "「${name}」を追加しました" else "「${name}」を更新しました", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(ctx, "車両名を入力してください", Toast.LENGTH_SHORT).show()
+            }
         }
         .setNegativeButton("キャンセル", null)
         .show()
@@ -602,6 +606,7 @@ private fun DailyReportFragment.showFuelInputDialog(
                     note          = noteIn.text.toString().trim(),
                     vehicleId     = selectedVehicleId
                 ))
+                Toast.makeText(ctx, "給油記録を保存しました", Toast.LENGTH_SHORT).show()
                 onSaved()
                 dismiss()
             }

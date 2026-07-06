@@ -12,6 +12,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.model.TenkoRecord
@@ -206,6 +207,7 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
                         healthOk, fatigueYes, alc, inspOk,
                         etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                         selVehicleNumber)
+                    Toast.makeText(ctx, "乗務前点呼を保存しました", Toast.LENGTH_SHORT).show()
                     dlgBefore.dismiss()
                 }
                 .setNegativeButton("修正する", null).show()
@@ -214,6 +216,7 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
                 healthOk, fatigueYes, alc, inspOk,
                 etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                 selVehicleNumber)
+            Toast.makeText(ctx, "乗務前点呼を保存しました", Toast.LENGTH_SHORT).show()
             dlgBefore.dismiss()
         }
     }
@@ -400,6 +403,7 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
                         healthOk, fatigueYes, alc, accidentYes, vehicleOk,
                         etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                         etNote.text.toString().trim())
+                    Toast.makeText(ctx, "乗務後点呼を保存しました", Toast.LENGTH_SHORT).show()
                     dlgAfter.dismiss()
                 }
                 .setNegativeButton("修正する", null).show()
@@ -408,6 +412,7 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
                 healthOk, fatigueYes, alc, accidentYes, vehicleOk,
                 etInstruction.text.toString().trim(), etChecker.text.toString().trim(),
                 etNote.text.toString().trim())
+            Toast.makeText(ctx, "乗務後点呼を保存しました", Toast.LENGTH_SHORT).show()
             dlgAfter.dismiss()
         }
     }

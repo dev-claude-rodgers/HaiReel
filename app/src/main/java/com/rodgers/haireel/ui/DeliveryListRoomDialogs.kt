@@ -185,6 +185,7 @@ internal fun DeliveryListFragment.showRoomListDialog(deliveryId: String) {
                     .setView(input)
                     .setPositiveButton("保存") { _, _ ->
                         viewModel.updateRoom(deliveryId, room.id, input.text.toString().trim(), room.isCompleted)
+                        Toast.makeText(ctx, "メモを保存しました", Toast.LENGTH_SHORT).show()
                         dialog?.dismiss()
                         showRoomListDialog(deliveryId)
                     }
@@ -590,6 +591,7 @@ internal fun DeliveryListFragment.showRoomNoteEditDialog(deliveryId: String, roo
             .setView(input)
             .setPositiveButton("保存") { _, _ ->
                 viewModel.updateRoom(deliveryId, room.id, input.text.toString().trim(), room.isCompleted)
+                Toast.makeText(ctx, "メモを保存しました", Toast.LENGTH_SHORT).show()
                 onSaved()
             }
             .setNegativeButton("キャンセル", null)

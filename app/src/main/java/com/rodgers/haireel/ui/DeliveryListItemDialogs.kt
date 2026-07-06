@@ -319,7 +319,10 @@ internal fun DeliveryListFragment.showNoteDialog(delivery: Delivery) {
         AlertDialog.Builder(requireContext())
             .setTitle("メモの編集")
             .setView(input)
-            .setPositiveButton("保存") { _, _ -> viewModel.editNote(delivery.id, input.text.toString().trim()) }
+            .setPositiveButton("保存") { _, _ ->
+                viewModel.editNote(delivery.id, input.text.toString().trim())
+                Toast.makeText(requireContext(), "メモを保存しました", Toast.LENGTH_SHORT).show()
+            }
             .setNegativeButton("キャンセル", null)
             .also { if (!delivery.note.isNullOrBlank()) it.setNeutralButton("削除") { _, _ -> viewModel.editNote(delivery.id, "") } }
             .show()
@@ -767,6 +770,7 @@ internal fun DeliveryListFragment.showTimeSlotPackageDialog(delivery: Delivery) 
                 val slot = timeInput.text.toString().trim().ifBlank { null }
                 val pkg  = pkgInput.text.toString().toIntOrNull() ?: 0
                 viewModel.updateTimeSlotAndPackage(delivery.id, slot, pkg)
+                Toast.makeText(ctx, "保存しました", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("キャンセル", null)
             .show()

@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.themeColor
@@ -80,6 +81,7 @@ fun showThemePickerDialog(ctx: Context, onThemeChanged: () -> Unit) {
 
             cell.setOnClickListener {
                 AppSettings.setThemeKey(ctx, t.key)
+                Toast.makeText(ctx, "${t.nameJa}に変更しました", Toast.LENGTH_SHORT).show()
                 onThemeChanged()
             }
             rowLayout.addView(cell)
