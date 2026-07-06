@@ -1,9 +1,15 @@
 ﻿package com.rodgers.haireel.util
 
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 
 class GeocodingClientTest {
+
+    @Before
+    fun resetBias() {
+        GeocodingClient.setBias(0.0, 0.0)
+    }
 
     // ── extractPrefCity ───────────────────────────────────────
 
@@ -75,6 +81,26 @@ class GeocodingClientTest {
                 "東京都新宿区西新宿1丁目"
             )
         )
+    }
+
+    // ── hasBias / setBias ─────────────────────────────────────
+
+    @Test
+    fun `hasBiasはデフォルトfalse`() {
+        assertFalse(GeocodingClient.hasBias())
+    }
+
+    @Test
+    fun `setBias後はhasBiasがtrue`() {
+        GeocodingClient.setBias(35.68, 139.70)
+        assertTrue(GeocodingClient.hasBias())
+    }
+
+    @Test
+    fun `setBias00でhasBiasがfalseに戻る`() {
+        GeocodingClient.setBias(35.68, 139.70)
+        GeocodingClient.setBias(0.0, 0.0)
+        assertFalse(GeocodingClient.hasBias())
     }
 
 }
