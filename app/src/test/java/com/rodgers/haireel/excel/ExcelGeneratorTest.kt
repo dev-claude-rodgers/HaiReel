@@ -419,4 +419,41 @@ class ExcelGeneratorTest {
         zip.close()
         assertTrue("件数が含まれる", sheet.contains("10件"))
     }
+
+    // ── periodForPattern 追加ケース ───────────────────────────
+
+    @Test
+    fun `periodForPattern_closingDay31で2月は月末28日まで`() {
+        // 2026-02: lastDay=28 → end=minOf(31が>=31で月末分岐) → "2026-02-28"
+        val (start, end) = gen.periodForPattern("2026-02", 31)
+        assertEquals("2026-02-01", start)
+        assertEquals("2026-02-28", end)
+    }
+
+    @Test
+    fun `periodForPattern_closingDay31でうるう年2月は月末29日まで`() {
+        // 2024-02: lastDay=29 → end="2024-02-29"
+        val (start, end) = gen.periodForPattern("2024-02", 31)
+        assertEquals("2024-02-01", start)
+        assertEquals("2024-02-29", end)
+    }
+
+    @Test
+    fun `periodForPattern_前月が2月でclosingDay28超のstartは前月末`() {
+        // yearMonth=2026-03, closingDay=28
+        // prev=2026-02(28日): start=minOf(29, 28)=28 → "2026-02-28"
+        // end=minOf(28, 31)=28 → "2026-03-28"
+        val (start, end) = gen.periodForPattern("2026-03", 28)
+        assertEquals("2026-02-28", start)
+        assertEquals("2026-03-28", end)
+    }
+
+    @Test
+    fun `periodForPattern_closingDay25で2026年1月は前年12月26日から`() {
+        // prev=2025-12(31日): start=minOf(26, 31)=26 → "2025-12-26"
+        // end=minOf(25, 31)=25 → "2026-01-25"
+        val (start, end) = gen.periodForPattern("2026-01", 25)
+        assertEquals("2025-12-26", start)
+        assertEquals("2026-01-25", end)
+    }
 }

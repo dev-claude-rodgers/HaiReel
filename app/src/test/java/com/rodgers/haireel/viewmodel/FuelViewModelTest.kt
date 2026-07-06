@@ -226,4 +226,40 @@ class FuelViewModelTest {
 
         coVerify { vehicleDao.delete(vehicle) }
     }
+
+    // ── vehicles StateFlow / Vehicle モデル ──────────────────────
+
+    @Test
+    fun `vehicles初期値は空リスト`() {
+        // stateIn の initial value が emptyList() であることを確認
+        val vm = makeVm()
+        assertTrue(vm.vehicles.value.isEmpty())
+    }
+
+    @Test
+    fun `records初期値は空リスト`() {
+        val vm = makeVm()
+        assertTrue(vm.records.value.isEmpty())
+    }
+
+    @Test
+    fun `Vehicle_nameとinitialOdometerが保持される`() {
+        val v = Vehicle(id = 1L, name = "テスト車両", initialOdometer = 12000)
+        assertEquals("テスト車両", v.name)
+        assertEquals(12000, v.initialOdometer)
+    }
+
+    @Test
+    fun `entriesFromで3件連続の燃費は2件計算される`() {
+        val vm = makeVm()
+        val records = listOf(
+            makeRecord(1, 10000, 40f),
+            makeRecord(2, 10400, 40f),
+            makeRecord(3, 10800, 40f)
+        )
+        val entries = vm.entriesFrom(records)
+        assertNull(entries[0].fuelEconomy)
+        assertNotNull(entries[1].fuelEconomy)
+        assertNotNull(entries[2].fuelEconomy)
+    }
 }
