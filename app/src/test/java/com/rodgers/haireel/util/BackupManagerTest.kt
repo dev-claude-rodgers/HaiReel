@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import com.rodgers.haireel.model.TenkoRecord
 import com.rodgers.haireel.model.WorkRecord

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import android.graphics.*
 import com.google.android.gms.maps.model.BitmapDescriptor

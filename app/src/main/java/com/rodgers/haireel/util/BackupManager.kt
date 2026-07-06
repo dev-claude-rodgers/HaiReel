@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import android.content.Context
 import android.graphics.BitmapFactory
@@ -240,20 +240,20 @@ object BackupManager {
                         Log.d("BackupManager", "バックアップバージョン: $backupVersion")
                     }
                     "records.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
                         dao.deleteAll()
                         for (i in 0 until arr.length()) {
                             try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { Log.w("BackupManager", "記録の復元失敗: item $i", e) }
                         }
                     }
                     "settings.json" -> {
-                        restoreSettings(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
+                        restoreSettings(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("")))
                     }
                     "haireel_prefs.json" -> {
-                        restoreHairreelPrefs(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
+                        restoreHairreelPrefs(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("")))
                     }
                     "tenko.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
                         db.tenkoDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try {
@@ -262,10 +262,10 @@ object BackupManager {
                         }
                     }
                     "patterns.json" -> {
-                        restorePatterns(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("﻿")))
+                        restorePatterns(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("")))
                     }
                     "groups.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
                         db.deliveryGroupDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try {
@@ -281,7 +281,7 @@ object BackupManager {
                         }
                     }
                     "deliveries.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix("﻿"))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
                         db.deliveryDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try {

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.db
+package com.rodgers.haireel.db
 
 import com.rodgers.haireel.model.DeliveryGroup
 import org.junit.Assert.*

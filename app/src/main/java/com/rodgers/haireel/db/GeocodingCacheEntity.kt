@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.db
+package com.rodgers.haireel.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

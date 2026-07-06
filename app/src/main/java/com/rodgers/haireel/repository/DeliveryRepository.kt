@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.repository
+package com.rodgers.haireel.repository
 
 import android.content.SharedPreferences
 import com.google.gson.Gson

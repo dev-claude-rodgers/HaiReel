@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import org.junit.Assert.*
 import org.junit.Test

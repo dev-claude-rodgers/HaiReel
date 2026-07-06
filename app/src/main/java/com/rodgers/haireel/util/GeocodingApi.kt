@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 interface GeocodingApi {
     val isRequestDenied: Boolean

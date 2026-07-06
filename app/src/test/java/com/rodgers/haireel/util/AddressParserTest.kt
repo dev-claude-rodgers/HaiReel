@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import org.junit.Assert.*
 import org.junit.Test
@@ -75,7 +75,7 @@ class AddressParserTest {
 
     @Test
     fun `UTF8 BOMが除去される`() {
-        val text = "﻿東京都新宿区西新宿1-1"
+        val text = "東京都新宿区西新宿1-1"
         val result = AddressParser.parse(text)
         assertEquals(1, result.size)
         assertEquals("東京都新宿区西新宿１－１", result[0].address)  // 半角→全角変換後

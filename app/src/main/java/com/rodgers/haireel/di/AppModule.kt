@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.di
+package com.rodgers.haireel.di
 
 import android.content.Context
 import android.content.SharedPreferences

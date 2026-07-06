@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel
+package com.rodgers.haireel
 
 import android.content.Context
 import androidx.test.core.app.ActivityScenario

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 object AddressParser {
 
@@ -6,7 +6,7 @@ object AddressParser {
 
     // テキストを改行で分割し、店名\t住所 または 住所のみ の形式をパース
     fun parse(text: String): List<Entry> {
-        return text.removePrefix("﻿")  // UTF-8 BOM除去
+        return text.removePrefix("")  // UTF-8 BOM除去
             .lines()
             .map { it.trim() }
             .filter { it.isNotBlank() }

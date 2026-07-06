@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.ui
+package com.rodgers.haireel.ui
 
 import android.content.Intent
 import android.graphics.Color

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

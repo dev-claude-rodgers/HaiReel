@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.model
+package com.rodgers.haireel.model
 
 import java.util.UUID
 

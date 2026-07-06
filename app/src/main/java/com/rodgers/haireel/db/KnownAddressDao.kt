@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.db
+package com.rodgers.haireel.db
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow

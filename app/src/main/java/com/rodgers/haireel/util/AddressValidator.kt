@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 /** 住所欄に入力されたテキストを検証・クリーニングするユーティリティ */
 object AddressValidator {

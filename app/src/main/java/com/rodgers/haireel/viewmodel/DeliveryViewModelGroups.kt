@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.viewmodel
+package com.rodgers.haireel.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import com.rodgers.haireel.model.DeliveryGroup

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import com.rodgers.haireel.db.GeocodingCacheDao
 import com.rodgers.haireel.db.GeocodingCacheEntity

@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import com.rodgers.haireel.model.Delivery
 import org.junit.Assert.*

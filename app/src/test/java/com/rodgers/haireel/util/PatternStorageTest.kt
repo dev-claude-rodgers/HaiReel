@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.util
+package com.rodgers.haireel.util
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider

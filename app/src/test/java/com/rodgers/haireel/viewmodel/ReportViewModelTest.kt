@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.viewmodel
+package com.rodgers.haireel.viewmodel
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.rodgers.haireel.model.WorkRecord

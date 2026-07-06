@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.excel
+package com.rodgers.haireel.excel
 
 import android.content.Context
 import com.rodgers.haireel.model.TenkoRecord

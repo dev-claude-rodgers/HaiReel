@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel
+package com.rodgers.haireel
 
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator

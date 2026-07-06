@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.viewmodel
+package com.rodgers.haireel.viewmodel
 
 import android.app.Application
 import android.content.ContentUris

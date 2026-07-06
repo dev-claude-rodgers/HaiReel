@@ -1,4 +1,4 @@
-﻿package com.rodgers.haireel.db
+package com.rodgers.haireel.db
 
 import androidx.room.Dao
 import androidx.room.Insert
