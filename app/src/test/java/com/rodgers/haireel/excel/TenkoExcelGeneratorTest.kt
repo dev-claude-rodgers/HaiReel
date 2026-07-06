@@ -1,9 +1,20 @@
 ﻿package com.rodgers.haireel.excel
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.rodgers.haireel.model.TenkoRecord
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.util.zip.ZipFile
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33], application = android.app.Application::class)
 class TenkoExcelGeneratorTest {
+
+    private val ctx: Context get() = ApplicationProvider.getApplicationContext()
 
     // ── toAlcPresence ─────────────────────────────────────────
 
@@ -100,5 +111,44 @@ class TenkoExcelGeneratorTest {
     @Test
     fun `toInspectionでfalseは×`() {
         assertEquals("×", TenkoExcelGenerator.toInspection(false))
+    }
+
+    // ── generate() ───────────────────────────────────────────
+
+    @Test
+    fun `generate_空リストでもファイルが生成される`() {
+        val file = TenkoExcelGenerator(ctx).generate(emptyList(), "2026-07")
+        assertTrue(file.exists())
+        assertTrue(file.length() > 0)
+    }
+
+    @Test
+    fun `generate_出力ファイルはZIP形式`() {
+        val file = TenkoExcelGenerator(ctx).generate(emptyList(), "2026-07")
+        val bytes = file.readBytes()
+        // XLSX は ZIP: PK シグネチャ 0x50 0x4B
+        assertEquals(0x50.toByte(), bytes[0])
+        assertEquals(0x4B.toByte(), bytes[1])
+    }
+
+    @Test
+    fun `generate_ZIPにsheet1が含まれる`() {
+        val file = TenkoExcelGenerator(ctx).generate(emptyList(), "2026-07")
+        ZipFile(file).use { zip ->
+            val entry = zip.getEntry("xl/worksheets/sheet1.xml")
+            assertNotNull(entry)
+        }
+    }
+
+    @Test
+    fun `generate_点呼記録のbeforeTimeがsharedStringsに含まれる`() {
+        val record = TenkoRecord(date = "2026-07-01", beforeTime = "08:30")
+        val file = TenkoExcelGenerator(ctx).generate(listOf(record), "2026-07")
+        ZipFile(file).use { zip ->
+            val entry = zip.getEntry("xl/sharedStrings.xml")
+            assertNotNull(entry)
+            val content = zip.getInputStream(entry).bufferedReader().readText()
+            assertTrue(content.contains("08:30"))
+        }
     }
 }

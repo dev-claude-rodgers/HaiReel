@@ -240,4 +240,44 @@ class BackupManagerTest {
     fun `tenkoToJson_空リストは空JSONArrayを返す`() {
         assertEquals(0, BackupManager.tenkoToJson(emptyList()).length())
     }
+
+    // ── noWork フィールドのシリアライズ ───────────────────────
+
+    @Test
+    fun `noWork=trueのWorkRecordはJSON化後も真のまま`() {
+        val record = WorkRecord(date = "2026-07-06", noWork = true)
+        val arr = BackupManager.recordsToJson(listOf(record))
+        assertTrue(arr.getJSONObject(0).getBoolean("noWork"))
+    }
+
+    @Test
+    fun `noWork=trueのフルラウンドトリップ`() {
+        val original = WorkRecord(
+            date = "2026-07-06",
+            startTime = "09:00", endTime = "18:00",
+            deliveryCount = 5, income = 10000,
+            noWork = true
+        )
+        val arr = BackupManager.recordsToJson(listOf(original))
+        val restored = BackupManager.recordFromJson(arr.getJSONObject(0))
+        assertTrue(restored.noWork)
+        assertEquals(original.date, restored.date)
+        assertEquals(original.income, restored.income)
+    }
+
+    @Test
+    fun `noWorkキーがないJSONはデフォルトfalseを返す`() {
+        val json = org.json.JSONObject().apply { put("date", "2026-07-06") }
+        val record = BackupManager.recordFromJson(json)
+        assertFalse(record.noWork)
+    }
+
+    @Test
+    fun `noWork=falseとtrueの混在リストは個別に正しく復元される`() {
+        val r1 = WorkRecord(date = "2026-07-05", noWork = false)
+        val r2 = WorkRecord(date = "2026-07-06", noWork = true)
+        val arr = BackupManager.recordsToJson(listOf(r1, r2))
+        assertFalse(BackupManager.recordFromJson(arr.getJSONObject(0)).noWork)
+        assertTrue(BackupManager.recordFromJson(arr.getJSONObject(1)).noWork)
+    }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,6 +38,32 @@ class OnboardingFlowTest {
     fun onboarding_次へボタンが表示される() {
         ActivityScenario.launch(OnboardingActivity::class.java).use {
             onView(withText("次へ")).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
+    fun onboarding_スキップで利用規約ダイアログが表示される() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use {
+            onView(withText("スキップ")).perform(click())
+            onView(withText("利用規約")).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
+    fun onboarding_利用規約ダイアログに同意して始めるボタンがある() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use {
+            onView(withText("スキップ")).perform(click())
+            onView(withText("同意して始める")).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
+    fun onboarding_利用規約ダイアログのキャンセルで閉じる() {
+        ActivityScenario.launch(OnboardingActivity::class.java).use {
+            onView(withText("スキップ")).perform(click())
+            onView(withText("利用規約")).check(matches(isDisplayed()))
+            onView(withText("キャンセル")).perform(click())
+            onView(withText("利用規約")).check(doesNotExist())
         }
     }
 }

@@ -100,4 +100,32 @@ class IncomeCalculatorTest {
         val p = pattern(99, 10000)
         assertEquals(0, calcIncome(p, delivCount = 100, workMinutes = 480))
     }
+
+    // ── 境界値: unitPrice=0 / 時間境界 ───────────────────────────
+
+    @Test
+    fun `unitPrice=0で個建ては0円`() {
+        val p = pattern(0, 0)
+        assertEquals(0, calcIncome(p, delivCount = 100, workMinutes = 0, packageCount = 100))
+    }
+
+    @Test
+    fun `unitPrice=0で時間制は0円`() {
+        val p = pattern(2, 0)
+        assertEquals(0, calcIncome(p, delivCount = 0, workMinutes = 480))
+    }
+
+    @Test
+    fun `時間制で119分は1時間扱い（切り捨て）`() {
+        val p = pattern(2, 1000)
+        // 119 / 60 = 1 → 1000
+        assertEquals(1000, calcIncome(p, delivCount = 0, workMinutes = 119))
+    }
+
+    @Test
+    fun `時間制で120分は2時間扱い`() {
+        val p = pattern(2, 1000)
+        // 120 / 60 = 2 → 2000
+        assertEquals(2000, calcIncome(p, delivCount = 0, workMinutes = 120))
+    }
 }
