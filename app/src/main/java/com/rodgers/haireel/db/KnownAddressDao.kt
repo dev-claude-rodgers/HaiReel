@@ -44,6 +44,9 @@ interface KnownAddressDao {
     @Delete
     suspend fun delete(entity: KnownAddressEntity)
 
+    @Query("DELETE FROM known_addresses")
+    suspend fun deleteAll()
+
     @Query("SELECT * FROM known_addresses ORDER BY deliveryCount DESC, lastDeliveredAt DESC")
     fun allFlow(): Flow<List<KnownAddressEntity>>
 

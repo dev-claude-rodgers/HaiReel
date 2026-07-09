@@ -135,7 +135,7 @@ class DayEntryAdapter(
                     layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
                 })
                 addRow.addView(android.widget.Button(ctx).apply {
-                    text = "休"; isAllCaps = false; textSize = 12f
+                    text = "休日"; isAllCaps = false; textSize = 12f
                     setTextColor(android.graphics.Color.parseColor("#E65100")); background = null
                     setOnClickListener { onNoWork(entry.date, true) }
                 })
@@ -151,7 +151,7 @@ class DayEntryAdapter(
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 }
-                val restLabel = if (r.remarks.isNotBlank()) "休み  ${r.remarks}" else "休み"
+                val restLabel = if (r.remarks.isNotBlank()) "休日  ${r.remarks}" else "休日"
                 noWorkRow.addView(tv(restLabel, 13f, android.graphics.Color.parseColor("#E65100"))
                     .also {
                         it.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)

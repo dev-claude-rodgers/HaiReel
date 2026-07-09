@@ -121,6 +121,7 @@ class SettingsFragment : Fragment() {
             val rawBytes = withContext(Dispatchers.IO) {
                 ctx.contentResolver.openInputStream(uri)?.readBytes()
             }
+            if (!isAdded) return@launch
             if (rawBytes == null) {
                 Toast.makeText(ctx, "ファイルを開けませんでした", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -170,7 +171,7 @@ class SettingsFragment : Fragment() {
             ctx           = ctx,
             onLaunchIntent = { startActivity(it) },
             onTestApiKey   = { testApiKey(ctx) },
-            onStatusChanged = { binding.tvApiKeyStatus.text = it }
+            onStatusChanged = { if (isAdded) binding.tvApiKeyStatus.text = it }
         )
     }
 

@@ -10,14 +10,14 @@ import java.net.URLEncoder
 object GeocodingClient : GeocodingApi {
 
     private const val GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
-    private var apiKey: String = ""
-    private var areaHint: String = ""
-    override var biasLat: Double = 0.0
+    @Volatile private var apiKey: String = ""
+    @Volatile private var areaHint: String = ""
+    @Volatile override var biasLat: Double = 0.0
         private set
-    override var biasLng: Double = 0.0
+    @Volatile override var biasLng: Double = 0.0
         private set
 
-    override var isRequestDenied: Boolean = false
+    @Volatile override var isRequestDenied: Boolean = false
         private set
 
     override fun configure(apiKey: String) { this.apiKey = apiKey; isRequestDenied = false }

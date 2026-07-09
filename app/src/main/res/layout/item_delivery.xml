@@ -44,7 +44,7 @@
             android:layout_height="wrap_content"
             android:textSize="17sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="?attr/colorOnSurface"
             android:maxLines="1"
             android:ellipsize="end"
             android:visibility="gone" />
@@ -54,7 +54,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textColor="#FFFFFF"
+            android:textColor="?attr/colorOnSurface"
             android:maxLines="2"
             android:ellipsize="end" />
 

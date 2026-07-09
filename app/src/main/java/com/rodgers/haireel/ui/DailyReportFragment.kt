@@ -91,10 +91,22 @@ class DailyReportFragment : Fragment() {
     }
 
     private fun updateAssignmentBar() {
+        if (!isAdded) return
         val group = deliveryViewModel.currentGroup()
         if (group != null && group.name.isNotBlank()) {
+            val ctx = requireContext()
+            val patternId = group.patternId.takeIf { it != -1 }
+                ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
+            val label = patternId?.let { pid ->
+                val p = PatternStorage.get(ctx, pid) ?: return@let null
+                when {
+                    p.clientName.isNotBlank() -> p.clientName
+                    p.title.isNotBlank() -> p.title
+                    else -> "帳票${p.id + 1}"
+                }
+            } ?: group.name
             binding.tvAssignment.visibility = View.VISIBLE
-            binding.tvAssignment.text = "📦 ${group.name}"
+            binding.tvAssignment.text = "📦 $label"
             try {
                 val color = android.graphics.Color.parseColor(group.colorHex)
                 binding.tvAssignment.setBackgroundColor(
@@ -107,20 +119,24 @@ class DailyReportFragment : Fragment() {
                 binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#222222"))
             }
         } else {
-            binding.tvAssignment.visibility = View.GONE
+            binding.tvAssignment.visibility = View.VISIBLE
+            binding.tvAssignment.text = "📋 全取引先"
+            binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#333333"))
         }
     }
 
     private fun setupAssignmentBar() {
-        reportViewModel.setAssignmentId(deliveryViewModel.currentGroupId.value)
+        val gid = deliveryViewModel.currentGroupId.value
+        if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("DailyReport", "setupAssignmentBar: currentGroupId='$gid', groups=${deliveryViewModel.groups.value.map { it.name }}")
+        reportViewModel.setAssignmentId(gid)
         updateAssignmentBar()
     }
 
     private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
             deliveryViewModel.currentGroupId.collectLatest { groupId ->
+                if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("DailyReport", "currentGroupId emit: '$groupId'")
                 reportViewModel.setAssignmentId(groupId)
-                updateAssignmentBar()
                 val group = deliveryViewModel.currentGroup()
                 val linkedPatternId = group?.patternId ?: -1
                 if (linkedPatternId != -1) {
@@ -130,6 +146,7 @@ class DailyReportFragment : Fragment() {
                         reportViewModel.setClosingDay(pattern.closingDay)
                     }
                 }
+                updateAssignmentBar()
             }
         }
 
@@ -155,15 +172,19 @@ class DailyReportFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             combine(
                 reportViewModel.records,
+                fuelViewModel.records,
                 reportViewModel.yearMonth,
-                reportViewModel.closingDay,
-                deliveryViewModel.groups
-            ) { records, ym, cd, _ -> Triple(records, ym, cd) }
-            .collect { (records, ym, cd) ->
+                reportViewModel.closingDay
+            ) { records, fuelRecs, ym, cd ->
+                Triple(Pair(records, fuelRecs), ym, cd)
+            }
+            .collect { (pair, ym, cd) ->
+                val (records, fuelRecs) = pair
+                currentFuelRecords = fuelRecs
                 try {
                     val days = generateDayEntries(records, ym, cd)
                     adapter.submitList(days)
-                    updateSummary(records, currentFuelRecords)
+                    updateSummary(records, fuelRecs)
                     binding.tvEmptyReport.visibility  = View.GONE
                     binding.recyclerReport.visibility = View.VISIBLE
                     val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -178,13 +199,6 @@ class DailyReportFragment : Fragment() {
                 } catch (e: Exception) {
                     android.util.Log.e("DailyReport", "日報リスト更新エラー", e)
                 }
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            fuelViewModel.records.collect { fuelRecords ->
-                currentFuelRecords = fuelRecords
-                updateSummary(reportViewModel.records.value, fuelRecords)
             }
         }
     }
@@ -206,14 +220,22 @@ class DailyReportFragment : Fragment() {
 
     private fun updateSummary(records: List<WorkRecord>, fuelRecords: List<FuelRecord> = emptyList()) {
         if (!isAdded) return
-        binding.tvSummaryDays.text       = "${records.count { !it.noWork }}日稼働"
-        binding.tvSummaryDeliveries.text = "配達 ${records.sumOf { it.deliveryCount }}件"
-        binding.tvSummaryDistance.text   = "走行 ${"%.0f".format(records.sumOf { it.distanceKm.toDouble() })}km"
-        val pattern     = currentPattern()
-        val totalIncome = records.sumOf { it.income }
-
         val (startStr, endStr) = ReportViewModel.computePeriod(
             reportViewModel.yearMonth.value, reportViewModel.closingDay.value)
+        val today        = LocalDate.now()
+        val startDate    = LocalDate.parse(startStr)
+        val endDate      = LocalDate.parse(endStr)
+        val effectiveEnd = if (today.isBefore(endDate)) today else endDate
+        val periodDays   = java.time.temporal.ChronoUnit.DAYS.between(startDate, effectiveEnd).toInt() + 1
+        val noWorkDays   = records.filter { it.noWork }
+            .distinctBy { it.date }
+            .count { LocalDate.parse(it.date).let { d -> !d.isBefore(startDate) && !d.isAfter(effectiveEnd) } }
+        val workDays     = (periodDays - noWorkDays).coerceAtLeast(0)
+        binding.tvSummaryDays.text       = "${workDays}日稼働"
+        binding.tvSummaryDeliveries.text = "配達 ${records.filter { !it.noWork }.sumOf { it.deliveryCount }}件"
+        binding.tvSummaryDistance.text   = "走行 ${"%.0f".format(records.filter { !it.noWork }.sumOf { it.distanceKm.toDouble() })}km"
+        val pattern     = currentPattern()
+        val totalIncome = records.sumOf { it.income }
         val actualFuelCost = fuelRecords
             .filter { it.date >= startStr && it.date <= endStr }
             .sumOf { it.totalCost }

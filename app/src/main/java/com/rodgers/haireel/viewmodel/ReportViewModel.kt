@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -37,11 +38,27 @@ class ReportViewModel @Inject constructor(
     val assignmentId: StateFlow<String> = _assignmentId
 
     // _closingDay も含めて period ベースでリアルタイム取得
+    // 旧データ(assignmentId="")と新データが混在する場合は同日を1件に絞る（新データ優先）
     val records: StateFlow<List<WorkRecord>> =
         combine(_yearMonth, _closingDay, _assignmentId) { ym, cd, aid -> Triple(ym, cd, aid) }
         .flatMapLatest { (ym, cd, aid) ->
             val (start, end) = computePeriod(ym, cd)
-            dao.recordsForPeriodFlow(start, end, aid)
+            if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("ReportVM", "records query: aid='$aid', period=$start~$end")
+            dao.recordsForPeriodFlow(start, end, aid).map { list ->
+                if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("ReportVM", "records result: ${list.size}件, income=${list.sumOf { it.income }}, assignmentIds=${list.map { it.assignmentId }.distinct()}")
+                list.groupBy { it.date }
+                    .flatMap { (_, recs) ->
+                        if (aid.isBlank()) {
+                            // 全案件: 同日にblankとグループ両方ある場合はblankを除外、複数グループは全て残す
+                            val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
+                            if (nonBlank.isNotEmpty()) nonBlank else recs.take(1)
+                        } else {
+                            // 特定案件: グループレコード優先、なければblankを使用（1件）
+                            listOf(recs.firstOrNull { it.assignmentId == aid } ?: recs.first())
+                        }
+                    }
+                    .sortedBy { it.date }
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -63,18 +80,26 @@ class ReportViewModel @Inject constructor(
         _yearMonth.value = LocalDate.now().format(monthFmt)
     }
 
-    fun save(record: WorkRecord) = viewModelScope.launch { dao.upsert(record) }
+    fun save(record: WorkRecord) = viewModelScope.launch {
+        try { dao.upsert(record) }
+        catch (e: Exception) { android.util.Log.e("ReportViewModel", "save 失敗", e) }
+    }
 
     suspend fun saveAndWait(record: WorkRecord) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { dao.upsert(record) }
 
-    fun delete(record: WorkRecord) = viewModelScope.launch { dao.delete(record) }
+    fun delete(record: WorkRecord) = viewModelScope.launch {
+        try { dao.delete(record) }
+        catch (e: Exception) { android.util.Log.e("ReportViewModel", "delete 失敗", e) }
+    }
 
     fun setNoWork(date: String, isNoWork: Boolean) = viewModelScope.launch {
-        val aid = _assignmentId.value
-        val existing = dao.recordForDate(date, aid)
-        val record = existing?.copy(noWork = isNoWork)
-            ?: WorkRecord(date = date, assignmentId = aid, noWork = isNoWork)
-        dao.upsert(record)
+        try {
+            val aid = _assignmentId.value
+            val existing = dao.recordForDate(date, aid)
+            val record = existing?.copy(noWork = isNoWork)
+                ?: WorkRecord(date = date, assignmentId = aid, noWork = isNoWork)
+            dao.upsert(record)
+        } catch (e: Exception) { android.util.Log.e("ReportViewModel", "setNoWork 失敗", e) }
     }
 
     suspend fun recordForDate(date: String): WorkRecord? = dao.recordForDate(date, _assignmentId.value)

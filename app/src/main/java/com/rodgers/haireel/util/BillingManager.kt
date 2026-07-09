@@ -31,6 +31,7 @@ object BillingManager {
 
     private var billingClient: BillingClient? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @Volatile private var reconnectCount = 0
 
     // サブスクの状態をUI に流す
     private val _subscriptionState = MutableStateFlow(SubscriptionState.UNKNOWN)
@@ -66,6 +67,7 @@ object BillingManager {
             override fun onBillingSetupFinished(result: BillingResult) {
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                     Log.d(TAG, "Billing 接続完了")
+                    reconnectCount = 0
                     scope.launch { queryExistingPurchases(ctx) }
                 } else {
                     Log.w(TAG, "Billing 接続失敗: ${result.debugMessage}")
@@ -74,7 +76,13 @@ object BillingManager {
             }
 
             override fun onBillingServiceDisconnected() {
-                Log.w(TAG, "Billing サービス切断 - 再接続試行")
+                Log.w(TAG, "Billing サービス切断 - 再接続試行 ($reconnectCount/5)")
+                if (reconnectCount >= 5) {
+                    Log.e(TAG, "Billing 再接続を断念")
+                    _subscriptionState.value = SubscriptionState.ERROR
+                    return
+                }
+                reconnectCount++
                 scope.launch {
                     delay(3000)
                     connect(ctx)
@@ -210,6 +218,7 @@ object BillingManager {
                         _subscriptionState.value = SubscriptionState.SUBSCRIBED
                     }
                 } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
+                    AppSettings.setSubscriptionActive(ctx, false)
                     _subscriptionState.value = SubscriptionState.PENDING
                 }
             }

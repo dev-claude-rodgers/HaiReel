@@ -110,8 +110,10 @@ class MainActivity : AppCompatActivity() {
         }
         // Google Play サブスク状態をバックグラウンドで確認・更新
         BillingManager.init(this)
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        isAuthenticated = false
+        if (AppSettings.isAppLockEnabled(this)) {
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        isAuthenticated = savedInstanceState?.getBoolean("isAuthenticated", false) ?: false
         backgroundedAtMs = savedInstanceState?.getLong("backgroundedAtMs") ?: 0L
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

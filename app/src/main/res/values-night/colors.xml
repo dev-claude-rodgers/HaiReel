@@ -18,6 +18,14 @@
     <color name="colorNavUnselected">#CCCCCC</color>
     <!-- 日付テキスト -->
     <color name="colorWeekdayText">#E0E0E0</color>
+    <color name="colorSaturdayText">#64B5F6</color>
+    <color name="colorSundayText">#EF9A9A</color>
+    <!-- アクション色 -->
+    <color name="colorActionRed">#EF9A9A</color>
+    <color name="colorActionGreen">#A5D6A7</color>
+    <!-- 状態色 -->
+    <color name="colorSuccess">#A5D6A7</color>
+    <color name="colorError">#EF9A9A</color>
     <!-- 行背景 -->
     <color name="colorDayBg">#1A1A1A</color>
     <color name="colorTodayBg">#2A2A2A</color>

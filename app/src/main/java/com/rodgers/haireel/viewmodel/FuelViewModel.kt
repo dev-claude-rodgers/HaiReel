@@ -41,11 +41,23 @@ class FuelViewModel @Inject constructor(
             FuelEntry(r, dist, eco)
         }
 
-    fun upsert(record: FuelRecord) = viewModelScope.launch { dao.upsert(record) }
+    fun upsert(record: FuelRecord) = viewModelScope.launch {
+        try { dao.upsert(record) }
+        catch (e: Exception) { android.util.Log.e("FuelViewModel", "upsert 失敗", e) }
+    }
 
-    fun delete(record: FuelRecord) = viewModelScope.launch { dao.delete(record) }
+    fun delete(record: FuelRecord) = viewModelScope.launch {
+        try { dao.delete(record) }
+        catch (e: Exception) { android.util.Log.e("FuelViewModel", "delete 失敗", e) }
+    }
 
-    fun upsertVehicle(vehicle: Vehicle) = viewModelScope.launch { vehicleDao.upsert(vehicle) }
+    fun upsertVehicle(vehicle: Vehicle) = viewModelScope.launch {
+        try { vehicleDao.upsert(vehicle) }
+        catch (e: Exception) { android.util.Log.e("FuelViewModel", "upsertVehicle 失敗", e) }
+    }
 
-    fun deleteVehicle(vehicle: Vehicle) = viewModelScope.launch { vehicleDao.delete(vehicle) }
+    fun deleteVehicle(vehicle: Vehicle) = viewModelScope.launch {
+        try { vehicleDao.delete(vehicle) }
+        catch (e: Exception) { android.util.Log.e("FuelViewModel", "deleteVehicle 失敗", e) }
+    }
 }

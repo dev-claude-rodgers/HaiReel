@@ -283,7 +283,7 @@
         android:id="@+id/textEmpty"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="≡ メニュー → 名前・住所を追加\nからルートに追加できます"
+        android:text="≡ メニュー → 「名前・住所を追加」\nで配達先を登録できます"
         android:textSize="16sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:gravity="center"

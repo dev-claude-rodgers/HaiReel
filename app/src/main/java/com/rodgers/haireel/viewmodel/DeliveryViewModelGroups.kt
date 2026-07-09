@@ -32,7 +32,10 @@ fun DeliveryViewModel.deleteGroup(groupId: String) {
     _groups.value = updated
     normalizeGroupColors()
     repo.clearGroupPrefs(groupId)
-    viewModelScope.launch(Dispatchers.IO) { repo.deleteGroup(groupId) }
+    viewModelScope.launch(Dispatchers.IO) {
+        try { repo.deleteGroup(groupId) }
+        catch (e: Exception) { android.util.Log.e("DeliveryViewModel", "ルート削除失敗", e) }
+    }
     group?.let { deleteDownloadsFile(groupId, it.name) }
 
     val allMap = _allDeliveries.value.toMutableMap()

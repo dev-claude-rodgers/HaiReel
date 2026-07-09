@@ -15,11 +15,12 @@ object SignatureStorage {
 
     fun exists(context: Context, type: String) = fileFor(context, type).exists()
 
-    fun save(context: Context, type: String, bitmap: Bitmap) {
+    fun save(context: Context, type: String, bitmap: Bitmap): Boolean = try {
         FileOutputStream(fileFor(context, type)).use {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
-    }
+        true
+    } catch (_: java.io.IOException) { false }
 
     fun clear(context: Context, type: String) = fileFor(context, type).delete()
 }

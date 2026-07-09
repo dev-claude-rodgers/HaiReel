@@ -5,7 +5,7 @@ data class ReportPattern(
     val title: String = "稼働報告書",
     val clientName: String = "",
     val driverName: String = "",
-    val closingDay: Int = 25,
+    val closingDay: Int = 31,
     val excelColumns: List<ExcelColumn> = defaultExcelColumns(),
     // 0=個建て  1=車建て（日当）  2=時間制  3=なし
     val paymentType: Int = 3,

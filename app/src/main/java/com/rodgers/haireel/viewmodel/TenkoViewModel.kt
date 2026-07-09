@@ -51,11 +51,13 @@ class TenkoViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     fun setNoWork(date: String, isNoWork: Boolean) = viewModelScope.launch {
-        val aid = _assignmentId.value
-        val existing = workRecordDao.recordForDate(date, aid)
-        val record = existing?.copy(noWork = isNoWork)
-            ?: WorkRecord(date = date, assignmentId = aid, noWork = isNoWork)
-        workRecordDao.upsert(record)
+        try {
+            val aid = _assignmentId.value
+            val existing = workRecordDao.recordForDate(date, aid)
+            val record = existing?.copy(noWork = isNoWork)
+                ?: WorkRecord(date = date, assignmentId = aid, noWork = isNoWork)
+            workRecordDao.upsert(record)
+        } catch (e: Exception) { android.util.Log.e("TenkoViewModel", "setNoWork 失敗", e) }
     }
 
     fun setAssignmentId(id: String) { _assignmentId.value = id }
@@ -101,7 +103,9 @@ class TenkoViewModel @Inject constructor(
             beforeChecker = checker.ifBlank { null },
             vehicleNumber = vehicleNumber.ifBlank { null }
         )
-        if (existing != null) dao.update(record) else dao.insert(record)
+        try {
+            if (existing != null) dao.update(record) else dao.insert(record)
+        } catch (e: Exception) { android.util.Log.e("TenkoViewModel", "saveBefore 失敗", e) }
     }
 
     fun saveAfter(
@@ -130,24 +134,38 @@ class TenkoViewModel @Inject constructor(
             afterChecker = checker.ifBlank { null },
             note = note.ifBlank { null }
         )
-        if (existing != null) dao.update(record) else dao.insert(record)
+        try {
+            if (existing != null) dao.update(record) else dao.insert(record)
+        } catch (e: Exception) { android.util.Log.e("TenkoViewModel", "saveAfter 失敗", e) }
     }
 
-    fun delete(record: TenkoRecord) = viewModelScope.launch { dao.delete(record) }
+    fun delete(record: TenkoRecord) = viewModelScope.launch {
+        try { dao.delete(record) }
+        catch (e: Exception) { android.util.Log.e("TenkoViewModel", "delete 失敗", e) }
+    }
 
-    fun restore(record: TenkoRecord) = viewModelScope.launch { dao.insert(record) }
+    fun restore(record: TenkoRecord) = viewModelScope.launch {
+        try { dao.insert(record) }
+        catch (e: Exception) { android.util.Log.e("TenkoViewModel", "restore 失敗", e) }
+    }
 
     fun restoreAll(records: List<TenkoRecord>) = viewModelScope.launch {
-        records.forEach { dao.insert(it) }
+        try { records.forEach { dao.insert(it) } }
+        catch (e: Exception) { android.util.Log.e("TenkoViewModel", "restoreAll 失敗", e) }
     }
 
-    fun deleteMonth(yearMonth: String) = viewModelScope.launch { dao.deleteByMonth(yearMonth) }
+    fun deleteMonth(yearMonth: String) = viewModelScope.launch {
+        try { dao.deleteByMonth(yearMonth) }
+        catch (e: Exception) { android.util.Log.e("TenkoViewModel", "deleteMonth 失敗", e) }
+    }
 
     fun deleteMonthWithUndo(yearMonth: String, onDeleted: (List<TenkoRecord>) -> Unit) {
         viewModelScope.launch {
-            val records = dao.getAllByMonth(yearMonth)
-            dao.deleteByMonth(yearMonth)
-            withContext(Dispatchers.Main) { onDeleted(records) }
+            try {
+                val records = dao.getAllByMonth(yearMonth)
+                dao.deleteByMonth(yearMonth)
+                onDeleted(records)
+            } catch (e: Exception) { android.util.Log.e("TenkoViewModel", "deleteMonthWithUndo 失敗", e) }
         }
     }
 

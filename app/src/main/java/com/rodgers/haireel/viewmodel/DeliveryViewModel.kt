@@ -47,7 +47,7 @@ class DeliveryViewModel @Inject constructor(
     private val knownAddressDao: KnownAddressDao
 ) : AndroidViewModel(app) {
 
-    private val prefs = app.getSharedPreferences("haireel_prefs", android.content.Context.MODE_PRIVATE)
+    private val prefs = app.getSharedPreferences(AppSettings.HAIREEL_PREFS, android.content.Context.MODE_PRIVATE)
 
     companion object {
         private const val TAG = "DeliveryViewModel"
@@ -303,8 +303,10 @@ class DeliveryViewModel @Inject constructor(
 
     /** 全グループの住所・名前を全角に一括変換（既存データ対応） */
     fun normalizeAllAddresses() = viewModelScope.launch(Dispatchers.IO) {
-        repo.normalizeAllAddressesToFullWidth()
-        withContext(Dispatchers.Main) { loadAll() }
+        try {
+            repo.normalizeAllAddressesToFullWidth()
+            withContext(Dispatchers.Main) { loadAll() }
+        } catch (e: Exception) { android.util.Log.e(TAG, "全角変換失敗", e) }
     }
 
     /** ふりがなのみ更新（ジオコーディング不要） */
@@ -482,27 +484,32 @@ class DeliveryViewModel @Inject constructor(
     /** 追加・置換時に住所をknown_addressesに自動保存する */
     private fun saveKnownAddresses(items: List<Delivery>) {
         viewModelScope.launch(Dispatchers.IO) {
-            items.forEach { d ->
-                val addr = d.address.trim()
-                if (addr.isBlank()) return@forEach
-                val existing = knownAddressDao.findByAddress(addr)
-                if (existing != null) {
-                    knownAddressDao.incrementCount(addr, d.name, System.currentTimeMillis())
-                } else {
-                    knownAddressDao.insertIfNew(KnownAddressEntity(
-                        address = addr,
-                        name = d.name,
-                        deliveryCount = 1,
-                        lastDeliveredAt = System.currentTimeMillis()
-                    ))
+            try {
+                items.forEach { d ->
+                    val addr = d.address.trim()
+                    if (addr.isBlank()) return@forEach
+                    val existing = knownAddressDao.findByAddress(addr)
+                    if (existing != null) {
+                        knownAddressDao.incrementCount(addr, d.name, System.currentTimeMillis())
+                    } else {
+                        knownAddressDao.insertIfNew(KnownAddressEntity(
+                            address = addr,
+                            name = d.name,
+                            deliveryCount = 1,
+                            lastDeliveredAt = System.currentTimeMillis()
+                        ))
+                    }
                 }
-            }
+            } catch (e: Exception) { android.util.Log.e(TAG, "住所履歴保存失敗", e) }
         }
     }
 
     /** 住所履歴から1件削除 */
     fun deleteKnownAddress(entity: com.rodgers.haireel.db.KnownAddressEntity) =
-        viewModelScope.launch(Dispatchers.IO) { knownAddressDao.delete(entity) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try { knownAddressDao.delete(entity) }
+            catch (e: Exception) { android.util.Log.e(TAG, "住所履歴削除失敗", e) }
+        }
 
     // ─── 住所履歴 設定・クリーンアップ ──────────────────────────
 
@@ -735,7 +742,6 @@ class DeliveryViewModel @Inject constructor(
                 onResult = { result ->
                     if (_currentGroupId.value == groupId) {
                         val current = _deliveries.value
-                        if (_currentGroupId.value != groupId) return@batchGeocode  // 二重チェック
                         val updated = current.map { d ->
                             if (d.id == result.deliveryId) {
                                 val originalAddress = originalList.find { it.id == d.id }?.address
@@ -786,19 +792,27 @@ class DeliveryViewModel @Inject constructor(
 
     internal fun saveGroups() {
         val groups = _groups.value
-        viewModelScope.launch(Dispatchers.IO) { repo.saveGroups(groups) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try { repo.saveGroups(groups) }
+            catch (e: Exception) { android.util.Log.e(TAG, "グループ保存失敗", e) }
+        }
     }
 
     internal fun saveGroupDeliveries(groupId: String, list: List<Delivery>) {
-        viewModelScope.launch(Dispatchers.IO) { repo.saveDeliveries(groupId, list) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try { repo.saveDeliveries(groupId, list) }
+            catch (e: Exception) { android.util.Log.e(TAG, "配達先保存失敗", e) }
+        }
     }
 
     fun reloadFromDb() {
         viewModelScope.launch(Dispatchers.IO) {
-            val groupId = _currentGroupId.value
-            if (groupId.isBlank()) return@launch
-            val list = repo.loadDeliveries(groupId)
-            withContext(Dispatchers.Main) { _deliveries.value = list }
+            try {
+                val groupId = _currentGroupId.value
+                if (groupId.isBlank()) return@launch
+                val list = repo.loadDeliveries(groupId)
+                withContext(Dispatchers.Main) { _deliveries.value = list }
+            } catch (e: Exception) { android.util.Log.e(TAG, "DB再読み込み失敗", e) }
         }
     }
 

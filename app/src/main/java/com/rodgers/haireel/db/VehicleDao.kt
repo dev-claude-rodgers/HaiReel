@@ -15,4 +15,7 @@ interface VehicleDao {
 
     @Delete
     suspend fun delete(vehicle: Vehicle)
+
+    @Query("DELETE FROM vehicles")
+    suspend fun deleteAll()
 }

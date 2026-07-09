@@ -59,11 +59,9 @@ class DashboardViewModel @Inject constructor(
 
     fun setPatternId(id: Int) { _patternId.value = id }
 
-    fun refresh() {
-        viewModelScope.launch {
-            _groups.value   = groupDao.getAll()
-            _patterns.value = PatternStorage.getAll(getApplication())
-        }
+    suspend fun refresh() {
+        _groups.value   = groupDao.getAll()
+        _patterns.value = PatternStorage.getAll(getApplication())
     }
 
     val monthlySummaries: StateFlow<List<MonthlySummary>> =
@@ -76,7 +74,11 @@ class DashboardViewModel @Inject constructor(
             } else null
             val cd = when {
                 pid != -1 -> patterns.find { it.id == pid }?.closingDay
-                patterns.isNotEmpty() -> patterns[0].closingDay
+                patterns.isNotEmpty() -> {
+                    // 全取引先表示時はアクティブパターンの締め日を使用（日報と一致させる）
+                    val activeId = com.rodgers.haireel.util.PatternStorage.getActiveId(getApplication())
+                    patterns.find { it.id == activeId }?.closingDay ?: patterns[0].closingDay
+                }
                 else -> null
             } ?: AppSettings.getClosingDay(getApplication())
             Triple(Pair(year, cd), pid, groupIds)
@@ -92,16 +94,20 @@ class DashboardViewModel @Inject constructor(
             dao.recordsForPeriodFlow(queryStart, queryEnd)
                 .map { records ->
                     val filtered = if (groupIds == null) records
-                                   else records.filter { it.assignmentId in groupIds }
-                    // 全取引先の場合: 同一日付は assignmentId が空でないレコードを優先して1件に絞る
-                    // （assignmentId="" の旧データと新データが共存すると二重計上になるため）
-                    val deduped = if (groupIds == null)
-                        filtered.groupBy { it.date }
-                                .map { (_, recs) ->
-                                    recs.firstOrNull { it.assignmentId.isNotBlank() } ?: recs.first()
-                                }
-                                .sortedBy { it.date }
-                    else filtered
+                                   else records.filter { it.assignmentId in groupIds || it.assignmentId.isBlank() }
+                    // 同一日付の重複排除: blankとグループ両方ある場合はblankを除外
+                    val deduped = filtered.groupBy { it.date }
+                        .flatMap { (_, recs) ->
+                            if (groupIds == null) {
+                                // 全案件: 複数グループは全て残す、blankはグループがある日付から除外
+                                val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
+                                if (nonBlank.isNotEmpty()) nonBlank else recs.take(1)
+                            } else {
+                                // 特定案件群: グループレコード優先、なければblank（1件）
+                                listOf(recs.firstOrNull { it.assignmentId in groupIds } ?: recs.first())
+                            }
+                        }
+                        .sortedBy { it.date }
                     periods.mapIndexed { idx, (start, end) ->
                         val monthRecords = deduped.filter { it.date in start..end }
                         MonthlySummary(
@@ -109,7 +115,6 @@ class DashboardViewModel @Inject constructor(
                             income        = monthRecords.sumOf { it.income },
                             fuelCost      = monthRecords.sumOf { it.fuelCost },
                             profit        = monthRecords.sumOf { it.income - it.fuelCost },
-                            // 稼働日数は日付重複を除いてカウント
                             workDays      = monthRecords.filter { !it.noWork }.distinctBy { it.date }.size,
                             deliveryCount = monthRecords.sumOf { it.deliveryCount }
                         )

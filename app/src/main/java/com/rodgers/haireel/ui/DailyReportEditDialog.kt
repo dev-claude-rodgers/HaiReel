@@ -91,7 +91,7 @@ fun showDailyReportEditDialog(
     val btnRest = com.google.android.material.button.MaterialButton(
         ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle
     ).apply {
-        id = restBtnId; text = "休み"; isAllCaps = false; textSize = 14f
+        id = restBtnId; text = "休日"; isAllCaps = false; textSize = 14f
         layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
     }
     noWorkToggle.addView(btnWork)
@@ -166,6 +166,7 @@ fun showDailyReportEditDialog(
     }
     refreshTimeBtns()
     btnStart.setOnClickListener {
+        if (!isAdded()) return@setOnClickListener
         val picker = com.google.android.material.timepicker.MaterialTimePicker.Builder()
             .setTimeFormat(com.google.android.material.timepicker.TimeFormat.CLOCK_24H)
             .setHour(startH).setMinute(startM).build()
@@ -175,6 +176,7 @@ fun showDailyReportEditDialog(
         }
     }
     btnEnd.setOnClickListener {
+        if (!isAdded()) return@setOnClickListener
         val picker = com.google.android.material.timepicker.MaterialTimePicker.Builder()
             .setTimeFormat(com.google.android.material.timepicker.TimeFormat.CLOCK_24H)
             .setHour(endH).setMinute(endM).build()
@@ -347,7 +349,6 @@ fun showDailyReportEditDialog(
     endMeterIn.addTextChangedListener(meterWatcher)
 
     // 収入
-    val autoIncome = calcIncomeFn(pattern, record.deliveryCount, record.workingMinutes, record.packageCount)
     root.addView(label("収入（円）"))
     val incomeRow = LinearLayout(ctx).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -355,8 +356,7 @@ fun showDailyReportEditDialog(
     }
     val incomeIn = EditText(ctx).apply {
         inputType = InputType.TYPE_CLASS_NUMBER; hint = "0"
-        setText(if (record.income > 0) record.income.toString()
-                else if (autoIncome > 0) autoIncome.toString() else "")
+        setText(if (record.income > 0) record.income.toString() else "")
         layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
     }
     val incomeCalcBtn = android.widget.Button(ctx).apply {
@@ -373,6 +373,7 @@ fun showDailyReportEditDialog(
                 val msg = when (pattern.paymentType) {
                     3    -> "帳票設定の「報酬タイプ」を\n・個建て(個数×単価)\n・車建て(日当制)\n・時間制(時間×単価)\nのいずれかに設定してください"
                     0    -> if (pc == 0) "個数を入力してください" else "帳票設定の「単価」を設定してください"
+                    1    -> "帳票設定の「単価（日当）」を設定してください"
                     2    -> if (wm == 0) "開始・終了時刻を入力してください" else "帳票設定の「単価」を設定してください"
                     else -> "帳票設定の「単価」を設定してください"
                 }
@@ -466,8 +467,7 @@ fun showDailyReportEditDialog(
             area          = if (isNoWork) "" else areaIn.text.toString().trim(),
             alcCheck      = if (isNoWork) "" else alcValues[alcIdx],
             remarks       = remarksIn.text.toString().trim(),
-            income        = if (isNoWork) 0 else (incomeIn.text.toString().toIntOrNull()
-                ?: calcIncomeFn(pattern, delivCount, workMins, pkgCntIn.text.toString().toIntOrNull() ?: 0)),
+            income        = if (isNoWork) 0 else (incomeIn.text.toString().toIntOrNull() ?: 0),
             fuelCost      = if (isNoWork) 0 else (fuelIn.text.toString().toIntOrNull() ?: 0),
             assignmentId  = assignmentId(),
             noWork        = isNoWork

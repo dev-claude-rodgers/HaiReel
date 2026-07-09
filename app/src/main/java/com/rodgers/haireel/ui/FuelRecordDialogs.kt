@@ -316,8 +316,8 @@ internal fun DailyReportFragment.showFuelRecordSheet(fuelViewModel: FuelViewMode
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (16 * dp).toInt())
     })
 
-    // records と vehicles の変化を監視して再描画
-    lifecycleScope.launch {
+    // records と vehicles の変化を監視して再描画（dismiss 時にキャンセル）
+    val collectJob = lifecycleScope.launch {
         combine(fuelViewModel.records, fuelViewModel.vehicles) { r, v -> r to v }
             .collect { (r, v) ->
                 latestRecords  = r
@@ -332,6 +332,7 @@ internal fun DailyReportFragment.showFuelRecordSheet(fuelViewModel: FuelViewMode
         descendantFocusability = android.view.ViewGroup.FOCUS_BEFORE_DESCENDANTS
     }
     sheet.setContentView(sv)
+    sheet.setOnDismissListener { collectJob.cancel() }
     sheet.setOnShowListener {
         val bs = sheet.findViewById<android.view.View>(com.google.android.material.R.id.design_bottom_sheet)
         bs?.layoutParams?.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -540,11 +541,11 @@ private fun DailyReportFragment.showFuelInputDialog(
         setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorPrimary))
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         setOnClickListener {
-            val parts = selectedDate.split("-").map { it.toInt() }
+            val parts = selectedDate.split("-").map { it.toIntOrNull() ?: 0 }
             android.app.DatePickerDialog(ctx, { _, y, m, d ->
                 selectedDate = "%04d-%02d-%02d".format(y, m + 1, d)
                 text = "📅  $selectedDate"
-            }, parts[0], parts[1] - 1, parts[2]).show()
+            }, parts.getOrElse(0) { 0 }, (parts.getOrElse(1) { 1 }) - 1, parts.getOrElse(2) { 1 }).show()
         }
     }
     root.addView(label("給油日"))

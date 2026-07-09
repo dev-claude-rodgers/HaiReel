@@ -51,21 +51,19 @@ internal fun DailyReportFragment.showReportMenu() {
 
     row("📅", "今日の日報を記録", "今日の行を開いて入力する") { openTodayDialog() }
     divider()
-    // ── 帳票設定
+    // ── 出力・集計
+    sectionLabel("$cdLabel での出力（$periodLabel）")
+    row("📊", "Excel出力", "帳票パターンの締め日で集計して出力") { exportExcel() }
+    row("📤", "テキストで共有", "帳票パターンの締め日で集計して共有") { shareReportText() }
+    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
+    divider()
+    // ── 設定
     val currentPatternName = currentPattern().title
     row("📋", "帳票パターンを選択", "現在: $currentPatternName") { showPatternListDialog() }
     row("⛽", "燃料費設定", "車種・ガソリン単価・燃費を設定する") { showFareCalculationDialog() }
     row("🛢️", "給油記録", "給油量・単価を記録して実燃費を計算") { showFuelRecordSheet(fuelViewModel) }
     row("🖊️", "作業者署名を設定", "Excelに印刷する作業者の署名") { showSignatureDialog(SignatureStorage.TYPE_DRIVER, "作業者") }
     row("🤝", "取引先署名を設定", "Excelに印刷する取引先の署名") { showSignatureDialog(SignatureStorage.TYPE_CLIENT, "取引先") }
-    divider()
-    // ── 集計
-    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
-    divider()
-    // ── 締め日ベース出力
-    sectionLabel("$cdLabel での出力（$periodLabel）")
-    row("📊", "Excel出力", "帳票パターンの締め日で集計して出力") { exportExcel() }
-    row("📤", "テキストで共有", "帳票パターンの締め日で集計して共有") { shareReportText() }
 
     root.addView(View(ctx).apply {
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (20 * dp).toInt())

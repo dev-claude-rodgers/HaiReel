@@ -6,6 +6,7 @@ import androidx.security.crypto.MasterKey
 object AppSettings {
     const val PREFS = "kado_settings"
     const val ENCRYPTED_PREFS = "kado_secure"
+    const val HAIREEL_PREFS = "haireel_prefs"
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private fun encryptedPrefs(ctx: Context): android.content.SharedPreferences = try {
         val master = MasterKey.Builder(ctx)
@@ -26,7 +27,7 @@ object AppSettings {
     fun getClientName(ctx: Context): String = prefs(ctx).getString("client_name", "") ?: ""
     fun setClientName(ctx: Context, v: String) = prefs(ctx).edit().putString("client_name", v).apply()
 
-    fun getClosingDay(ctx: Context): Int = prefs(ctx).getInt("closing_day", 25)
+    fun getClosingDay(ctx: Context): Int = prefs(ctx).getInt("closing_day", 31)
     fun setClosingDay(ctx: Context, v: Int) = prefs(ctx).edit().putInt("closing_day", v).apply()
 
     fun getDeliveryLabel(ctx: Context): String = prefs(ctx).getString("delivery_label", "配達件数") ?: "配達件数"

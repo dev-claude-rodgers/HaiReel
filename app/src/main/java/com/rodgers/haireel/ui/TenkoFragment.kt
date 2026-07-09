@@ -25,11 +25,10 @@ import com.rodgers.haireel.databinding.FragmentTenkoBinding
 import com.rodgers.haireel.model.TenkoRecord
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.themeColor
-import com.rodgers.haireel.viewmodel.DeliveryViewModel
 import com.rodgers.haireel.viewmodel.*
-import com.rodgers.haireel.viewmodel.TenkoViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -83,7 +82,7 @@ class TenkoFragment : Fragment() {
             onBeforeClick  = { date, rec -> showBeforeDialog(date, rec) },
             onAfterClick   = { date, rec -> showAfterDialog(date, rec) },
             onAddTrip      = { date -> showBeforeDialog(date, null) },
-            onLongPress    = { rec -> confirmDelete(rec) },
+            onLongPress    = { allRecs -> confirmDeleteWithPicker(allRecs) },
             onNoWorkToggle = { date, noWork -> viewModel.setNoWork(date, noWork) }
         )
         binding.recyclerTenko.apply {
@@ -103,23 +102,19 @@ class TenkoFragment : Fragment() {
 
     private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.yearMonth.collect { ym ->
+            viewModel.yearMonth.collectLatest { ym ->
                 val (y, m) = ym.split("-").map { it.toInt() }
                 binding.tvMonth.text = "${y}年${m}月"
-                rebuildList(ym)
             }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.monthRecords.collect {
-                rebuildList(viewModel.yearMonth.value)
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.noWorkDates.collect {
-                rebuildList(viewModel.yearMonth.value)
-            }
+            combine(
+                viewModel.yearMonth,
+                viewModel.monthRecords,
+                viewModel.noWorkDates
+            ) { ym, _, _ -> ym }
+                .collectLatest { ym -> rebuildList(ym) }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -168,7 +163,7 @@ class TenkoMonthAdapter(
     private val onBeforeClick:   (String, TenkoRecord?) -> Unit,
     private val onAfterClick:    (String, TenkoRecord?) -> Unit,
     private val onAddTrip:       (String) -> Unit,
-    private val onLongPress:     (TenkoRecord) -> Unit = {},
+    private val onLongPress:     (List<TenkoRecord>) -> Unit = {},
     private val onNoWorkToggle:  (String, Boolean) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -272,7 +267,7 @@ class TenkoMonthAdapter(
                 chipAfter.visibility  = View.VISIBLE
                 chipNoWork.visibility = View.VISIBLE
                 chipNoWork.alpha      = 0.4f
-                chipNoWork.text       = "休"
+                chipNoWork.text       = "休日"
                 chipNoWork.setTextColor(ContextCompat.getColor(ctx, R.color.colorWeekdayText))
                 chipNoWork.background = GradientDrawable().apply {
                     setColor(Color.TRANSPARENT)
@@ -423,7 +418,7 @@ class TenkoMonthAdapter(
                     setBackgroundColor(todayBg)
                     setPadding(indentPad, (6*dp).toInt(), hPad, (2*dp).toInt())
                     layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                    setOnLongClickListener { onLongPress(rec); true }
+                    setOnLongClickListener { onLongPress(row.records); true }
                 }
                 chipRow.addView(TextView(ctx).apply {
                     text = "${idx+1}便"; textSize = 12f; setTextColor(dayColor)
@@ -451,7 +446,7 @@ class TenkoMonthAdapter(
                         setBackgroundColor(todayBg)
                         setPadding(indentPad, 0, hPad, (8*dp).toInt())
                         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                        setOnLongClickListener { onLongPress(rec); true }
+                        setOnLongClickListener { onLongPress(row.records); true }
                     }
                     if (hasTime) {
                         val parts = listOfNotNull(

@@ -309,7 +309,7 @@ class ExcelGenerator(private val context: Context) {
         sb.append(sc("A", 2, "作業者", s = 8))
         sb.append(sc("B", 2, pattern.driverName))
         if (hasNameMerge) for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 2, ""))
-        if (numCols >= 2) {
+        if (numCols >= 4) {
             sb.append(sc(colLetter(numCols - 2), 2, "集計期間", s = 8))
             sb.append(sc(lastLetter, 2, periodText))
         }
@@ -319,7 +319,7 @@ class ExcelGenerator(private val context: Context) {
         sb.append(sc("A", 3, "取引先", s = 8))
         sb.append(sc("B", 3, pattern.clientName))
         if (hasNameMerge) for (ci in 2..nameEndIdx) sb.append(sc(colLetter(ci), 3, ""))
-        if (numCols >= 2) {
+        if (numCols >= 4) {
             sb.append(sc(colLetter(numCols - 2), 3, "締め日", s = 8))
             sb.append(sc(lastLetter, 3, closingLabel))
         }
@@ -384,7 +384,8 @@ class ExcelGenerator(private val context: Context) {
     ): SigRows {
         val sumRow = dayCount + 6
         // 合計ラベルは左端から最大3セル（A列 + 最大2列）をマージして表示する
-        val sumLabelSpan = minOf(numCols - 1, 2)
+        // データ列が1本(numCols=2)の場合はマージなし（span=0）にして合計値を必ず出力する
+        val sumLabelSpan = minOf(numCols - 2, 2).coerceAtLeast(0)
         if (sumLabelSpan >= 1) merges.add("A${sumRow}:${colLetter(sumLabelSpan)}${sumRow}")
         sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
         sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))

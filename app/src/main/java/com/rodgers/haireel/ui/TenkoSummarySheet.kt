@@ -330,12 +330,28 @@ internal fun TenkoFragment.backupData() {
     }
 }
 
-internal fun TenkoFragment.confirmDelete(record: TenkoRecord) {
+internal fun TenkoFragment.confirmDeleteWithPicker(records: List<TenkoRecord>) {
+    if (!isAdded || records.isEmpty()) return
+    if (records.size == 1) {
+        confirmDelete(records[0], 1)
+        return
+    }
+    val ctx = requireContext()
+    val items = records.mapIndexed { idx, _ -> "${idx + 1}便目" }.toTypedArray()
+    MaterialAlertDialogBuilder(ctx)
+        .setTitle("どの便を削除しますか？")
+        .setItems(items) { _, which -> confirmDelete(records[which], which + 1) }
+        .setNegativeButton("キャンセル", null)
+        .show()
+}
+
+internal fun TenkoFragment.confirmDelete(record: TenkoRecord, runNo: Int = 1) {
     if (!isAdded) return
     val ctx = requireContext()
+    val label = if (runNo > 1) "${record.date} の${runNo}便目" else "${record.date}"
     MaterialAlertDialogBuilder(ctx)
         .setTitle("点呼記録を削除")
-        .setMessage("${record.date} の点呼記録を削除しますか？")
+        .setMessage("${label}の点呼記録を削除しますか？")
         .setPositiveButton("削除") { _, _ ->
             viewModel.delete(record)
             Snackbar.make(requireView(), "点呼記録を削除しました", Snackbar.LENGTH_LONG)

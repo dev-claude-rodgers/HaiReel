@@ -42,13 +42,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.rodgers.haireel.R
 import com.rodgers.haireel.databinding.FragmentListBinding
-import com.rodgers.haireel.ui.MapFragment
 import com.rodgers.haireel.util.AddressParser
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.util.TimeSlotColor
 import com.rodgers.haireel.model.Delivery
-import com.rodgers.haireel.viewmodel.DeliveryViewModel
 import com.rodgers.haireel.viewmodel.*
 import java.io.File
 import java.text.SimpleDateFormat

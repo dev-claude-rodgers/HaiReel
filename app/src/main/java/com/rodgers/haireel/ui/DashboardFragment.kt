@@ -45,12 +45,12 @@ class DashboardFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refresh()
+        viewLifecycleOwner.lifecycleScope.launch { viewModel.refresh() }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.refresh()
+        viewLifecycleOwner.lifecycleScope.launch { viewModel.refresh() }
         setupDropdown()
         setupYearNavigation()
         observeFlows()
@@ -102,8 +102,8 @@ class DashboardFragment : Fragment() {
             // 取引先名 → カスタムタイトル → 番号 の順で優先表示
             val label = when {
                 p.clientName.isNotBlank() -> p.clientName
-                p.title.isNotBlank() && p.title != "稼働報告書" -> p.title
-                else -> "帳票${p.id}"
+                p.title.isNotBlank() -> p.title
+                else -> "帳票${p.id + 1}"
             }
             dropdownNames.add(label)
         }

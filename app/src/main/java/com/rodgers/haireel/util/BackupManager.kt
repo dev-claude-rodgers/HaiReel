@@ -240,20 +240,20 @@ object BackupManager {
                         Log.d("BackupManager", "バックアップバージョン: $backupVersion")
                     }
                     "records.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
                         dao.deleteAll()
                         for (i in 0 until arr.length()) {
                             try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { Log.w("BackupManager", "記録の復元失敗: item $i", e) }
                         }
                     }
                     "settings.json" -> {
-                        restoreSettings(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("")))
+                        restoreSettings(context, JSONObject(bytes.toString(Charsets.UTF_8).trimStart('﻿')))
                     }
                     "haireel_prefs.json" -> {
-                        restoreHairreelPrefs(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("")))
+                        restoreHairreelPrefs(context, JSONObject(bytes.toString(Charsets.UTF_8).trimStart('﻿')))
                     }
                     "tenko.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
                         db.tenkoDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try {
@@ -262,10 +262,10 @@ object BackupManager {
                         }
                     }
                     "patterns.json" -> {
-                        restorePatterns(context, JSONObject(bytes.toString(Charsets.UTF_8).removePrefix("")))
+                        restorePatterns(context, JSONObject(bytes.toString(Charsets.UTF_8).trimStart('﻿')))
                     }
                     "groups.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
                         db.deliveryGroupDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try {
@@ -281,7 +281,7 @@ object BackupManager {
                         }
                     }
                     "deliveries.json" -> {
-                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).removePrefix(""))
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
                         db.deliveryDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try {
@@ -478,7 +478,7 @@ object BackupManager {
     }
 
     private fun hairreelPrefsToJson(context: Context): JSONObject {
-        val prefs = context.getSharedPreferences("haireel_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(AppSettings.HAIREEL_PREFS, Context.MODE_PRIVATE)
         val json = JSONObject()
         prefs.all.forEach { (k, v) ->
             when (v) {
@@ -494,7 +494,7 @@ object BackupManager {
     }
 
     private fun restoreHairreelPrefs(context: Context, json: JSONObject) {
-        val prefs = context.getSharedPreferences("haireel_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(AppSettings.HAIREEL_PREFS, Context.MODE_PRIVATE)
         val editor = prefs.edit()
         editor.clear()
         json.keys().forEach { key ->

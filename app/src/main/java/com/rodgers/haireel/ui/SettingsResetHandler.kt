@@ -26,8 +26,15 @@ class SettingsResetHandler(private val appContext: Context) {
                 db.deliveryGroupDao().deleteAll()
                 db.tenkoDao().deleteAll()
                 db.geocodingCacheDao().deleteAll()
+                db.fuelRecordDao().deleteAll()
+                db.vehicleDao().deleteAll()
+                db.knownAddressDao().deleteAll()
 
-                for (prefs in listOf(AppSettings.PREFS, "delivery_prefs", "report_patterns")) {
+                for (prefs in listOf(
+                    AppSettings.PREFS, "delivery_prefs", "report_patterns",
+                    AppSettings.HAIREEL_PREFS, "fuel_settings",
+                    "ui_hints", "sos_settings"
+                )) {
                     appContext.getSharedPreferences(prefs, Context.MODE_PRIVATE).edit().clear().apply()
                 }
                 AppSettings.clearSensitiveData(appContext)

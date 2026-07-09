@@ -627,7 +627,7 @@
                     android:text="データをすべて初期化"
                     android:textSize="17sp"
                     android:textStyle="bold"
-                    android:textColor="@color/colorActionRed" />
+                    android:textColor="?attr/colorError" />
 
                 <TextView
                     android:layout_width="match_parent"

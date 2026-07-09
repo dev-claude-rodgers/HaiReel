@@ -189,7 +189,7 @@ internal fun DeliveryListFragment.showListActions() {
         divider()
         // ── ルート管理
         row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
-        row("✏️", "ルートの設定", "ルート名・配達エリアを編集する") { showRenameGroupDialog() }
+        row("✏️", "ルートの設定", "ルート名を編集する") { showRenameGroupDialog() }
         row("📄", "ルートを複製", "同じ内容で別ルートを作成する") {
             val groupId = viewModel.currentGroupId.value
             viewModel.copyGroup(groupId)
@@ -219,8 +219,12 @@ internal fun DeliveryListFragment.showListActions() {
         }
         row("🔄", "住所を全角に一括変換", "半角数字・英字・ハイフンを全角に統一する") {
             sheet.dismiss()
-            viewModel.normalizeAllAddresses()
-            android.widget.Toast.makeText(requireContext(), "✅ 全角変換を実行しました", android.widget.Toast.LENGTH_SHORT).show()
+            if (viewModel.deliveries.value.isEmpty()) {
+                android.widget.Toast.makeText(requireContext(), "変換できる住所がありません", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                viewModel.normalizeAllAddresses()
+                android.widget.Toast.makeText(requireContext(), "✅ 全角変換を実行しました", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
         divider()
         // ── 危険操作
@@ -706,23 +710,7 @@ internal fun DeliveryListFragment.showRenameGroupDialog() {
             filters = arrayOf(InputFilter.LengthFilter(20))
             hint = "ルート名"
         }
-        val labelArea = android.widget.TextView(ctx).apply {
-            text = "配達エリア（気象警報通知に使用）"
-            textSize = 13f
-            setTextColor(ctx.getColor(android.R.color.darker_gray))
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).also { it.topMargin = (12 * dp).toInt() }
-        }
-        val inputArea = EditText(ctx).apply {
-            setText(viewModel.areaHint.value)
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            hint = "例: 〇〇区、〇〇市"
-        }
         layout.addView(inputName)
-        layout.addView(labelArea)
-        layout.addView(inputArea)
 
         val dlg = AlertDialog.Builder(ctx)
             .setTitle("ルートの設定")
@@ -734,7 +722,6 @@ internal fun DeliveryListFragment.showRenameGroupDialog() {
             val name = inputName.text.toString().trim()
             if (name.isBlank()) { inputName.error = "ルート名を入力してください"; return@setOnClickListener }
             viewModel.renameGroup(group.id, name)
-            viewModel.setAreaHint(inputArea.text.toString().trim())
             android.widget.Toast.makeText(ctx, "「${name}」を保存しました", android.widget.Toast.LENGTH_SHORT).show()
             dlg.dismiss()
         }
@@ -825,10 +812,13 @@ internal fun DeliveryListFragment.confirmMarkAllCompleted() {
     }
 
 internal fun DeliveryListFragment.confirmDeleteGroup() {
-        val group = viewModel.currentGroup() ?: return
+        val group = viewModel.currentGroup() ?: run {
+            android.widget.Toast.makeText(requireContext(), "削除できるルートがありません", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         AlertDialog.Builder(requireContext())
             .setTitle("ルートを削除")
-            .setMessage("「${group.name}」を削除しますか？\n削除後は元に戻せません。")
+            .setMessage("「${group.name}」と配達先を全件削除しますか？\nこの操作は元に戻せません。")
             .setPositiveButton("削除") { _, _ -> viewModel.deleteGroup(group.id) }
             .setNegativeButton("キャンセル", null)
             .show()

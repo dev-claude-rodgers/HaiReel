@@ -648,6 +648,8 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
                     }
                 } else emptyList()
 
+                if (!isAdded) return@launch
+
                 // 住所・lat・lng の三つ組リスト（表示ラベル / 保存住所 / 座標）
                 val items = mutableListOf<Triple<String, Double, Double>>()
                 // 店名候補を先頭に（住所より関連度が高い）

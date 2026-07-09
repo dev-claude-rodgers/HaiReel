@@ -35,7 +35,7 @@ object PatternStorage {
             title       = sp.getString("${id}_title",   "稼働報告書") ?: "稼働報告書",
             clientName  = sp.getString("${id}_client",  "") ?: "",
             driverName  = sp.getString("${id}_driver",  "") ?: "",
-            closingDay  = sp.getInt(   "${id}_closing", 25),
+            closingDay  = sp.getInt(   "${id}_closing", 31),
             excelColumns = columns,
             paymentType = sp.getInt(   "${id}_pay_type",   3),
             unitPrice   = sp.getInt(   "${id}_unit_price", 0)

@@ -13,9 +13,7 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.util.AppSettings
-import com.rodgers.haireel.viewmodel.*
 import com.rodgers.haireel.util.SignatureStorage
-import com.rodgers.haireel.viewmodel.*
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.viewmodel.*
 import kotlinx.coroutines.launch
@@ -381,13 +379,19 @@ internal fun DailyReportFragment.showAssignmentSummarySheet() {
         } else {
             var totalDays = 0; var totalDeliv = 0; var totalIncome = 0; var totalFuel = 0
 
+            val cd = reportViewModel.closingDay.value
+            val (periodStart, periodEnd) = com.rodgers.haireel.viewmodel.ReportViewModel.computePeriod(ym, cd)
+            val periodDays = java.time.temporal.ChronoUnit.DAYS.between(
+                java.time.LocalDate.parse(periodStart), java.time.LocalDate.parse(periodEnd)).toInt() + 1
+
             byAssignment.forEach { (assignmentId, records) ->
-                val group  = groups.find { it.id == assignmentId }
-                val label  = group?.name ?: "未分類"
-                val days   = records.count { !it.noWork }
-                val deliv  = records.sumOf { it.deliveryCount }
-                val income = records.sumOf { it.income }
-                val fuel   = records.sumOf { it.fuelCost }
+                val group     = groups.find { it.id == assignmentId }
+                val label     = group?.name ?: "未分類"
+                val noWorkCnt = records.filter { it.noWork }.distinctBy { it.date }.size
+                val days      = periodDays - noWorkCnt
+                val deliv     = records.filter { !it.noWork }.sumOf { it.deliveryCount }
+                val income    = records.filter { !it.noWork }.sumOf { it.income }
+                val fuel      = records.filter { !it.noWork }.sumOf { it.fuelCost }
                 totalDays   += days; totalDeliv  += deliv
                 totalIncome += income; totalFuel += fuel
                 addRow(label, group?.colorHex, days, deliv, income, fuel)
@@ -480,6 +484,36 @@ internal fun DailyReportFragment.showFareCalculationDialog() {
     }
     fuelRow.addView(fuelSaveBtn)
     root.addView(fuelRow)
+
+    // 給油記録から単価・燃費を自動入力（記録がある場合のみ表示）
+    val fuelRecords = fuelViewModel.records.value
+    if (fuelRecords.isNotEmpty()) {
+        val totalLiters = fuelRecords.sumOf { it.liters.toDouble() }
+        val avgPrice = if (totalLiters > 0)
+            (fuelRecords.sumOf { it.liters.toDouble() * it.pricePerLiter } / totalLiters).toInt()
+        else 0
+        val avgEco = fuelViewModel.entriesFrom(fuelRecords).mapNotNull { it.fuelEconomy }
+            .let { eco -> if (eco.isNotEmpty()) eco.average().toFloat() else 0f }
+        val btnParts = buildList {
+            if (avgPrice > 0) add("単価 ${avgPrice}円/L")
+            if (avgEco > 0f) add("燃費 %.1f km/L".format(avgEco))
+        }
+        if (btnParts.isNotEmpty()) {
+            root.addView(android.widget.Button(ctx).apply {
+                text = "⛽ 給油記録から計算（${btnParts.joinToString("・")}）"
+                isAllCaps = false; textSize = 11f; background = null
+                setTextColor(android.graphics.Color.parseColor("#0288D1"))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                setOnClickListener {
+                    if (avgPrice > 0) fuelPriceInput.setText(avgPrice.toString())
+                    if (avgEco > 0f) fuelEffInput.setText("%.1f".format(avgEco))
+                    Toast.makeText(ctx, "給油記録から反映しました。保存ボタンで確定してください", Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+    }
 
     fun updateFuelTypeBtns(selected: String) {
         fuelTypeBtns.forEachIndexed { i, btn ->

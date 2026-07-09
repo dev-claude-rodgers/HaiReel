@@ -13,7 +13,7 @@ object TtsDictionary {
     private const val PREFS_KEY = "tts_dictionary_json"
 
     private fun prefs(ctx: Context) =
-        ctx.getSharedPreferences("haireel_prefs", Context.MODE_PRIVATE)
+        ctx.getSharedPreferences(AppSettings.HAIREEL_PREFS, Context.MODE_PRIVATE)
 
     /** 辞書を取得: Map<表記, 読み> */
     fun getAll(ctx: Context): Map<String, String> {
