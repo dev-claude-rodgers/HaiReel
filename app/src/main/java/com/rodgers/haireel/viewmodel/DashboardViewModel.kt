@@ -3,8 +3,6 @@ package com.rodgers.haireel.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.rodgers.haireel.db.DeliveryGroupDao
-import com.rodgers.haireel.db.DeliveryGroupEntity
 import com.rodgers.haireel.db.WorkRecordDao
 import com.rodgers.haireel.model.ReportPattern
 import com.rodgers.haireel.util.AppSettings
@@ -20,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -27,8 +26,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel @Inject constructor(
     app: Application,
-    private val dao: WorkRecordDao,
-    private val groupDao: DeliveryGroupDao
+    private val dao: WorkRecordDao
 ) : AndroidViewModel(app) {
 
     data class MonthlySummary(
@@ -50,9 +48,6 @@ class DashboardViewModel @Inject constructor(
     private val _patterns                         = MutableStateFlow<List<ReportPattern>>(emptyList())
     val patterns: StateFlow<List<ReportPattern>>  = _patterns
 
-    private val _groups                                      = MutableStateFlow<List<DeliveryGroupEntity>>(emptyList())
-    private val groups: StateFlow<List<DeliveryGroupEntity>> = _groups
-
     init {
         viewModelScope.launch { refresh() }
     }
@@ -60,31 +55,23 @@ class DashboardViewModel @Inject constructor(
     fun setPatternId(id: Int) { _patternId.value = id }
 
     suspend fun refresh() {
-        _groups.value   = groupDao.getAll()
         _patterns.value = PatternStorage.getAll(getApplication())
     }
 
     val monthlySummaries: StateFlow<List<MonthlySummary>> =
-        combine(_year, _patternId, _groups, _patterns) { year, pid, groups, patterns ->
-            // 特定パターン選択時のみグループIDセットを作成
-            // グループが未紐付けの場合は null（全件表示）にフォールバック
-            val groupIds: Set<String>? = if (pid != -1) {
-                groups.filter { it.patternId == pid }.map { it.id }.toSet()
-                    .takeIf { it.isNotEmpty() }
-            } else null
+        combine(_year, _patternId, _patterns) { year, pid, patterns ->
+            // 選択パターンの締め日を使用。未選択（-1）はアクティブパターン or デフォルト
             val cd = when {
                 pid != -1 -> patterns.find { it.id == pid }?.closingDay
                 patterns.isNotEmpty() -> {
-                    // 全取引先表示時はアクティブパターンの締め日を使用（日報と一致させる）
-                    val activeId = com.rodgers.haireel.util.PatternStorage.getActiveId(getApplication())
+                    val activeId = PatternStorage.getActiveId(getApplication())
                     patterns.find { it.id == activeId }?.closingDay ?: patterns[0].closingDay
                 }
                 else -> null
             } ?: AppSettings.getClosingDay(getApplication())
-            Triple(Pair(year, cd), pid, groupIds)
+            Pair(year, cd)
         }
-        .flatMapLatest { (yearCd, _, groupIds) ->
-            val (year, cd) = yearCd
+        .flatMapLatest { (year, cd) ->
             val periods = (1..12).map { month ->
                 val ym = "%04d-%02d".format(year, month)
                 ReportViewModel.computePeriod(ym, cd)
@@ -93,19 +80,11 @@ class DashboardViewModel @Inject constructor(
             val queryEnd   = periods.last().second
             dao.recordsForPeriodFlow(queryStart, queryEnd)
                 .map { records ->
-                    val filtered = if (groupIds == null) records
-                                   else records.filter { it.assignmentId in groupIds || it.assignmentId.isBlank() }
-                    // 同一日付の重複排除: blankとグループ両方ある場合はblankを除外
-                    val deduped = filtered.groupBy { it.date }
+                    // 同一日付の重複排除: assignmentId有りを優先、なければblankを1件
+                    val deduped = records.groupBy { it.date }
                         .flatMap { (_, recs) ->
-                            if (groupIds == null) {
-                                // 全案件: 複数グループは全て残す、blankはグループがある日付から除外
-                                val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
-                                if (nonBlank.isNotEmpty()) nonBlank else recs.take(1)
-                            } else {
-                                // 特定案件群: グループレコード優先、なければblank（1件）
-                                listOf(recs.firstOrNull { it.assignmentId in groupIds } ?: recs.first())
-                            }
+                            val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
+                            if (nonBlank.isNotEmpty()) nonBlank else recs.take(1)
                         }
                         .sortedBy { it.date }
                     periods.mapIndexed { idx, (start, end) ->

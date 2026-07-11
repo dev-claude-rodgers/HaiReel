@@ -96,7 +96,7 @@ class DashboardFragment : Fragment() {
         dropdownIds.clear()
         dropdownNames.clear()
         dropdownIds.add(-1)
-        dropdownNames.add("全取引先")
+        dropdownNames.add("標準締め日")
         patterns.forEach { p ->
             dropdownIds.add(p.id)
             // 取引先名 → カスタムタイトル → 番号 の順で優先表示

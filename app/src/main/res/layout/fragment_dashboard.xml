@@ -211,14 +211,14 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- 案件フィルタードロップダウン -->
+        <!-- 締め日パターン選択（収支の月別集計期間を決定する） -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/assignmentFilterLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:hint="取引先">
+            android:hint="集計締め日">
 
             <AutoCompleteTextView
                 android:id="@+id/spinnerAssignment"
