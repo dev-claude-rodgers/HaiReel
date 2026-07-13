@@ -239,6 +239,10 @@ object AppSettings {
     fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).apply() }
     fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
 
+    fun getGeminiApiKey(ctx: Context): String = encryptedPrefs(ctx).getString("gemini_api_key", "") ?: ""
+    fun setGeminiApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("gemini_api_key", key).apply() }
+    fun hasGeminiApiKey(ctx: Context): Boolean = getGeminiApiKey(ctx).isNotBlank()
+
 
 
     // セキュリティ

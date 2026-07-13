@@ -171,6 +171,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         binding.buttonMenu.setOnClickListener { showMapMenu() }
+        binding.buttonAi.setOnClickListener {
+            AiChatSheet().show(childFragmentManager, AiChatSheet.TAG)
+        }
         binding.buttonZoomIn.setOnClickListener {
             googleMap?.animateCamera(CameraUpdateFactory.zoomIn())
         }
