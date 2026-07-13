@@ -24,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import com.rodgers.haireel.R
 import com.rodgers.haireel.databinding.FragmentMapBinding
 import com.rodgers.haireel.model.Delivery
+import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.GeocodingClient
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.util.MarkerIconFactory
@@ -147,11 +148,27 @@ import kotlinx.coroutines.withContext
                     .setPositiveButton("OK", null).show()
                 return@row
             }
+            val hasTimeWindows = viewModel.deliveries.value.any {
+                !it.openTime.isNullOrBlank() || !it.closeTime.isNullOrBlank()
+            }
+            val nowCal = java.util.Calendar.getInstance()
+            val nowMinutes = nowCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 +
+                             nowCal.get(java.util.Calendar.MINUTE)
+            val threshold = AppSettings.getUrgencyThresholdMinutes(ctx)
+            val msgSuffix = if (hasTimeWindows)
+                "\n\n営業時間が設定されている場所は閉店${threshold}分前を優先します。" else ""
             MaterialAlertDialogBuilder(ctx)
                 .setTitle("ルート最適化")
-                .setMessage("地図に配置済みの${geocodedCount}件を現在地から最短経路で並び替えます。")
+                .setMessage("地図に配置済みの${geocodedCount}件を現在地から最短経路で並び替えます。$msgSuffix")
                 .setPositiveButton("最適化する") { _, _ ->
-                    viewModel.optimizeRoute(loc.latitude, loc.longitude)
+                    val result = viewModel.optimizeRoute(loc.latitude, loc.longitude, nowMinutes, threshold)
+                    if (result.skipped.isNotEmpty()) {
+                        val names = result.skipped.joinToString("\n") { "・${it.displayTitle}" }
+                        MaterialAlertDialogBuilder(ctx)
+                            .setTitle("⚠ 閉店済みのためスキップ")
+                            .setMessage("以下の配達先はすでに閉店しているため、リスト末尾に移動しました。\n\n$names")
+                            .setPositiveButton("OK", null).show()
+                    }
                 }
                 .setNegativeButton("キャンセル", null).show()
         }

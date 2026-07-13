@@ -140,6 +140,22 @@ fun showAppSettingsDialog(ctx: Context) {
         layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
     })
     root.addView(undoRow)
+    root.addView(field("ルート最適化: 閉店優先しきい値（分）"))
+    val urgencyRow = LinearLayout(ctx).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+    }
+    val npUrgency = NumberPicker(ctx).apply {
+        minValue = 15; maxValue = 120
+        value = AppSettings.getUrgencyThresholdMinutes(ctx).coerceIn(15, 120)
+    }
+    urgencyRow.addView(npUrgency)
+    urgencyRow.addView(TextView(ctx).apply {
+        text = " 分以内に閉まる場所を距離より優先"
+        textSize = 12f; setTextColor(colorOnSurfaceVariant)
+        layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
+    })
+    root.addView(urgencyRow)
 
     MaterialAlertDialogBuilder(ctx)
         .setTitle("アプリ設定")
@@ -162,6 +178,7 @@ fun showAppSettingsDialog(ctx: Context) {
             AppSettings.setLockTimeoutMinutes(ctx, etLockTimeout.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: 30)
             AppSettings.setBackupPassword(ctx, etBackupPw.text.toString())
             AppSettings.setUndoSeconds(ctx, npUndo.value)
+            AppSettings.setUrgencyThresholdMinutes(ctx, npUrgency.value)
             Toast.makeText(ctx, "設定を保存しました", Toast.LENGTH_SHORT).show()
         }
         .setNegativeButton("キャンセル", null)

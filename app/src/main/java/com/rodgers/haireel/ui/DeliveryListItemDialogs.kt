@@ -175,6 +175,13 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         row("🕐", "時間帯・個数を設定",
             if (!delivery.timeSlot.isNullOrBlank()) "現在: ${delivery.timeSlot}${if (delivery.packageCount > 0) " · ${delivery.packageCount}個" else ""}"
             else "配達時間帯・荷物個数を登録する") { showTimeSlotPackageDialog(delivery) }
+        val businessHoursSub = when {
+            !delivery.openTime.isNullOrBlank() && !delivery.closeTime.isNullOrBlank() ->
+                "${delivery.openTime}〜${delivery.closeTime}"
+            !delivery.closeTime.isNullOrBlank() -> "〜${delivery.closeTime}"
+            else -> "ルート最適化の優先順位に使用する"
+        }
+        row("🏪", "営業時間を設定", businessHoursSub) { showBusinessHoursDialog(delivery) }
 
         val noteTitle = if (delivery.note.isNullOrBlank()) "メモを追加" else "メモを編集"
         val noteSub   = if (delivery.note.isNullOrBlank()) "受け取り方法・備考などを記録する"
@@ -777,6 +784,69 @@ internal fun DeliveryListFragment.showTimeSlotPackageDialog(delivery: Delivery) 
             .setNegativeButton("キャンセル", null)
             .show()
     }
+
+internal fun DeliveryListFragment.showBusinessHoursDialog(delivery: Delivery) {
+    val ctx = requireContext()
+    val dp  = ctx.resources.displayMetrics.density
+
+    var openH  = delivery.openTime?.split(":")?.getOrNull(0)?.toIntOrNull()
+    var openM  = delivery.openTime?.split(":")?.getOrNull(1)?.toIntOrNull()
+    var closeH = delivery.closeTime?.split(":")?.getOrNull(0)?.toIntOrNull()
+    var closeM = delivery.closeTime?.split(":")?.getOrNull(1)?.toIntOrNull()
+
+    val layout = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (8 * dp).toInt())
+    }
+
+    fun label(text: String) = TextView(ctx).apply {
+        this.text = text; textSize = 13f
+        setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+        setPadding(0, (12 * dp).toInt(), 0, (4 * dp).toInt())
+    }
+
+    fun timeButton(h: Int?, m: Int?): Button = Button(ctx).apply {
+        text = if (h != null && m != null) "%02d:%02d".format(h, m) else "未設定"
+        textSize = 16f
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+    }
+
+    val btnOpen  = timeButton(openH, openM)
+    val btnClose = timeButton(closeH, closeM)
+
+    btnOpen.setOnClickListener {
+        android.app.TimePickerDialog(ctx, { _, h, m ->
+            openH = h; openM = m
+            btnOpen.text = "%02d:%02d".format(h, m)
+        }, openH ?: 9, openM ?: 0, true).show()
+    }
+    btnClose.setOnClickListener {
+        android.app.TimePickerDialog(ctx, { _, h, m ->
+            closeH = h; closeM = m
+            btnClose.text = "%02d:%02d".format(h, m)
+        }, closeH ?: 18, closeM ?: 0, true).show()
+    }
+
+    layout.addView(label("開始時間（任意）"))
+    layout.addView(btnOpen)
+    layout.addView(label("終了時間（ルート最適化で優先される）"))
+    layout.addView(btnClose)
+
+    AlertDialog.Builder(ctx)
+        .setTitle("🏪 営業時間の設定")
+        .setView(layout)
+        .setPositiveButton("保存") { _, _ ->
+            val ot = if (openH != null && openM != null) "%02d:%02d".format(openH, openM) else null
+            val ct = if (closeH != null && closeM != null) "%02d:%02d".format(closeH, closeM) else null
+            viewModel.updateBusinessHours(delivery.id, ot, ct)
+            Toast.makeText(ctx, "保存しました", Toast.LENGTH_SHORT).show()
+        }
+        .setNeutralButton("クリア") { _, _ ->
+            viewModel.updateBusinessHours(delivery.id, null, null)
+        }
+        .setNegativeButton("キャンセル", null)
+        .show()
+}
 
 internal fun DeliveryListFragment.showBatchTimeSlotDialog(ids: Set<String>) {
         val ctx = requireContext()

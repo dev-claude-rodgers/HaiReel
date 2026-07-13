@@ -359,12 +359,18 @@ class DeliveryViewModel @Inject constructor(
         commitDeliveries(groupId, updated)
     }
 
-    fun optimizeRoute(currentLat: Double, currentLng: Double) {
+    fun optimizeRoute(
+        currentLat: Double,
+        currentLng: Double,
+        nowMinutes: Int = -1,
+        urgencyThresholdMinutes: Int = 60
+    ): RouteOptimizer.OptimizeResult {
         val groupId = _currentGroupId.value
         val list = _deliveries.value
-        val optimized = RouteOptimizer.optimize(list, currentLat, currentLng)
-            .mapIndexed { i, d -> d.copy(order = i + 1) }
-        commitDeliveries(groupId, optimized)
+        val result = RouteOptimizer.optimize(list, currentLat, currentLng, nowMinutes, urgencyThresholdMinutes)
+        val ordered = result.ordered.mapIndexed { i, d -> d.copy(order = i + 1) }
+        commitDeliveries(groupId, ordered)
+        return result
     }
 
     // 逆ジオコーディング: 地図長押しで座標からピンを追加
@@ -629,6 +635,14 @@ class DeliveryViewModel @Inject constructor(
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { d ->
             if (d.id == id) d.copy(note = note) else d
+        }
+        commitDeliveries(groupId, updated)
+    }
+
+    fun updateBusinessHours(id: String, openTime: String?, closeTime: String?) {
+        val groupId = _currentGroupId.value
+        val updated = _deliveries.value.map { d ->
+            if (d.id == id) d.copy(openTime = openTime, closeTime = closeTime) else d
         }
         commitDeliveries(groupId, updated)
     }

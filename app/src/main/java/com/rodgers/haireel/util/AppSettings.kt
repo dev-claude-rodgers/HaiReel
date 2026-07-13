@@ -226,6 +226,10 @@ object AppSettings {
     fun getUndoSeconds(ctx: Context): Int = prefs(ctx).getInt("undo_seconds", 5)
     fun setUndoSeconds(ctx: Context, v: Int) = prefs(ctx).edit().putInt("undo_seconds", v).apply()
 
+    // ルート最適化: 閉店優先しきい値（分）
+    fun getUrgencyThresholdMinutes(ctx: Context): Int = prefs(ctx).getInt("urgency_threshold_minutes", 60)
+    fun setUrgencyThresholdMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("urgency_threshold_minutes", v).apply()
+
     // ダークモード (-1=システム, 1=ライト, 2=ダーク)
     fun getDarkMode(ctx: Context): Int = prefs(ctx).getInt("dark_mode", -1)
     fun setDarkMode(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dark_mode", v).apply()

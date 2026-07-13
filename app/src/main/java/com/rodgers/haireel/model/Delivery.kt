@@ -14,6 +14,8 @@ data class Delivery(
     val photoUris: List<String>? = null,
     val rooms: List<Room>? = null,
     val timeSlot: String? = null,       // 時間帯指定（例: "14:00-16:00"）
+    val openTime: String? = null,       // 営業開始時間（例: "09:00"）
+    val closeTime: String? = null,      // 営業終了時間（例: "18:00"）
     val packageCount: Int = 0,          // 荷物の個数
     var lat: Double = 0.0,
     var lng: Double = 0.0,
