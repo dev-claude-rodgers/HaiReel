@@ -63,22 +63,6 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- AIアシスタントボタン -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonAi"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:text="🤖"
-            android:contentDescription="AIアシスタント"
-            android:textSize="22sp"
-            android:textColor="#6A1B9A"
-            android:minWidth="0dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="4dp" />
-
         <!-- 地図/リスト切替ボタン -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonSubToggle"

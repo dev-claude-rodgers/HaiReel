@@ -74,10 +74,6 @@ class SettingsFragment : Fragment() {
                 showApiKeyWizard()
             }
         }
-        binding.tvGeminiKeyStatus.text = if (AppSettings.hasGeminiApiKey(ctx))
-            "設定済み（AIアシスタント利用可能）" else "未設定（AIアシスタントを使うには登録が必要）"
-        binding.rowGeminiKey.setOnClickListener { showGeminiKeyDialog() }
-
         addBackgroundRow()
         updateLicenseStatus()
         binding.rowLicense.setOnClickListener { showLicensePurchaseDialog() }
@@ -177,49 +173,6 @@ class SettingsFragment : Fragment() {
             onTestApiKey   = { testApiKey(ctx) },
             onStatusChanged = { if (isAdded) binding.tvApiKeyStatus.text = it }
         )
-    }
-
-    private fun showGeminiKeyDialog() {
-        val ctx = requireContext()
-        val et = android.widget.EditText(ctx).apply {
-            hint = "AIzaSy…（Google AI Studio で取得）"
-            setText(AppSettings.getGeminiApiKey(ctx))
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                        android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        val layout = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            val dp = resources.displayMetrics.density
-            setPadding((20 * dp).toInt(), (12 * dp).toInt(), (20 * dp).toInt(), 0)
-            addView(android.widget.TextView(ctx).apply {
-                text = "Google AI Studio (https://aistudio.google.com) で\n無料のAPIキーを取得してください。"
-                textSize = 13f
-                setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-                val lp = android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                lp.bottomMargin = (8 * dp).toInt()
-                layoutParams = lp
-            })
-            addView(et)
-        }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
-            .setTitle("🤖 Gemini AIキー")
-            .setView(layout)
-            .setPositiveButton("保存") { _, _ ->
-                val key = et.text.toString().trim()
-                AppSettings.setGeminiApiKey(ctx, key)
-                binding.tvGeminiKeyStatus.text = if (key.isNotBlank())
-                    "設定済み（AIアシスタント利用可能）" else "未設定（AIアシスタントを使うには登録が必要）"
-                android.widget.Toast.makeText(ctx, if (key.isNotBlank()) "APIキーを保存しました" else "キーをクリアしました", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            .setNeutralButton("クリア") { _, _ ->
-                AppSettings.setGeminiApiKey(ctx, "")
-                binding.tvGeminiKeyStatus.text = "未設定（AIアシスタントを使うには登録が必要）"
-            }
-            .setNegativeButton("キャンセル", null)
-            .show()
     }
 
     private fun showThemePickerDialog() {

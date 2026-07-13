@@ -147,9 +147,6 @@ class DeliveryListFragment : Fragment() {
 
         binding.buttonSubToggle.setOnClickListener { cycleViewMode() }
         binding.buttonListMenu.setOnClickListener { showListActions() }
-        binding.buttonAi.setOnClickListener {
-            AiChatSheet().show(childFragmentManager, AiChatSheet.TAG)
-        }
         binding.layoutProgress.setOnClickListener { cycleProgressDisplay() }
 
         observeFlows()
