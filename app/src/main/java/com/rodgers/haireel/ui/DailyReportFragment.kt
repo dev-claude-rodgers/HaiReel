@@ -96,7 +96,6 @@ class DailyReportFragment : Fragment() {
         if (group != null && group.name.isNotBlank()) {
             val ctx = requireContext()
             val patternId = group.patternId.takeIf { it != -1 }
-                ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
             val label = patternId?.let { pid ->
                 val p = PatternStorage.get(ctx, pid) ?: return@let null
                 when {
