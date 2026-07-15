@@ -182,6 +182,9 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
             else -> "ルート最適化の優先順位に使用する"
         }
         row("🏪", "営業時間を設定", businessHoursSub) { showBusinessHoursDialog(delivery) }
+        val dwellSub = delivery.dwellMinutes?.let { "${it}分（個別設定）" }
+            ?: "未設定（全体設定を使用）"
+        row("⏱", "滞在時間を設定", dwellSub) { showDwellDialog(delivery) }
 
         val noteTitle = if (delivery.note.isNullOrBlank()) "メモを追加" else "メモを編集"
         val noteSub   = if (delivery.note.isNullOrBlank()) "受け取り方法・備考などを記録する"
@@ -615,7 +618,7 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         val dlg = AlertDialog.Builder(ctx)
             .setTitle("名前・住所を編集")
             .setView(scroll)
-            .setPositiveButton("修正して再検索", null)
+            .setPositiveButton("住所で再検索", null)
             .setNeutralButton("そのまま保存", null)
             .setNegativeButton("キャンセル", null)
             .show()
@@ -843,6 +846,46 @@ internal fun DeliveryListFragment.showBusinessHoursDialog(delivery: Delivery) {
         }
         .setNeutralButton("クリア") { _, _ ->
             viewModel.updateBusinessHours(delivery.id, null, null)
+        }
+        .setNegativeButton("キャンセル", null)
+        .show()
+}
+
+internal fun DeliveryListFragment.showDwellDialog(delivery: Delivery) {
+    val ctx = requireContext()
+    val dp  = ctx.resources.displayMetrics.density
+
+    val til = com.google.android.material.textfield.TextInputLayout(
+        ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
+    ).apply {
+        hint = "⏱ 滞在時間"
+        helperText = "空欄にすると全体設定（出発・滞在設定）の値を使用します"
+        suffixText = "分"
+        boxBackgroundMode = com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE
+    }
+    com.google.android.material.textfield.TextInputEditText(ctx).apply {
+        inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        delivery.dwellMinutes?.let { setText(it.toString()) }
+        til.addView(this)
+    }
+
+    val layout = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (8 * dp).toInt())
+        addView(til)
+    }
+
+    AlertDialog.Builder(ctx)
+        .setTitle("⏱ ${delivery.displayTitle}")
+        .setView(layout)
+        .setPositiveButton("保存") { _, _ ->
+            val v = til.editText?.text?.toString()?.toIntOrNull()?.coerceIn(0, 120)
+            viewModel.updateDwellMinutes(delivery.id, v)
+            Toast.makeText(ctx, if (v != null) "${v}分に設定しました" else "全体設定に戻しました", Toast.LENGTH_SHORT).show()
+        }
+        .setNeutralButton("クリア") { _, _ ->
+            viewModel.updateDwellMinutes(delivery.id, null)
+            Toast.makeText(ctx, "全体設定に戻しました", Toast.LENGTH_SHORT).show()
         }
         .setNegativeButton("キャンセル", null)
         .show()

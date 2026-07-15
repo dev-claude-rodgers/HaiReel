@@ -49,7 +49,7 @@ fun testApiKey(
                 .setPositiveButton("再設定する") { _, _ -> onShowWizard() }
                 .setNegativeButton("閉じる", null)
                 .show()
-            onStatusChanged("設定済み・動作確認NG（要確認）")
+            onStatusChanged("設定済み・接続エラー（要確認）")
         }
     }
 }

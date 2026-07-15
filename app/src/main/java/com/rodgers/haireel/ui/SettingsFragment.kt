@@ -195,7 +195,7 @@ class SettingsFragment : Fragment() {
             setBackgroundColor(outlineVar)
             layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
                 .also { it.setMargins((84 * dp).toInt(), (4 * dp).toInt(), 0, (4 * dp).toInt()) }
-        }, 2)
+        }, 4)
 
         val subTv = android.widget.TextView(ctx).apply {
             textSize = 14f; setTextColor(onSurfaceVar)
@@ -228,7 +228,7 @@ class SettingsFragment : Fragment() {
                 showBackgroundSettingsSheet(ctx) { subTv.text = buildBackgroundSummary(ctx) }
             }
         }
-        binding.settingsRoot.addView(row, 3)
+        binding.settingsRoot.addView(row, 5)
     }
 
     private fun createBackup() {

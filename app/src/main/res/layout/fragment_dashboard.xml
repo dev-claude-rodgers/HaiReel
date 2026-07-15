@@ -218,7 +218,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:hint="集計締め日">
+            android:hint="取引先">
 
             <AutoCompleteTextView
                 android:id="@+id/spinnerAssignment"

@@ -42,12 +42,56 @@ import kotlinx.coroutines.withContext
 
     internal fun MapFragment.showNearbyFacilitiesDialog(parentSheet: com.google.android.material.bottomsheet.BottomSheetDialog) {
         val ctx = requireContext()
-        val loc = lastKnownLocation
-        if (loc == null) {
-            Toast.makeText(ctx, "現在地が取得できません。位置情報を許可してください。", Toast.LENGTH_LONG).show()
-            return
-        }
+        val depLat = com.rodgers.haireel.util.AppSettings.getDepartureLat(ctx)
+        val depLng = com.rodgers.haireel.util.AppSettings.getDepartureLng(ctx)
+        val hasDep = depLat != 0.0 || depLng != 0.0
+        val depAddress = com.rodgers.haireel.util.AppSettings.getDepartureAddress(ctx)
 
+        val arrLat = com.rodgers.haireel.util.AppSettings.getArrivalLat(ctx)
+        val arrLng = com.rodgers.haireel.util.AppSettings.getArrivalLng(ctx)
+        val hasArr = arrLat != 0.0 || arrLng != 0.0
+        val arrAddress = com.rodgers.haireel.util.AppSettings.getArrivalAddress(ctx)
+
+        if (hasDep || hasArr) {
+            // 出発地または帰着地が設定済み → 基点を選ばせる
+            val choiceList = mutableListOf("📍 現在地から探す")
+            if (hasDep) choiceList.add("🏠 出発地から探す（$depAddress）")
+            if (hasArr) choiceList.add("🏁 帰着地から探す（$arrAddress）")
+            val choices = choiceList.toTypedArray()
+
+            androidx.appcompat.app.AlertDialog.Builder(ctx)
+                .setTitle("どこから探しますか？")
+                .setItems(choices) { _, which ->
+                    when {
+                        which == 0 -> {
+                            val loc = lastKnownLocation
+                            if (loc == null) {
+                                Toast.makeText(ctx, "現在地が取得できません。位置情報を許可してください。", Toast.LENGTH_LONG).show()
+                            } else {
+                                showFacilityTypeDialog(parentSheet, loc.latitude, loc.longitude)
+                            }
+                        }
+                        which == 1 && hasDep -> showFacilityTypeDialog(parentSheet, depLat, depLng)
+                        else                 -> showFacilityTypeDialog(parentSheet, arrLat, arrLng)
+                    }
+                }
+                .setNegativeButton("キャンセル", null).show()
+        } else {
+            val loc = lastKnownLocation
+            if (loc == null) {
+                Toast.makeText(ctx, "現在地が取得できません。位置情報を許可してください。", Toast.LENGTH_LONG).show()
+                return
+            }
+            showFacilityTypeDialog(parentSheet, loc.latitude, loc.longitude)
+        }
+    }
+
+    private fun MapFragment.showFacilityTypeDialog(
+        parentSheet: com.google.android.material.bottomsheet.BottomSheetDialog,
+        lat: Double,
+        lng: Double
+    ) {
+        val ctx = requireContext()
         val options = arrayOf(
             "🚻 公衆トイレ",
             "🏪 コンビニ",
@@ -58,17 +102,14 @@ import kotlinx.coroutines.withContext
             "💊 薬局・ドラッグストア",
             "🛒 スーパー"
         )
-        val types = arrayOf("", "convenience_store", "parking", "restaurant", "gas_station", "atm", "pharmacy", "supermarket")
+        val types    = arrayOf("", "convenience_store", "parking", "restaurant", "gas_station", "atm", "pharmacy", "supermarket")
         val keywords = arrayOf("公衆トイレ", "", "", "", "", "", "", "")
 
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setTitle("近くの施設を探す")
             .setItems(options) { _, which ->
                 parentSheet.dismiss()
-                val type = types[which]
-                val keyword = keywords[which]
-                val label = options[which]
-                searchNearbyFacilities(loc.latitude, loc.longitude, type, keyword, label)
+                searchNearbyFacilities(lat, lng, types[which], keywords[which], options[which])
             }
             .setNegativeButton("キャンセル", null).show()
     }

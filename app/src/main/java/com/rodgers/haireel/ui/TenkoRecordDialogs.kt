@@ -210,7 +210,7 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
                     Toast.makeText(ctx, "乗務前点呼を保存しました", Toast.LENGTH_SHORT).show()
                     dlgBefore.dismiss()
                 }
-                .setNegativeButton("修正する", null).show()
+                .setNegativeButton("入力に戻る", null).show()
         } else {
             viewModel.saveBefore(date, existing, selMethod, selTime,
                 healthOk, fatigueYes, alc, inspOk,
@@ -406,7 +406,7 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
                     Toast.makeText(ctx, "乗務後点呼を保存しました", Toast.LENGTH_SHORT).show()
                     dlgAfter.dismiss()
                 }
-                .setNegativeButton("修正する", null).show()
+                .setNegativeButton("入力に戻る", null).show()
         } else {
             viewModel.saveAfter(date, existing, selMethod, selTime,
                 healthOk, fatigueYes, alc, accidentYes, vehicleOk,

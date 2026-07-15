@@ -379,21 +379,44 @@ class DeliveryListFragment : Fragment() {
         val sorted = filtered.sortedBy { it.order }
         adapter.submitList(sorted)
         val ctx = requireContext()
-        distanceDecoration.setDeparture(
-            com.rodgers.haireel.util.AppSettings.getDepartureLat(ctx),
-            com.rodgers.haireel.util.AppSettings.getDepartureLng(ctx)
-        )
+        val s = com.rodgers.haireel.util.AppSettings
+        val showDist = s.isDistanceVisible(ctx)
+        distanceDecoration.isEnabled = showDist
+        distanceDecoration.setDeparture(s.getDepartureLat(ctx), s.getDepartureLng(ctx))
+        distanceDecoration.setArrival(s.getArrivalLat(ctx), s.getArrivalLng(ctx))
         distanceDecoration.update(sorted)
         binding.recyclerView.invalidateItemDecorations()
         binding.textEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
 
+        // ETA 計算
+        val depTimeStr = s.getDepartureTime(ctx)
+        val depMinutes = com.rodgers.haireel.util.EtaCalculator.parseMinutes(depTimeStr)
+        if (showDist && depMinutes >= 0) {
+            val etaList = com.rodgers.haireel.util.EtaCalculator.compute(
+                sorted.size,
+                distanceDecoration.depToFirst,
+                distanceDecoration.distances,
+                depMinutes,
+                s.getDwellMinutes(ctx),
+                s.getAvgSpeedKmh(ctx),
+                sorted.map { it.dwellMinutes }
+            )
+            adapter.setEtas(sorted.mapIndexed { i, d -> d.id to etaList.getOrNull(i) }.toMap())
+        } else {
+            adapter.setEtas(emptyMap())
+        }
+
         // 合計距離バッジ更新
         val totalKm = distanceDecoration.totalKm
-        if (sorted.size >= 2 && totalKm > 0) {
+        if (showDist && sorted.size >= 2 && totalKm > 0) {
             binding.tvTotalDistance.visibility = View.VISIBLE
-            val hasDep = com.rodgers.haireel.util.AppSettings.getDepartureLat(ctx) != 0.0 ||
-                         com.rodgers.haireel.util.AppSettings.getDepartureLng(ctx) != 0.0
-            binding.tvTotalDistance.text = if (hasDep) "↻ 概算${"%.1f".format(totalKm)}km" else "⟷ 概算${"%.1f".format(totalKm)}km"
+            val hasDep = s.getDepartureLat(ctx) != 0.0 || s.getDepartureLng(ctx) != 0.0
+            val hasArr = s.getArrivalLat(ctx) != 0.0  || s.getArrivalLng(ctx) != 0.0
+            binding.tvTotalDistance.text = when {
+                hasDep && hasArr -> "🏠→🏁 概算${"%.1f".format(totalKm)}km"
+                hasDep           -> "↻ 概算${"%.1f".format(totalKm)}km"
+                else             -> "⟷ 概算${"%.1f".format(totalKm)}km"
+            }
         } else {
             binding.tvTotalDistance.visibility = View.GONE
         }

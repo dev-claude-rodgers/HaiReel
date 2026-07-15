@@ -37,6 +37,7 @@ internal fun TenkoFragment.showTenkoMenu() {
     fun divider() = root.addMenuDivider(dp, outlineVariant)
 
     // ── よく使う操作
+    row("📈", "表示月の集計", "完了率・乗務時間・アルコール検知") { showMonthSummary() }
     val timerState = AppSettings.getDriveTimerState(ctx)
     val timerLabel = when (timerState) {
         "DRIVING"  -> "🚗 運転中 — タップで状態確認"
@@ -45,8 +46,7 @@ internal fun TenkoFragment.showTenkoMenu() {
     }
     row("⏱", "連続運転タイマー", timerLabel) { sheet.dismiss(); show430TimerDialog() }
     divider()
-    // ── 出力・集計
-    row("📈", "表示月の集計", "完了率・乗務時間・アルコール検知") { showMonthSummary() }
+    // ── 出力
     row("📊", "Excel出力", "表示月の点呼簿をExcelで保存・共有") { exportTenko() }
     row("📤", "テキストで共有", "LINEやメールで表示月の点呼記録を送る") { shareMonthText() }
     divider()

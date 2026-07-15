@@ -73,13 +73,13 @@ fun showAppSettingsDialog(ctx: Context) {
     root.addView(etVehicle1)
     root.addView(field("車番２"))
     val etVehicle2 = EditText(ctx).apply {
-        hint = "例: 〇〇 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+        hint = "例: 練馬 200 い 5678"; inputType = InputType.TYPE_CLASS_TEXT
         setText(vehicles[1]); layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }
     root.addView(etVehicle2)
     root.addView(field("車番３"))
     val etVehicle3 = EditText(ctx).apply {
-        hint = "例: 〇〇 100 あ 1234"; inputType = InputType.TYPE_CLASS_TEXT
+        hint = "使用しない場合は空欄のまま"; inputType = InputType.TYPE_CLASS_TEXT
         setText(vehicles[2]); layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
     }
     root.addView(etVehicle3)

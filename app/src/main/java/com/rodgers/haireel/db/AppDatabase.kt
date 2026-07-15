@@ -13,7 +13,7 @@ import com.rodgers.haireel.model.WorkRecord
 
 @Database(
     entities = [WorkRecord::class, TenkoRecord::class, DeliveryEntity::class, DeliveryGroupEntity::class, GeocodingCacheEntity::class, KnownAddressEntity::class, FuelRecord::class, Vehicle::class],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,40 +30,9 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
 
-        internal val MIGRATION_1_2 = object : Migration(1, 2) {
+        internal val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS `fuel_records` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `date` TEXT NOT NULL,
-                        `liters` REAL NOT NULL,
-                        `pricePerLiter` INTEGER NOT NULL,
-                        `totalCost` INTEGER NOT NULL,
-                        `odometer` INTEGER NOT NULL DEFAULT 0,
-                        `note` TEXT NOT NULL DEFAULT ''
-                    )
-                """.trimIndent())
-            }
-        }
-
-        internal val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS `vehicles` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `name` TEXT NOT NULL,
-                        `initialOdometer` INTEGER NOT NULL DEFAULT 0,
-                        `note` TEXT NOT NULL DEFAULT ''
-                    )
-                """.trimIndent())
-                db.execSQL("ALTER TABLE `fuel_records` ADD COLUMN `vehicleId` INTEGER NOT NULL DEFAULT 0")
-            }
-        }
-
-        internal val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `deliveries` ADD COLUMN `open_time` TEXT")
-                db.execSQL("ALTER TABLE `deliveries` ADD COLUMN `close_time` TEXT")
+                db.execSQL("ALTER TABLE `deliveries` ADD COLUMN `dwell_minutes` INTEGER")
             }
         }
 
@@ -74,7 +43,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "report_db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_4_5)
+                .fallbackToDestructiveMigration()
                 .build()
                 .also { INSTANCE = it }
             }

@@ -53,9 +53,9 @@ internal fun DailyReportFragment.showReportMenu() {
     divider()
     // ── 出力・集計
     sectionLabel("$cdLabel での出力（$periodLabel）")
+    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
     row("📊", "Excel出力", "帳票パターンの締め日で集計して出力") { exportExcel() }
     row("📤", "テキストで共有", "帳票パターンの締め日で集計して共有") { shareReportText() }
-    row("📈", "案件別集計", "表示月の案件ごとの稼働・収入を確認") { showAssignmentSummarySheet() }
     divider()
     // ── 設定
     val currentPatternName = currentPattern().title

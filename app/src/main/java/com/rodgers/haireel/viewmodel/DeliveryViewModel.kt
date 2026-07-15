@@ -373,6 +373,20 @@ class DeliveryViewModel @Inject constructor(
         return result
     }
 
+    fun appendDelivery(template: com.rodgers.haireel.model.Delivery) {
+        if (_currentGroupId.value.isBlank() || _groups.value.none { it.id == _currentGroupId.value }) return
+        val groupId = _currentGroupId.value
+        val current = _deliveries.value
+        val newDelivery = template.copy(
+            id          = java.util.UUID.randomUUID().toString(),
+            order       = (current.maxOfOrNull { it.order } ?: 0) + 1,
+            isCompleted = false,
+            photoUris   = null,
+            rooms       = template.rooms?.map { it.copy(isCompleted = false, status = null, visitedAt = null) }
+        )
+        commitDeliveries(groupId, current + newDelivery)
+    }
+
     // 逆ジオコーディング: 地図長押しで座標からピンを追加
     fun addPinFromLocation(lat: Double, lng: Double) {
         // グループが存在しない場合はデフォルトグループを作成してから追加
@@ -626,7 +640,7 @@ class DeliveryViewModel @Inject constructor(
     fun clearPhotos(deliveryId: String) {
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { d ->
-            if (d.id == deliveryId) d.copy(photoUris = emptyList(), photoUri = null) else d
+            if (d.id == deliveryId) d.copy(photoUris = emptyList()) else d
         }
         commitDeliveries(groupId, updated)
     }
@@ -643,6 +657,14 @@ class DeliveryViewModel @Inject constructor(
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { d ->
             if (d.id == id) d.copy(openTime = openTime, closeTime = closeTime) else d
+        }
+        commitDeliveries(groupId, updated)
+    }
+
+    fun updateDwellMinutes(id: String, minutes: Int?) {
+        val groupId = _currentGroupId.value
+        val updated = _deliveries.value.map { d ->
+            if (d.id == id) d.copy(dwellMinutes = minutes) else d
         }
         commitDeliveries(groupId, updated)
     }
@@ -666,7 +688,7 @@ class DeliveryViewModel @Inject constructor(
     fun addPhoto(id: String, photoUri: String) {
         val groupId = _currentGroupId.value
         val updated = _deliveries.value.map { d ->
-            if (d.id == id) d.copy(photoUris = d.allPhotoUris + photoUri, photoUri = null) else d
+            if (d.id == id) d.copy(photoUris = d.allPhotoUris + photoUri) else d
         }
         commitDeliveries(groupId, updated)
     }
@@ -676,7 +698,7 @@ class DeliveryViewModel @Inject constructor(
         val updated = _deliveries.value.map { d ->
             if (d.id == id) {
                 val newUris = d.allPhotoUris.toMutableList().also { if (index in it.indices) it.removeAt(index) }
-                d.copy(photoUris = newUris, photoUri = null)
+                d.copy(photoUris = newUris)
             } else d
         }
         commitDeliveries(groupId, updated)

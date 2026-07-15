@@ -146,55 +146,137 @@ import kotlinx.coroutines.withContext
             val nowCal = java.util.Calendar.getInstance()
             val nowMinutes = nowCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 +
                              nowCal.get(java.util.Calendar.MINUTE)
-            val threshold = AppSettings.getUrgencyThresholdMinutes(ctx)
+            val savedThreshold = AppSettings.getUrgencyThresholdMinutes(ctx)
             val timeWindowNote = if (hasTimeWindows)
-                "\n\n営業時間が設定されている場所は閉店${threshold}分前を優先します。" else ""
+                "\n\n営業時間が設定されている場所は閉店N分前を優先します。" else ""
 
-            // 出発地入力欄（前回の住所を引き継ぐ）
             val dp = ctx.resources.displayMetrics.density
-            val etDeparture = EditText(ctx).apply {
-                hint = "例: 東京都渋谷区〇〇1-2-3（空欄で現在地）"
-                inputType = InputType.TYPE_CLASS_TEXT
-                setText(AppSettings.getDepartureAddress(ctx))
-                setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt())
+            val px = { n: Int -> (n * dp).toInt() }
+
+            fun makeInputLayout(hint: String, savedText: String, helper: String = ""): Pair<com.google.android.material.textfield.TextInputLayout, com.google.android.material.textfield.TextInputEditText> {
+                val et = com.google.android.material.textfield.TextInputEditText(ctx).apply {
+                    setText(savedText)
+                    inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                    maxLines = 2
+                }
+                val til = com.google.android.material.textfield.TextInputLayout(
+                    ctx,
+                    null,
+                    com.google.android.material.R.attr.textInputOutlinedStyle
+                ).apply {
+                    this.hint = hint
+                    if (helper.isNotEmpty()) helperText = helper
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    addView(et)
+                }
+                return til to et
             }
-            val container = LinearLayout(ctx).apply {
+
+            val (tilDep, etDeparture) = makeInputLayout("🏠 出発地", AppSettings.getDepartureAddress(ctx), "空欄で現在地を使用")
+            val (tilArr, etArrival)   = makeInputLayout("🏁 帰着地", AppSettings.getArrivalAddress(ctx), "空欄で出発地に戻る")
+
+            val etThreshold = com.google.android.material.textfield.TextInputEditText(ctx).apply {
+                setText(savedThreshold.toString())
+                inputType = InputType.TYPE_CLASS_NUMBER
+                maxLines = 1
+            }
+            val tilThreshold = com.google.android.material.textfield.TextInputLayout(
+                ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
+            ).apply {
+                hint = "⏰ 閉店何分前を優先"
+                helperText = "営業時間が設定されている配達先に適用"
+                suffixText = "分"
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                addView(etThreshold)
+            }
+
+            val etDepTime = com.google.android.material.textfield.TextInputEditText(ctx).apply {
+                setText(AppSettings.getDepartureTime(ctx))
+                inputType = InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME
+                maxLines = 1
+            }
+            val tilDepTime = com.google.android.material.textfield.TextInputLayout(
+                ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
+            ).apply {
+                hint = "🕒 出発時刻（HH:mm）"
+                helperText = "入力すると各配達先の到着予定を表示"
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                addView(etDepTime)
+            }
+
+            val etDwell = com.google.android.material.textfield.TextInputEditText(ctx).apply {
+                setText(AppSettings.getDwellMinutes(ctx).toString())
+                inputType = InputType.TYPE_CLASS_NUMBER
+                maxLines = 1
+            }
+            val tilDwell = com.google.android.material.textfield.TextInputLayout(
+                ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
+            ).apply {
+                hint = "⏱ 1件あたりの滞在時間"
+                suffixText = "分"
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                addView(etDwell)
+            }
+
+            val inner = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), 0)
+                setPadding(px(20), px(8), px(20), px(16))
                 addView(TextView(ctx).apply {
-                    text = "出発地・帰着地の住所"
-                    textSize = 13f
-                    setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                    text = "${geocodedCount}件を最短経路で並び替えます。$timeWindowNote"
+                    textSize = 14f
+                    setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setPadding(0, 0, 0, px(16))
                 })
-                addView(etDeparture)
-                addView(TextView(ctx).apply {
-                    text = "※ 空欄の場合は現在地から最適化します"
-                    textSize = 11f
-                    setPadding(0, (4 * dp).toInt(), 0, 0)
-                    setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                addView(tilDep)
+                addView(android.view.View(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
                 })
+                addView(tilArr)
+                addView(android.view.View(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
+                })
+                addView(tilThreshold)
+                addView(android.view.View(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
+                })
+                addView(tilDepTime)
+                addView(android.view.View(ctx).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
+                })
+                addView(tilDwell)
             }
+            val container = ScrollView(ctx).apply { addView(inner) }
 
             MaterialAlertDialogBuilder(ctx)
                 .setTitle("ルート最適化")
-                .setMessage("地図に配置済みの${geocodedCount}件を最短経路で並び替えます。$timeWindowNote")
                 .setView(container)
                 .setPositiveButton("最適化する") { _, _ ->
-                    val inputAddress = etDeparture.text.toString().trim()
+                    val inputDep = etDeparture.text.toString().trim()
+                    val inputArr = etArrival.text.toString().trim()
+                    val threshold = etThreshold.text.toString().toIntOrNull()?.coerceIn(1, 600) ?: savedThreshold
+                    AppSettings.setUrgencyThresholdMinutes(ctx, threshold)
+                    val depTimeInput = etDepTime.text.toString().trim()
+                    if (com.rodgers.haireel.util.EtaCalculator.parseMinutes(depTimeInput) >= 0)
+                        AppSettings.setDepartureTime(ctx, depTimeInput)
+                    else if (depTimeInput.isEmpty())
+                        AppSettings.setDepartureTime(ctx, "")
+                    val dwellInput = etDwell.text.toString().toIntOrNull()?.coerceIn(0, 120)
+                    if (dwellInput != null) AppSettings.setDwellMinutes(ctx, dwellInput)
                     lifecycleScope.launch {
-                        val depLat: Double
-                        val depLng: Double
-                        if (inputAddress.isNotBlank()) {
+                        // 出発地のジオコーディング
+                        val depLat: Double; val depLng: Double
+                        if (inputDep.isNotBlank()) {
                             Toast.makeText(ctx, "住所を検索中...", Toast.LENGTH_SHORT).show()
-                            val geo = withContext(Dispatchers.IO) {
-                                GeocodingClient.geocodeExact(inputAddress)
-                            }
+                            val geo = withContext(Dispatchers.IO) { GeocodingClient.geocodeExact(inputDep) }
                             if (geo == null) {
-                                Toast.makeText(ctx, "住所が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(ctx, "出発地が見つかりませんでした", Toast.LENGTH_SHORT).show()
                                 return@launch
                             }
                             depLat = geo.lat; depLng = geo.lng
-                            AppSettings.setDepartureAddress(ctx, inputAddress)
+                            AppSettings.setDepartureAddress(ctx, inputDep)
                             AppSettings.setDepartureLatLng(ctx, depLat, depLng)
                         } else {
                             val loc = lastKnownLocation
@@ -203,16 +285,36 @@ import kotlinx.coroutines.withContext
                                 return@launch
                             }
                             depLat = loc.latitude; depLng = loc.longitude
+                            AppSettings.setDepartureAddress(ctx, "")
+                            AppSettings.setDepartureLatLng(ctx, 0.0, 0.0)
+                        }
+
+                        // 帰着地のジオコーディング（空欄なら出発地と同じ）
+                        val arrLat: Double; val arrLng: Double
+                        if (inputArr.isNotBlank()) {
+                            val geo = withContext(Dispatchers.IO) { GeocodingClient.geocodeExact(inputArr) }
+                            if (geo == null) {
+                                Toast.makeText(ctx, "帰着地が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+                            arrLat = geo.lat; arrLng = geo.lng
+                            AppSettings.setArrivalAddress(ctx, inputArr)
+                            AppSettings.setArrivalLatLng(ctx, arrLat, arrLng)
+                        } else {
+                            arrLat = 0.0; arrLng = 0.0
+                            AppSettings.setArrivalAddress(ctx, "")
+                            AppSettings.setArrivalLatLng(ctx, 0.0, 0.0)
                         }
 
                         val result = viewModel.optimizeRoute(depLat, depLng, nowMinutes, threshold)
 
-                        // 合計距離を計算: 出発地→1件目 + 地点間合計 + 最終地点→出発地
+                        // 合計距離: 出発地→1件目 + 地点間合計 + 最終地点→帰着地(or出発地)
                         val ordered = result.ordered
+                        val rLat = if (arrLat != 0.0 || arrLng != 0.0) arrLat else depLat
+                        val rLng = if (arrLat != 0.0 || arrLng != 0.0) arrLng else depLng
                         val totalKm = if (ordered.isNotEmpty()) {
                             var km = 0.0
-                            val first = ordered.first()
-                            val last  = ordered.last()
+                            val first = ordered.first(); val last = ordered.last()
                             if (first.hasLocation)
                                 km += com.rodgers.haireel.util.RouteOptimizer.haversine(depLat, depLng, first.lat, first.lng)
                             for (i in 0 until ordered.size - 1) {
@@ -221,8 +323,8 @@ import kotlinx.coroutines.withContext
                                     km += com.rodgers.haireel.util.RouteOptimizer.haversine(a.lat, a.lng, b.lat, b.lng)
                             }
                             if (last.hasLocation)
-                                km += com.rodgers.haireel.util.RouteOptimizer.haversine(last.lat, last.lng, depLat, depLng)
-                            km
+                                km += com.rodgers.haireel.util.RouteOptimizer.haversine(last.lat, last.lng, rLat, rLng)
+                            km * DistanceItemDecoration.ROAD_FACTOR
                         } else 0.0
 
                         val totalStr = "${"%.1f".format(totalKm)}km"
@@ -230,7 +332,7 @@ import kotlinx.coroutines.withContext
                             val names = result.skipped.joinToString("\n") { "・${it.displayTitle}" }
                             MaterialAlertDialogBuilder(ctx)
                                 .setTitle("⚠ 閉店済みのためスキップ")
-                                .setMessage("以下の配達先はすでに閉店しているため、リスト末尾に移動しました。\n\n$names\n\n合計距離（往復）: $totalStr")
+                                .setMessage("以下の配達先はすでに閉店しているため、リスト末尾に移動しました。\n\n$names\n\n合計距離（片道）: $totalStr")
                                 .setPositiveButton("OK", null).show()
                         } else {
                             Toast.makeText(ctx, "最適化完了　合計距離: $totalStr", Toast.LENGTH_LONG).show()
@@ -245,9 +347,6 @@ import kotlinx.coroutines.withContext
             showRouteLines = !showRouteLines
             updateAllMarkers(viewModel.allDeliveries.value)
         }
-        val radarEmoji = if (rainRadarVisible) "🌧" else "⛅"
-        val radarSub   = if (rainRadarVisible) "雨雲レーダー ON → タップで非表示" else "雨雲レーダー OFF → タップで表示"
-        row(radarEmoji, "雨雲レーダー", radarSub) { toggleRainRadar() }
         row("👁", "他のルートも表示", "複数ルートを地図に重ねて表示する") { showGroupVisibilityDialog() }
         divider()
         // ── 周辺情報
@@ -259,11 +358,6 @@ import kotlinx.coroutines.withContext
                 savedFacilityPlaces.clear()
             }
         }
-        divider()
-        // ── 緊急
-        row("🆘", "SOS送信", "緊急連絡先にSMSを送信する",
-            ContextCompat.getColor(ctx, R.color.colorSosDanger)) { showSosDialog() }
-        row("📞", "SOS連絡先を設定", "緊急時の連絡先電話番号を登録する") { showSosContactDialog() }
         divider()
         // ── 削除
         row("🗑", "ピンをすべて削除", "現在のルートの全ピンを削除する",
@@ -284,6 +378,7 @@ import kotlinx.coroutines.withContext
         sheet.setOnShowListener {
             val bs = sheet.findViewById<android.view.View>(com.google.android.material.R.id.design_bottom_sheet)
             bs?.layoutParams?.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            bs?.requestLayout()
             sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
             sheet.behavior.skipCollapsed = true
             sheet.behavior.isDraggable = false

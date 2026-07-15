@@ -240,6 +240,40 @@ object AppSettings {
         .putLong("departure_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
         .apply()
 
+    // 地点間距離表示
+    fun isDistanceVisible(ctx: Context): Boolean = prefs(ctx).getBoolean("distance_visible", true)
+    fun setDistanceVisible(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("distance_visible", v).apply()
+
+    // ETA 計算設定
+    fun getDepartureTime(ctx: Context): String = prefs(ctx).getString("departure_time", "") ?: ""
+    fun setDepartureTime(ctx: Context, v: String) = prefs(ctx).edit().putString("departure_time", v).apply()
+    fun getDwellMinutes(ctx: Context): Int = prefs(ctx).getInt("dwell_minutes", 5)
+    fun setDwellMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dwell_minutes", v).apply()
+    fun getAvgSpeedKmh(ctx: Context): Int = prefs(ctx).getInt("avg_speed_kmh", 30)
+    fun setAvgSpeedKmh(ctx: Context, v: Int) = prefs(ctx).edit().putInt("avg_speed_kmh", v).apply()
+
+    // ルート最適化: 帰着地（空の場合は出発地と同じ扱い）
+    fun getArrivalAddress(ctx: Context): String = prefs(ctx).getString("arrival_address", "") ?: ""
+    fun setArrivalAddress(ctx: Context, v: String) = prefs(ctx).edit().putString("arrival_address", v).apply()
+    fun getArrivalLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("arrival_lat_bits", 0L))
+    fun getArrivalLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("arrival_lng_bits", 0L))
+    fun setArrivalLatLng(ctx: Context, lat: Double, lng: Double) = prefs(ctx).edit()
+        .putLong("arrival_lat_bits", java.lang.Double.doubleToRawLongBits(lat))
+        .putLong("arrival_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
+        .apply()
+
+    // 配達先台帳: 除外リスト（"名前|住所" キーのSet）
+    fun getLedgerExcluded(ctx: Context): Set<String> =
+        prefs(ctx).getStringSet("ledger_excluded", emptySet()) ?: emptySet()
+    fun addLedgerExcluded(ctx: Context, key: String) {
+        val set = getLedgerExcluded(ctx).toMutableSet().also { it.add(key) }
+        prefs(ctx).edit().putStringSet("ledger_excluded", set).apply()
+    }
+    fun removeLedgerExcluded(ctx: Context, key: String) {
+        val set = getLedgerExcluded(ctx).toMutableSet().also { it.remove(key) }
+        prefs(ctx).edit().putStringSet("ledger_excluded", set).apply()
+    }
+
     // ダークモード (-1=システム, 1=ライト, 2=ダーク)
     fun getDarkMode(ctx: Context): Int = prefs(ctx).getInt("dark_mode", -1)
     fun setDarkMode(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dark_mode", v).apply()

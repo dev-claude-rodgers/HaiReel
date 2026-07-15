@@ -107,8 +107,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal var showRouteLines = true
     internal var lastKnownLocation: android.location.Location? = null
     private var pendingPinLocation: LatLng? = null
-    private var tileOverlay: TileOverlay? = null
-    internal var rainRadarVisible = false
     private var lastMarkerSignature: Int = Int.MIN_VALUE
     private var cachedSlotTemplates: List<com.rodgers.haireel.util.AppSettings.TimeSlotTemplate> = emptyList()
     private var slotTemplateCacheMs: Long = 0L
@@ -191,42 +189,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onResume() {
         super.onResume()
         scheduleMapRefresh()
-        // 気象警報チェック（エリアヒントから都道府県を判定）
-        checkDisasterAlert()
-    }
-
-    private fun checkDisasterAlert() {
-        if (!isAdded) return
-        val ctx = requireContext()
-        val areaHint = viewModel.areaHint.value
-        if (areaHint.isBlank()) return
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            val prefCode = com.rodgers.haireel.util.DisasterAlertManager
-                .getPrefCodeFromGeocodedAddress(areaHint) ?: return@launch
-            val alert = com.rodgers.haireel.util.DisasterAlertManager
-                .fetchAlerts(prefCode) ?: return@launch
-            val level = com.rodgers.haireel.util.DisasterAlertManager
-                .getAlertLevel(alert)
-
-            if (level == com.rodgers.haireel.util.DisasterAlertManager.AlertLevel.NONE) return@launch
-            if (!isAdded) return@launch
-
-            val icon  = if (level == com.rodgers.haireel.util.DisasterAlertManager.AlertLevel.WARNING) "🔴" else "🟡"
-            val title = if (level == com.rodgers.haireel.util.DisasterAlertManager.AlertLevel.WARNING) "警報発令中" else "注意報発令中"
-            val types = alert.warningTypes.take(3).joinToString("・")
-            val msg   = if (alert.headline.isNotBlank()) alert.headline else types
-
-            com.google.android.material.snackbar.Snackbar
-                .make(binding.root, "$icon $title: $msg", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
-                .setBackgroundTint(
-                    if (level == com.rodgers.haireel.util.DisasterAlertManager.AlertLevel.WARNING)
-                        android.graphics.Color.parseColor("#D32F2F")
-                    else android.graphics.Color.parseColor("#F57F17")
-                )
-                .setTextColor(android.graphics.Color.WHITE)
-                .show()
-        }
     }
 
     override fun onMapReady(map: GoogleMap) {
@@ -350,9 +312,10 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         val visibleGroups = viewModel.visibleGroupIds.value
         val newSig = run {
             var h = visibleGroups.hashCode() * 31 + filter.hashCode()
+            h = h * 31 + showRouteLines.hashCode()
             allMap.forEach { (gId, list) ->
                 h = h * 31 + gId.hashCode()
-                list.forEach { d -> h = h * 31 + (d.id.hashCode() xor d.isCompleted.hashCode() xor d.lat.toBits().toInt() xor d.lng.toBits().toInt()) }
+                list.forEach { d -> h = h * 31 + (d.id.hashCode() xor d.isCompleted.hashCode() xor d.lat.toBits().toInt() xor d.lng.toBits().toInt() xor (d.timeSlot?.hashCode() ?: 0)) }
             }
             h
         }
@@ -476,94 +439,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             map.setOnMyLocationChangeListener { location ->
                 lastKnownLocation = location
                 viewModel.setLocationBias(location.latitude, location.longitude)
-            }
-        }
-    }
-
-    internal fun toggleRainRadar() {
-        if (rainRadarVisible) {
-            tileOverlay?.remove()
-            tileOverlay = null
-            rainRadarVisible = false
-        } else {
-            loadRainRadar()
-        }
-    }
-
-    private fun loadRainRadar() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val info = com.rodgers.haireel.util.RainRadarManager.fetchLatest()
-            if (info == null) {
-                if (isAdded) Toast.makeText(requireContext(), "雨雲データを取得できませんでした", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            tileOverlay = googleMap?.addTileOverlay(
-                TileOverlayOptions().tileProvider(createRainTileProvider(info)).transparency(0.0f)
-            )
-            rainRadarVisible = true
-            googleMap?.animateCamera(CameraUpdateFactory.zoomTo(6f))
-            if (isAdded) Toast.makeText(requireContext(),
-                "🌧 雨雲レーダーON：広域表示で雨域を確認できます",
-                Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private val emptyTileBytes: ByteArray by lazy {
-        val bmp = android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
-        val out = java.io.ByteArrayOutputStream()
-        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-        bmp.recycle()
-        out.toByteArray()
-    }
-    private fun emptyTile() = com.google.android.gms.maps.model.Tile(1, 1, emptyTileBytes)
-
-    private fun createRainTileProvider(
-        info: com.rodgers.haireel.util.RainRadarManager.RadarInfo
-    ): com.google.android.gms.maps.model.TileProvider {
-        val maxZoom = 5
-        // ズームアウト時に同一タイルが複数セルから参照されるためキャッシュで重複通信を防ぐ
-        val rawCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
-        return object : com.google.android.gms.maps.model.TileProvider {
-            override fun getTile(x: Int, y: Int, zoom: Int): com.google.android.gms.maps.model.Tile {
-                return try {
-                    val diff = maxOf(0, zoom - maxZoom)
-                    val tz = minOf(zoom, maxZoom)
-                    val tx = x shr diff
-                    val ty = y shr diff
-                    val cacheKey = "$tz/$tx/$ty"
-                    val rawBytes = rawCache.getOrPut(cacheKey) {
-                        val conn = (java.net.URL("${info.host}${info.path}/256/$tz/$tx/$ty/6/1_1.png")
-                            .openConnection() as java.net.HttpURLConnection).also {
-                                it.connectTimeout = 5000; it.readTimeout = 5000
-                            }
-                        if (conn.responseCode != 200) return emptyTile()
-                        val bytes = conn.inputStream.use { it.readBytes() }
-                        if (bytes.size < 4 || bytes[0] != 0x89.toByte() || bytes[1] != 0x50.toByte()) {
-                            return emptyTile()
-                        }
-                        bytes
-                    }
-                    if (diff == 0) {
-                        return com.google.android.gms.maps.model.Tile(256, 256, rawBytes)
-                    }
-                    val src = android.graphics.BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size)
-                        ?: return emptyTile()
-                    val size = 256 shr diff
-                    if (size <= 0) return emptyTile()
-                    val ox = (x and ((1 shl diff) - 1)) * size
-                    val oy = (y and ((1 shl diff) - 1)) * size
-                    val cropped = android.graphics.Bitmap.createBitmap(src, ox, oy, size, size)
-                    src.recycle()
-                    val scaled = android.graphics.Bitmap.createScaledBitmap(cropped, 256, 256, true)
-                    if (scaled !== cropped) cropped.recycle()
-                    val bytes = java.io.ByteArrayOutputStream().also {
-                        scaled.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
-                    }.toByteArray()
-                    scaled.recycle()
-                    com.google.android.gms.maps.model.Tile(256, 256, bytes)
-                } catch (_: Exception) {
-                    emptyTile()
-                }
             }
         }
     }

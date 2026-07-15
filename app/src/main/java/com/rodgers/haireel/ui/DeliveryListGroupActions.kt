@@ -158,11 +158,17 @@ internal fun DeliveryListFragment.showListActions() {
             inputLauncher.launch(Intent(requireContext(), InputActivity::class.java))
         }
         row("📚", "過去の配達先から追加", "名前・住所で検索して素早く1件追加する") { sheet.dismiss(); showAddressHistoryDialog() }
+        row("📋", "配達先台帳", "過去の全配達先を参照・ルートに追加する") {
+            sheet.dismiss(); showLedger()
+        }
         divider()
-        // ── 配達効率化ツール
+        // ── 配達ツール
         val loadSub = if (loadedIds.isEmpty()) "出発前に積み込み確認をする"
                       else "${viewModel.deliveries.value.count { it.id in loadedIds }}/${viewModel.deliveries.value.size}件 積み込み済み"
         row("📦", "積み込みチェック", loadSub) { showLoadingCheckSheet() }
+        row("🕒", "出発・滞在設定", "出発時刻・出発地・帰着地・滞在時間を変更する") {
+            sheet.dismiss(); showDepartureSettings()
+        }
         divider()
 
         // ── 完了・選択操作
@@ -197,6 +203,17 @@ internal fun DeliveryListFragment.showListActions() {
         row("📤", "ルートを共有", "LINE・メール等で送る") { shareList() }
         divider()
         // ── 設定・整形
+        val distOn = com.rodgers.haireel.util.AppSettings.isDistanceVisible(ctx)
+        row(
+            "📏",
+            if (distOn) "地点間距離 表示中" else "地点間距離 非表示",
+            if (distOn) "配達先の間に距離を表示しています（タップで非表示）"
+                        else "タップすると配達先の間に距離を表示します"
+        ) {
+            val next = !com.rodgers.haireel.util.AppSettings.isDistanceVisible(ctx)
+            com.rodgers.haireel.util.AppSettings.setDistanceVisible(ctx, next)
+            applyFilter()
+        }
         val ttsOn = com.rodgers.haireel.util.AppSettings.isTtsEnabled(ctx)
         row(
             if (ttsOn) "🔊" else "🔇",
@@ -246,6 +263,77 @@ internal fun DeliveryListFragment.showListActions() {
         sheet.show()
     }
 
+internal fun DeliveryListFragment.showDepartureSettings() {
+    val ctx = requireContext()
+    val s   = com.rodgers.haireel.util.AppSettings
+
+    fun makeField(hint: String, current: String, helper: String = "", inputType: Int = android.text.InputType.TYPE_CLASS_TEXT): com.google.android.material.textfield.TextInputLayout {
+        val til = com.google.android.material.textfield.TextInputLayout(
+            ctx,
+            null,
+            com.google.android.material.R.attr.textInputOutlinedStyle
+        ).apply {
+            this.hint = hint
+            if (helper.isNotBlank()) helperText = helper
+            boxBackgroundMode = com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).also { it.bottomMargin = (12 * resources.displayMetrics.density).toInt() }
+        }
+        com.google.android.material.textfield.TextInputEditText(ctx).apply {
+            this.inputType = inputType
+            setText(current)
+            til.addView(this)
+        }
+        return til
+    }
+
+    val tilDep  = makeField("🏠 出発地",          s.getDepartureAddress(ctx))
+    val tilArr  = makeField("🏁 帰着地",          s.getArrivalAddress(ctx), "空欄で出発地に戻る")
+    val tilTime = makeField("🕒 出発時刻（HH:mm）", s.getDepartureTime(ctx),  "入力すると各配達先の到着予定を表示",
+                            android.text.InputType.TYPE_CLASS_DATETIME or android.text.InputType.TYPE_DATETIME_VARIATION_TIME)
+    val tilDwell = makeField("⏱ 1件あたりの滞在時間", s.getDwellMinutes(ctx).toString(), "",
+                            android.text.InputType.TYPE_CLASS_NUMBER).also {
+        it.suffixText = "分"
+    }
+
+    val inner = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        val p = (20 * resources.displayMetrics.density).toInt()
+        setPadding(p, p, p, 0)
+        addView(tilDep)
+        addView(tilArr)
+        addView(tilTime)
+        addView(tilDwell)
+    }
+
+    androidx.appcompat.app.AlertDialog.Builder(ctx)
+        .setTitle("出発・滞在設定")
+        .setView(inner)
+        .setNegativeButton("キャンセル", null)
+        .setPositiveButton("保存") { _, _ ->
+            val depAddr  = (tilDep.editText?.text?.toString() ?: "").trim()
+            val arrAddr  = (tilArr.editText?.text?.toString() ?: "").trim()
+            val timeStr  = (tilTime.editText?.text?.toString() ?: "").trim()
+            val dwellStr = (tilDwell.editText?.text?.toString() ?: "").trim()
+
+            s.setDepartureAddress(ctx, depAddr)
+            s.setArrivalAddress(ctx, arrAddr)
+
+            if (com.rodgers.haireel.util.EtaCalculator.parseMinutes(timeStr) >= 0)
+                s.setDepartureTime(ctx, timeStr)
+            else if (timeStr.isEmpty())
+                s.setDepartureTime(ctx, "")
+
+            val dwellInt = dwellStr.toIntOrNull()
+            if (dwellInt != null) s.setDwellMinutes(ctx, dwellInt.coerceIn(0, 120))
+            else if (dwellStr.isEmpty()) s.setDwellMinutes(ctx, 5)
+
+            applyFilter()
+        }
+        .show()
+}
 
 internal fun DeliveryListFragment.showAddressHistoryDialog() {
     val ctx = requireContext()
@@ -274,7 +362,7 @@ internal fun DeliveryListFragment.showAddressHistoryDialog() {
         })
     })
     val etAddress = android.widget.EditText(ctx).apply {
-        hint = "例: 〇〇区〇〇、〇〇市…"
+        hint = "例: 〇〇市〇〇、〇〇書店…"
         textSize = 16f
         inputType = android.text.InputType.TYPE_CLASS_TEXT
         layoutParams = LinearLayout.LayoutParams(
@@ -603,7 +691,7 @@ internal fun DeliveryListFragment.showTtsDictionaryDialog() {
         etSurface.text?.clear(); etReading.text?.clear()
         refreshList()
         com.rodgers.haireel.util.TtsManager.speak(reading, ctx)
-        Toast.makeText(ctx, "「$reading」と登録しました", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, "「$surface」→「$reading」と登録しました", Toast.LENGTH_SHORT).show()
     }
 
     refreshList()

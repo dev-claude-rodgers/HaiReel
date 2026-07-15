@@ -297,6 +297,7 @@ object BackupManager {
                                     groupId         = o.getString("groupId"),
                                     order           = o.optInt("order", i),
                                     name            = o.optString("name").ifBlank { null },
+                                    nameKana        = o.optString("nameKana").ifBlank { null },
                                     address         = o.optString("address", ""),
                                     geocodedAddress = o.optString("geocodedAddress").ifBlank { null },
                                     note            = o.optString("note").ifBlank { null },
@@ -304,7 +305,10 @@ object BackupManager {
                                     photoUrisJson   = newPhotoUrisJson,
                                     roomsJson       = o.optString("roomsJson").ifBlank { null },
                                     timeSlot        = o.optString("timeSlot").ifBlank { null },
+                                    openTime        = o.optString("openTime").ifBlank { null },
+                                    closeTime       = o.optString("closeTime").ifBlank { null },
                                     packageCount    = o.optInt("packageCount", 0),
+                                    dwellMinutes    = o.optInt("dwellMinutes", -1).takeIf { it >= 0 },
                                     lat             = o.optDouble("lat", 0.0),
                                     lng             = o.optDouble("lng", 0.0),
                                     isCompleted     = o.optBoolean("isCompleted", false),
@@ -634,6 +638,7 @@ object BackupManager {
                 put("groupId",         d.groupId)
                 put("order",           d.order)
                 put("name",            d.name ?: "")
+                put("nameKana",        d.nameKana ?: "")
                 put("address",         d.address)
                 put("geocodedAddress", d.geocodedAddress ?: "")
                 put("note",            d.note ?: "")
@@ -641,7 +646,10 @@ object BackupManager {
                 put("photoUrisJson",   d.photoUrisJson ?: "")
                 put("roomsJson",       d.roomsJson ?: "")
                 put("timeSlot",        d.timeSlot ?: "")
+                put("openTime",        d.openTime ?: "")
+                put("closeTime",       d.closeTime ?: "")
                 put("packageCount",    d.packageCount)
+                put("dwellMinutes",    d.dwellMinutes ?: -1)
                 put("lat",             d.lat)
                 put("lng",             d.lng)
                 put("isCompleted",     d.isCompleted)

@@ -3,7 +3,10 @@ package com.rodgers.haireel.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.rodgers.haireel.db.DeliveryGroupDao
 import com.rodgers.haireel.db.WorkRecordDao
+import com.rodgers.haireel.db.toGroup
+import com.rodgers.haireel.model.DeliveryGroup
 import com.rodgers.haireel.model.ReportPattern
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
@@ -26,7 +29,8 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel @Inject constructor(
     app: Application,
-    private val dao: WorkRecordDao
+    private val dao: WorkRecordDao,
+    private val groupDao: DeliveryGroupDao
 ) : AndroidViewModel(app) {
 
     data class MonthlySummary(
@@ -48,6 +52,8 @@ class DashboardViewModel @Inject constructor(
     private val _patterns                         = MutableStateFlow<List<ReportPattern>>(emptyList())
     val patterns: StateFlow<List<ReportPattern>>  = _patterns
 
+    private val _groups = MutableStateFlow<List<DeliveryGroup>>(emptyList())
+
     init {
         viewModelScope.launch { refresh() }
     }
@@ -56,10 +62,11 @@ class DashboardViewModel @Inject constructor(
 
     suspend fun refresh() {
         _patterns.value = PatternStorage.getAll(getApplication())
+        _groups.value   = groupDao.getAll().map { it.toGroup() }
     }
 
     val monthlySummaries: StateFlow<List<MonthlySummary>> =
-        combine(_year, _patternId, _patterns) { year, pid, patterns ->
+        combine(_year, _patternId, _patterns, _groups) { year, pid, patterns, groups ->
             // 選択パターンの締め日を使用。未選択（-1）はアクティブパターン or デフォルト
             val cd = when {
                 pid != -1 -> patterns.find { it.id == pid }?.closingDay
@@ -69,9 +76,16 @@ class DashboardViewModel @Inject constructor(
                 }
                 else -> null
             } ?: AppSettings.getClosingDay(getApplication())
-            Pair(year, cd)
+
+            // パターンに紐づくグループIDセット（null = 全件）
+            val groupIds: Set<String>? = if (pid != -1) {
+                groups.filter { it.patternId == pid }.map { it.id }.toSet()
+            } else null
+
+            Triple(year, cd, groupIds)
         }
-        .flatMapLatest { (year, cd) ->
+        .flatMapLatest { triple ->
+            val (year, cd, groupIds) = triple
             val periods = (1..12).map { month ->
                 val ym = "%04d-%02d".format(year, month)
                 ReportViewModel.computePeriod(ym, cd)
@@ -80,8 +94,13 @@ class DashboardViewModel @Inject constructor(
             val queryEnd   = periods.last().second
             dao.recordsForPeriodFlow(queryStart, queryEnd)
                 .map { records ->
+                    // パターン絞り込み: グループIDが指定されていれば対象グループ + 旧データ(未紐付け)に限定
+                    val scoped = if (groupIds != null && groupIds.isNotEmpty()) {
+                        records.filter { it.assignmentId in groupIds || it.assignmentId.isEmpty() }
+                    } else records
+
                     // 同一日付は1件のみ: assignmentId有りを優先、複数ある場合はid最大（最新）を選択
-                    val deduped = records.groupBy { it.date }
+                    val deduped = scoped.groupBy { it.date }
                         .map { (_, recs) ->
                             val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
                             (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!

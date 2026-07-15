@@ -157,7 +157,7 @@ internal fun DailyReportFragment.showAppSettingsDialog() {
 
     root.addView(field("確認者名（運行管理者）"))
     val etChecker = EditText(ctx).apply {
-        hint = "乗務員本人（自己点呼時）"
+        hint = "例: 山田太郎（自己点呼時は乗務員名）"
         inputType = InputType.TYPE_CLASS_TEXT
         setText(AppSettings.getCheckerName(ctx))
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)

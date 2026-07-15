@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp"
+    android:gravity="center_vertical"
+    android:minHeight="64dp"
+    android:background="?attr/selectableItemBackground">
+
+    <!-- 配達回数 -->
+    <TextView
+        android:id="@+id/tvLedgerCount"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <!-- 中央: 名前・住所・時間帯・メモ -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="4dp">
+
+        <TextView
+            android:id="@+id/tvLedgerTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorOnSurface"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/tvLedgerAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvLedgerTimeSlot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginTop="2dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvLedgerNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/colorAccentOrange"
+            android:layout_marginTop="2dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- ルートに追加ボタン -->
+    <TextView
+        android:id="@+id/btnLedgerAdd"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:text="＋"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="?attr/colorPrimary"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="ルートに追加" />
+
+</LinearLayout>

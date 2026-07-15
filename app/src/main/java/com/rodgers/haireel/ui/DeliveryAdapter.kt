@@ -32,6 +32,13 @@ class DeliveryAdapter(
     val selectedIds = mutableSetOf<String>()
     var groupColor: Int = android.graphics.Color.parseColor("#F44336")
     var isDragging = false
+    private var etas: Map<String, Int?> = emptyMap()
+
+    fun setEtas(newEtas: Map<String, Int?>) {
+        if (newEtas == etas) return
+        etas = newEtas
+        notifyDataSetChanged()
+    }
 
     fun submitList(list: List<Delivery>) {
         if (isDragging) return
@@ -79,6 +86,7 @@ class DeliveryAdapter(
         private val tvAddress: TextView = view.findViewById(R.id.tvAddress)
         private val tvGeocodedAddress: TextView = view.findViewById(R.id.tvGeocodedAddress)
         private val tvGeoStatus: TextView = view.findViewById(R.id.tvGeoStatus)
+        private val tvEta: TextView = view.findViewById(R.id.tvEta)
         private val tvNote: TextView = view.findViewById(R.id.tvNote)
         private val layoutSlotPackage: LinearLayout = view.findViewById(R.id.layoutSlotPackage)
         private val tvTimeSlot: TextView = view.findViewById(R.id.tvTimeSlot)
@@ -136,6 +144,22 @@ class DeliveryAdapter(
                 tvPackageCount.visibility = if (hasPkg) View.VISIBLE else View.GONE
             } else {
                 layoutSlotPackage.visibility = View.GONE
+            }
+
+            val eta = etas[delivery.id]
+            if (eta != null) {
+                val etaStr = com.rodgers.haireel.util.EtaCalculator.formatMinutes(eta)
+                val closeMin = delivery.closeTime?.let { com.rodgers.haireel.util.EtaCalculator.parseMinutes(it) } ?: -1
+                if (closeMin >= 0 && eta > closeMin) {
+                    tvEta.text = "→ $etaStr ⚠ 閉店後"
+                    tvEta.setTextColor(android.graphics.Color.parseColor("#E53935"))
+                } else {
+                    tvEta.text = "→ $etaStr"
+                    tvEta.setTextColor(tvEta.context.getColor(R.color.colorTimeSlot))
+                }
+                tvEta.visibility = View.VISIBLE
+            } else {
+                tvEta.visibility = View.GONE
             }
 
             val hasNote = !delivery.note.isNullOrBlank()

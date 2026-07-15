@@ -13,40 +13,47 @@ import kotlin.math.*
 class DistanceItemDecoration(context: Context) : RecyclerView.ItemDecoration() {
 
     companion object {
-        // 直線距離→実道路距離の補正係数（概算）
         const val ROAD_FACTOR = 1.3
     }
 
-    private val density = context.resources.displayMetrics.density
-    private val rowHeight  = (24 * density).toInt()
+    private val density      = context.resources.displayMetrics.density
+    private val rowHeight    = (24 * density).toInt()
     private val depRowHeight = (28 * density).toInt()
 
     private val interPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize   = 12f * density
-        color      = context.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        textAlign  = Paint.Align.CENTER
+        textSize  = 14f * density
+        color     = context.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        textAlign = Paint.Align.CENTER
     }
     private val depPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize   = 12f * density
-        color      = context.themeColor(com.google.android.material.R.attr.colorPrimary)
-        textAlign  = Paint.Align.CENTER
+        textSize  = 14f * density
+        color     = context.themeColor(com.google.android.material.R.attr.colorPrimary)
+        textAlign = Paint.Align.CENTER
     }
 
-    private var distances: List<Double?> = emptyList()
-    private var depToFirst: Double? = null
-    private var lastToDep: Double? = null
-    private var _depLat = 0.0
-    private var _depLng = 0.0
-    private var hasDep = false
+    var distances:  List<Double?> = emptyList()
+        private set
+    var depToFirst: Double? = null
+        private set
+    private var lastToArr:  Double? = null
 
-    // 合計距離（出発地往復含む）を外部から参照できる
+    private var _depLat = 0.0; private var _depLng = 0.0; private var hasDep = false
+    private var _arrLat = 0.0; private var _arrLng = 0.0; private var hasArr = false
+
+    var isEnabled: Boolean = true
+
     var totalKm: Double = 0.0
         private set
 
     fun setDeparture(lat: Double, lng: Double) {
-        _depLat = lat
-        _depLng = lng
+        _depLat = lat; _depLng = lng
         hasDep  = lat != 0.0 || lng != 0.0
+    }
+
+    // 帰着地。空（0,0）の場合は出発地と同じ扱い
+    fun setArrival(lat: Double, lng: Double) {
+        _arrLat = lat; _arrLng = lng
+        hasArr  = lat != 0.0 || lng != 0.0
     }
 
     fun update(deliveries: List<Delivery>) {
@@ -54,27 +61,36 @@ class DistanceItemDecoration(context: Context) : RecyclerView.ItemDecoration() {
             val a = deliveries[i]; val b = deliveries[i + 1]
             if (a.hasLocation && b.hasLocation) haversine(a.lat, a.lng, b.lat, b.lng) else null
         }
-        if (hasDep && deliveries.isNotEmpty()) {
+
+        if (deliveries.isNotEmpty()) {
             val first = deliveries.first()
             val last  = deliveries.last()
-            depToFirst = if (first.hasLocation) haversine(_depLat, _depLng, first.lat, first.lng) else null
-            lastToDep  = if (last.hasLocation)  haversine(last.lat, last.lng, _depLat, _depLng)  else null
+            // 出発地 → 1件目
+            depToFirst = if (hasDep && first.hasLocation)
+                haversine(_depLat, _depLng, first.lat, first.lng) else null
+            // 最終地点 → 帰着地（帰着地未設定なら出発地へ）
+            val (rLat, rLng) = if (hasArr) _arrLat to _arrLng else _depLat to _depLng
+            lastToArr = if ((hasDep || hasArr) && last.hasLocation)
+                haversine(last.lat, last.lng, rLat, rLng) else null
         } else {
-            depToFirst = null; lastToDep = null
+            depToFirst = null; lastToArr = null
         }
-        totalKm = distances.filterNotNull().sum() + (depToFirst ?: 0.0) + (lastToDep ?: 0.0)
+
+        totalKm = distances.filterNotNull().sum() + (depToFirst ?: 0.0) + (lastToArr ?: 0.0)
     }
 
     override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
+        if (!isEnabled) return
         val pos   = parent.getChildAdapterPosition(view)
         val count = parent.adapter?.itemCount ?: 0
         if (pos < 0) return
-        if (pos == 0 && hasDep)          outRect.top    = depRowHeight
-        if (pos < count - 1)             outRect.bottom = rowHeight
-        if (pos == count - 1 && hasDep)  outRect.bottom = depRowHeight
+        if (pos == 0 && hasDep)                   outRect.top    = depRowHeight
+        if (pos < count - 1)                      outRect.bottom = rowHeight
+        if (pos == count - 1 && (hasDep || hasArr)) outRect.bottom = depRowHeight
     }
 
     override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+        if (!isEnabled) return
         val count = parent.adapter?.itemCount ?: 0
         for (i in 0 until parent.childCount) {
             val child = parent.getChildAt(i)
@@ -97,9 +113,10 @@ class DistanceItemDecoration(context: Context) : RecyclerView.ItemDecoration() {
                 c.drawText(text, x, y, interPaint)
             }
 
-            // 最終地点 → 🏠
-            if (pos == count - 1 && hasDep) {
-                val text = if (lastToDep != null) "↓ ${"%.1f".format(lastToDep!!)}km → 🏠" else "↓ → 🏠"
+            // 最終地点 → 帰着地 or 出発地
+            if (pos == count - 1 && (hasDep || hasArr)) {
+                val icon = if (hasArr) "🏁" else "🏠"
+                val text = if (lastToArr != null) "↓ ${"%.1f".format(lastToArr!!)}km → $icon" else "↓ → $icon"
                 val y = child.bottom.toFloat() + depRowHeight / 2f + depPaint.textSize / 3f
                 c.drawText(text, x, y, depPaint)
             }
