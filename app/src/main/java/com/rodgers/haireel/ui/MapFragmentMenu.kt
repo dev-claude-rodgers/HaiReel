@@ -131,20 +131,12 @@ import kotlinx.coroutines.withContext
         })
 
         // ── ルート操作
-        row("🗺", "ルート最適化", "現在地から最短順に並び替える") {
+        row("🗺", "ルート最適化", "出発地から最短順に並び替える") {
             val geocodedCount = viewModel.deliveries.value.count { it.hasLocation }
             if (geocodedCount < 2) {
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle("ルート最適化できません")
                     .setMessage("地図に配置済みの住所が2件未満です。\n住所を入力すると自動で地図に配置されます。配達リストで「⏳ 検索中」が消えてから実行してください。")
-                    .setPositiveButton("OK", null).show()
-                return@row
-            }
-            val loc = lastKnownLocation
-            if (loc == null) {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("現在地が取得できません")
-                    .setMessage("位置情報の権限が許可されていないか、まだ取得中です。\n設定 → アプリ → HaiReel → 権限 → 位置情報を「アプリの使用中のみ」に変更してから再度お試しください。")
                     .setPositiveButton("OK", null).show()
                 return@row
             }
@@ -155,19 +147,94 @@ import kotlinx.coroutines.withContext
             val nowMinutes = nowCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 +
                              nowCal.get(java.util.Calendar.MINUTE)
             val threshold = AppSettings.getUrgencyThresholdMinutes(ctx)
-            val msgSuffix = if (hasTimeWindows)
+            val timeWindowNote = if (hasTimeWindows)
                 "\n\n営業時間が設定されている場所は閉店${threshold}分前を優先します。" else ""
+
+            // 出発地入力欄（前回の住所を引き継ぐ）
+            val dp = ctx.resources.displayMetrics.density
+            val etDeparture = EditText(ctx).apply {
+                hint = "例: 東京都渋谷区〇〇1-2-3（空欄で現在地）"
+                inputType = InputType.TYPE_CLASS_TEXT
+                setText(AppSettings.getDepartureAddress(ctx))
+                setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt())
+            }
+            val container = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), 0)
+                addView(TextView(ctx).apply {
+                    text = "出発地・帰着地の住所"
+                    textSize = 13f
+                    setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                })
+                addView(etDeparture)
+                addView(TextView(ctx).apply {
+                    text = "※ 空欄の場合は現在地から最適化します"
+                    textSize = 11f
+                    setPadding(0, (4 * dp).toInt(), 0, 0)
+                    setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                })
+            }
+
             MaterialAlertDialogBuilder(ctx)
                 .setTitle("ルート最適化")
-                .setMessage("地図に配置済みの${geocodedCount}件を現在地から最短経路で並び替えます。$msgSuffix")
+                .setMessage("地図に配置済みの${geocodedCount}件を最短経路で並び替えます。$timeWindowNote")
+                .setView(container)
                 .setPositiveButton("最適化する") { _, _ ->
-                    val result = viewModel.optimizeRoute(loc.latitude, loc.longitude, nowMinutes, threshold)
-                    if (result.skipped.isNotEmpty()) {
-                        val names = result.skipped.joinToString("\n") { "・${it.displayTitle}" }
-                        MaterialAlertDialogBuilder(ctx)
-                            .setTitle("⚠ 閉店済みのためスキップ")
-                            .setMessage("以下の配達先はすでに閉店しているため、リスト末尾に移動しました。\n\n$names")
-                            .setPositiveButton("OK", null).show()
+                    val inputAddress = etDeparture.text.toString().trim()
+                    lifecycleScope.launch {
+                        val depLat: Double
+                        val depLng: Double
+                        if (inputAddress.isNotBlank()) {
+                            Toast.makeText(ctx, "住所を検索中...", Toast.LENGTH_SHORT).show()
+                            val geo = withContext(Dispatchers.IO) {
+                                GeocodingClient.geocodeExact(inputAddress)
+                            }
+                            if (geo == null) {
+                                Toast.makeText(ctx, "住所が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+                            depLat = geo.lat; depLng = geo.lng
+                            AppSettings.setDepartureAddress(ctx, inputAddress)
+                            AppSettings.setDepartureLatLng(ctx, depLat, depLng)
+                        } else {
+                            val loc = lastKnownLocation
+                            if (loc == null) {
+                                Toast.makeText(ctx, "現在地が取得できません。住所を入力してください。", Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
+                            depLat = loc.latitude; depLng = loc.longitude
+                        }
+
+                        val result = viewModel.optimizeRoute(depLat, depLng, nowMinutes, threshold)
+
+                        // 合計距離を計算: 出発地→1件目 + 地点間合計 + 最終地点→出発地
+                        val ordered = result.ordered
+                        val totalKm = if (ordered.isNotEmpty()) {
+                            var km = 0.0
+                            val first = ordered.first()
+                            val last  = ordered.last()
+                            if (first.hasLocation)
+                                km += com.rodgers.haireel.util.RouteOptimizer.haversine(depLat, depLng, first.lat, first.lng)
+                            for (i in 0 until ordered.size - 1) {
+                                val a = ordered[i]; val b = ordered[i + 1]
+                                if (a.hasLocation && b.hasLocation)
+                                    km += com.rodgers.haireel.util.RouteOptimizer.haversine(a.lat, a.lng, b.lat, b.lng)
+                            }
+                            if (last.hasLocation)
+                                km += com.rodgers.haireel.util.RouteOptimizer.haversine(last.lat, last.lng, depLat, depLng)
+                            km
+                        } else 0.0
+
+                        val totalStr = "${"%.1f".format(totalKm)}km"
+                        if (result.skipped.isNotEmpty()) {
+                            val names = result.skipped.joinToString("\n") { "・${it.displayTitle}" }
+                            MaterialAlertDialogBuilder(ctx)
+                                .setTitle("⚠ 閉店済みのためスキップ")
+                                .setMessage("以下の配達先はすでに閉店しているため、リスト末尾に移動しました。\n\n$names\n\n合計距離（往復）: $totalStr")
+                                .setPositiveButton("OK", null).show()
+                        } else {
+                            Toast.makeText(ctx, "最適化完了　合計距離: $totalStr", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
                 .setNegativeButton("キャンセル", null).show()

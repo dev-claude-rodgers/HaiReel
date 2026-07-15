@@ -136,6 +136,16 @@
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
+        <TextView
+            android:id="@+id/tvTotalDistance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorPrimary"
+            android:visibility="gone" />
+
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView

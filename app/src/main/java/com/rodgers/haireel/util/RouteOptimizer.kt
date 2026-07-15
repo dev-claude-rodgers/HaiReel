@@ -83,7 +83,7 @@ object RouteOptimizer {
     }
 
     // Haversine公式: 2点間の距離(km)
-    private fun haversine(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+    internal fun haversine(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val r = 6371.0
         val dLat = Math.toRadians(lat2 - lat1)
         val dLng = Math.toRadians(lng2 - lng1)

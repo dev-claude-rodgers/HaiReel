@@ -80,11 +80,11 @@ class DashboardViewModel @Inject constructor(
             val queryEnd   = periods.last().second
             dao.recordsForPeriodFlow(queryStart, queryEnd)
                 .map { records ->
-                    // 同一日付の重複排除: assignmentId有りを優先、なければblankを1件
+                    // 同一日付は1件のみ: assignmentId有りを優先、複数ある場合はid最大（最新）を選択
                     val deduped = records.groupBy { it.date }
-                        .flatMap { (_, recs) ->
+                        .map { (_, recs) ->
                             val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
-                            if (nonBlank.isNotEmpty()) nonBlank else recs.take(1)
+                            (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
                         }
                         .sortedBy { it.date }
                     periods.mapIndexed { idx, (start, end) ->

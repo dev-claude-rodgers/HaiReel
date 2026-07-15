@@ -230,6 +230,16 @@ object AppSettings {
     fun getUrgencyThresholdMinutes(ctx: Context): Int = prefs(ctx).getInt("urgency_threshold_minutes", 60)
     fun setUrgencyThresholdMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("urgency_threshold_minutes", v).apply()
 
+    // ルート最適化: 出発地（住所・座標）
+    fun getDepartureAddress(ctx: Context): String = prefs(ctx).getString("departure_address", "") ?: ""
+    fun setDepartureAddress(ctx: Context, v: String) = prefs(ctx).edit().putString("departure_address", v).apply()
+    fun getDepartureLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("departure_lat_bits", 0L))
+    fun getDepartureLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("departure_lng_bits", 0L))
+    fun setDepartureLatLng(ctx: Context, lat: Double, lng: Double) = prefs(ctx).edit()
+        .putLong("departure_lat_bits", java.lang.Double.doubleToRawLongBits(lat))
+        .putLong("departure_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
+        .apply()
+
     // ダークモード (-1=システム, 1=ライト, 2=ダーク)
     fun getDarkMode(ctx: Context): Int = prefs(ctx).getInt("dark_mode", -1)
     fun setDarkMode(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dark_mode", v).apply()

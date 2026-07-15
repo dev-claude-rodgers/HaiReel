@@ -78,6 +78,7 @@ class DeliveryListFragment : Fragment() {
     internal var pendingPhotoDeliveryId: String? = null
     internal var pendingPhotoFilePath: String? = null
     private lateinit var itemTouchHelper: ItemTouchHelper
+    private lateinit var distanceDecoration: DistanceItemDecoration
 
     // 積み込みチェック（インメモリ。アプリ再起動でリセット）
     internal val loadedIds = mutableSetOf<String>()
@@ -133,10 +134,11 @@ class DeliveryListFragment : Fragment() {
             onSelectionChanged = { updateSelectionUI() }
         )
 
+        distanceDecoration = DistanceItemDecoration(requireContext())
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             this.adapter = this@DeliveryListFragment.adapter
-            addItemDecoration(DividerItemDecoration(requireContext(), DividerItemDecoration.VERTICAL))
+            addItemDecoration(distanceDecoration)
         }
 
         itemTouchHelper = buildItemTouchHelper()
@@ -376,7 +378,25 @@ class DeliveryListFragment : Fragment() {
         }
         val sorted = filtered.sortedBy { it.order }
         adapter.submitList(sorted)
+        val ctx = requireContext()
+        distanceDecoration.setDeparture(
+            com.rodgers.haireel.util.AppSettings.getDepartureLat(ctx),
+            com.rodgers.haireel.util.AppSettings.getDepartureLng(ctx)
+        )
+        distanceDecoration.update(sorted)
+        binding.recyclerView.invalidateItemDecorations()
         binding.textEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
+
+        // 合計距離バッジ更新
+        val totalKm = distanceDecoration.totalKm
+        if (sorted.size >= 2 && totalKm > 0) {
+            binding.tvTotalDistance.visibility = View.VISIBLE
+            val hasDep = com.rodgers.haireel.util.AppSettings.getDepartureLat(ctx) != 0.0 ||
+                         com.rodgers.haireel.util.AppSettings.getDepartureLng(ctx) != 0.0
+            binding.tvTotalDistance.text = if (hasDep) "↻ 概算${"%.1f".format(totalKm)}km" else "⟷ 概算${"%.1f".format(totalKm)}km"
+        } else {
+            binding.tvTotalDistance.visibility = View.GONE
+        }
 
         val total = list.size
         val done  = list.count { it.isCompleted }
