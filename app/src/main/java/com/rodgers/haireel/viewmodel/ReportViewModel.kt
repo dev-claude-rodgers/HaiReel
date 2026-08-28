@@ -47,14 +47,15 @@ class ReportViewModel @Inject constructor(
             dao.recordsForPeriodFlow(start, end, aid).map { list ->
                 if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("ReportVM", "records result: ${list.size}件, income=${list.sumOf { it.income }}, assignmentIds=${list.map { it.assignmentId }.distinct()}")
                 list.groupBy { it.date }
-                    .flatMap { (_, recs) ->
+                    .map { (_, recs) ->
                         if (aid.isBlank()) {
-                            // 全案件: 同日にblankとグループ両方ある場合はblankを除外、複数グループは全て残す
+                            // 全案件: 同日にblankとグループ両方ある場合はblankを除外し、
+                            // 同日に複数グループがある場合も1件（最新のid）に絞る（合計の二重計上防止）
                             val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
-                            if (nonBlank.isNotEmpty()) nonBlank else recs.take(1)
+                            (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
                         } else {
                             // 特定案件: グループレコード優先、なければblankを使用（1件）
-                            listOf(recs.firstOrNull { it.assignmentId == aid } ?: recs.first())
+                            recs.firstOrNull { it.assignmentId == aid } ?: recs.first()
                         }
                     }
                     .sortedBy { it.date }
@@ -105,14 +106,22 @@ class ReportViewModel @Inject constructor(
     suspend fun recordForDate(date: String): WorkRecord? = dao.recordForDate(date, _assignmentId.value)
 
     suspend fun recordsForPeriod(startDate: String, endDate: String): List<WorkRecord> =
-        dao.recordsForPeriod(startDate, endDate, _assignmentId.value)
+        recordsForPeriodWithAssignment(startDate, endDate, _assignmentId.value)
 
+    // Excel出力・テキスト共有からも使うため、records と同じ重複排除ロジックを適用する。
+    // 適用しないと同日に複数ルートの記録がある場合に合計・稼働日数が二重計上される。
     suspend fun recordsForPeriodWithAssignment(startDate: String, endDate: String, assignmentId: String): List<WorkRecord> =
         dao.recordsForPeriod(startDate, endDate, assignmentId)
-
-    // 全案件の記録を取得（サマリー用）
-    suspend fun allRecordsForMonth(yearMonth: String): List<WorkRecord> =
-        dao.recordsForMonth(yearMonth)
+            .groupBy { it.date }
+            .map { (_, recs) ->
+                if (assignmentId.isBlank()) {
+                    val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
+                    (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
+                } else {
+                    recs.firstOrNull { it.assignmentId == assignmentId } ?: recs.first()
+                }
+            }
+            .sortedBy { it.date }
 
     companion object {
         // 締め日から集計期間の開始日・終了日を返す (ISO文字列のPair)

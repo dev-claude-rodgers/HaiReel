@@ -10,6 +10,10 @@ interface VehicleDao {
     @Query("SELECT * FROM vehicles ORDER BY id ASC")
     fun getAllFlow(): Flow<List<Vehicle>>
 
+    /** バックアップ用: 全件取得 */
+    @Query("SELECT * FROM vehicles ORDER BY id ASC")
+    suspend fun getAll(): List<Vehicle>
+
     @Upsert
     suspend fun upsert(vehicle: Vehicle): Long
 

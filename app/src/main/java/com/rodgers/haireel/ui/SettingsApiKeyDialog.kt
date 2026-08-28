@@ -6,9 +6,9 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.rodgers.haireel.BuildConfig
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.GeocodingClient
+import com.rodgers.haireel.util.applyGeocodingConfig
 import com.rodgers.haireel.util.themeColor
 
 fun showApiKeyWizardDialog(
@@ -30,7 +30,10 @@ fun showApiKeyWizardDialog(
     }
 
     root.addView(android.widget.TextView(ctx).apply {
-        text = "住所を地図座標に変換するには「Google APIキー」が必要です。\nGoogleアカウントがあれば無料で取得でき、個人利用の範囲では料金はかかりません。"
+        text = if (AppSettings.canUseApp(ctx))
+            "試用期間中・またはプレミアム会員の間は、運営が提供するAPIを自動的に使用するため、この設定は不要です。\n下記は「自分のGoogle APIキーを使いたい」上級者向けの設定です。"
+        else
+            "住所を地図座標に変換するには「Google APIキー」が必要です。\nGoogleアカウントがあれば無料で取得でき、個人利用の範囲では料金はかかりません。"
         textSize = 14f; setTextColor(onSurface)
         layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
             .also { it.bottomMargin = (8*dp).toInt() }
@@ -195,13 +198,16 @@ fun showApiKeyWizardDialog(
     dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
         val key = inputField.text.toString().trim()
         AppSettings.setUserApiKey(ctx, key)
-        GeocodingClient.configure(key.ifBlank { BuildConfig.GEOCODING_API_KEY })
+        applyGeocodingConfig(ctx, GeocodingClient)
         onStatusChanged(
-            if (key.isNotBlank()) "設定済み（自分のAPIキーを使用中）"
-            else "未設定（住所変換・地図機能が使えません）"
+            when {
+                key.isNotBlank() -> "設定済み（自分のAPIキーを使用中）"
+                AppSettings.canUseApp(ctx) -> "設定不要（運営提供のAPIを自動使用中）"
+                else -> "未設定（住所変換・地図機能が使えません）"
+            }
         )
         dlg.dismiss()
         if (key.isNotBlank()) onTestApiKey()
-        else Toast.makeText(ctx, "APIキーを削除しました", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(ctx, "自分のAPIキー設定を解除しました", Toast.LENGTH_SHORT).show()
     }
 }

@@ -42,103 +42,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
-    internal fun MapFragment.showMapMenu() {
-        val ctx = requireContext()
-        val dp = ctx.resources.displayMetrics.density
-        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
-
-        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(surfaceColor)
-        }
-
-        // ヘッダー（タイトル + × ボタン）
-        val headerRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding((20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt())
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        headerRow.addView(TextView(ctx).apply {
-            text = "地図メニュー"; textSize = 20f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(onSurfaceColor)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        headerRow.addView(TextView(ctx).apply {
-            text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
-            setTextColor(onSurfaceVariant)
-            background = android.util.TypedValue().also {
-                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
-            layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
-            setOnClickListener { sheet.dismiss() }
-        })
-        root.addView(headerRow)
-        root.addView(android.view.View(ctx).apply {
-            setBackgroundColor(outlineVariant)
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
-        })
-
-        val rippleRes = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
-
-        fun row(emoji: String, title: String, sub: String, color: Int = onSurfaceColor, action: () -> Unit) {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setBackgroundResource(rippleRes)
-                setPadding((20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt())
-            }
-            row.addView(TextView(ctx).apply {
-                text = emoji; textSize = 28f; gravity = android.view.Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams((52 * dp).toInt(), LinearLayout.LayoutParams.WRAP_CONTENT)
-            })
-            val col = LinearLayout(ctx).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    .also { it.marginStart = (14 * dp).toInt() }
-            }
-            col.addView(TextView(ctx).apply {
-                text = title; textSize = 17f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setTextColor(color)
-            })
-            if (sub.isNotBlank()) col.addView(TextView(ctx).apply {
-                text = sub; textSize = 14f
-                setTextColor(onSurfaceVariant)
-                maxLines = 2
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    .also { it.topMargin = (2 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
-            })
-            row.addView(col)
-            row.setOnClickListener { sheet.dismiss(); action() }
-            root.addView(row)
-        }
-
-        fun divider() = root.addView(android.view.View(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
-                .also { it.setMargins((84 * dp).toInt(), (4 * dp).toInt(), 0, (4 * dp).toInt()) }
-            setBackgroundColor(outlineVariant)
-        })
-
-        // ── ルート操作
-        row("🗺", "ルート最適化", "出発地から最短順に並び替える") {
+    internal fun MapFragment.showRouteOptimizeDialog() {
+            val ctx = requireContext()
             val geocodedCount = viewModel.deliveries.value.count { it.hasLocation }
             if (geocodedCount < 2) {
                 MaterialAlertDialogBuilder(ctx)
                     .setTitle("ルート最適化できません")
                     .setMessage("地図に配置済みの住所が2件未満です。\n住所を入力すると自動で地図に配置されます。配達リストで「⏳ 検索中」が消えてから実行してください。")
                     .setPositiveButton("OK", null).show()
-                return@row
+                return
             }
             val hasTimeWindows = viewModel.deliveries.value.any {
                 !it.openTime.isNullOrBlank() || !it.closeTime.isNullOrBlank()
@@ -148,7 +60,7 @@ import kotlinx.coroutines.withContext
                              nowCal.get(java.util.Calendar.MINUTE)
             val savedThreshold = AppSettings.getUrgencyThresholdMinutes(ctx)
             val timeWindowNote = if (hasTimeWindows)
-                "\n\n営業時間が設定されている場所は閉店N分前を優先します。" else ""
+                "\n\n営業時間が設定されている場所は閉店${savedThreshold}分前を優先します（「出発・滞在設定」で変更可）。" else ""
 
             val dp = ctx.resources.displayMetrics.density
             val px = { n: Int -> (n * dp).toInt() }
@@ -193,34 +105,6 @@ import kotlinx.coroutines.withContext
                 addView(etThreshold)
             }
 
-            val etDepTime = com.google.android.material.textfield.TextInputEditText(ctx).apply {
-                setText(AppSettings.getDepartureTime(ctx))
-                inputType = InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME
-                maxLines = 1
-            }
-            val tilDepTime = com.google.android.material.textfield.TextInputLayout(
-                ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
-            ).apply {
-                hint = "🕒 出発時刻（HH:mm）"
-                helperText = "入力すると各配達先の到着予定を表示"
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                addView(etDepTime)
-            }
-
-            val etDwell = com.google.android.material.textfield.TextInputEditText(ctx).apply {
-                setText(AppSettings.getDwellMinutes(ctx).toString())
-                inputType = InputType.TYPE_CLASS_NUMBER
-                maxLines = 1
-            }
-            val tilDwell = com.google.android.material.textfield.TextInputLayout(
-                ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
-            ).apply {
-                hint = "⏱ 1件あたりの滞在時間"
-                suffixText = "分"
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                addView(etDwell)
-            }
-
             val inner = LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(px(20), px(8), px(20), px(16))
@@ -239,14 +123,6 @@ import kotlinx.coroutines.withContext
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
                 })
                 addView(tilThreshold)
-                addView(android.view.View(ctx).apply {
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
-                })
-                addView(tilDepTime)
-                addView(android.view.View(ctx).apply {
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(12))
-                })
-                addView(tilDwell)
             }
             val container = ScrollView(ctx).apply { addView(inner) }
 
@@ -258,13 +134,6 @@ import kotlinx.coroutines.withContext
                     val inputArr = etArrival.text.toString().trim()
                     val threshold = etThreshold.text.toString().toIntOrNull()?.coerceIn(1, 600) ?: savedThreshold
                     AppSettings.setUrgencyThresholdMinutes(ctx, threshold)
-                    val depTimeInput = etDepTime.text.toString().trim()
-                    if (com.rodgers.haireel.util.EtaCalculator.parseMinutes(depTimeInput) >= 0)
-                        AppSettings.setDepartureTime(ctx, depTimeInput)
-                    else if (depTimeInput.isEmpty())
-                        AppSettings.setDepartureTime(ctx, "")
-                    val dwellInput = etDwell.text.toString().toIntOrNull()?.coerceIn(0, 120)
-                    if (dwellInput != null) AppSettings.setDwellMinutes(ctx, dwellInput)
                     lifecycleScope.launch {
                         // 出発地のジオコーディング
                         val depLat: Double; val depLng: Double
@@ -341,49 +210,24 @@ import kotlinx.coroutines.withContext
                 }
                 .setNegativeButton("キャンセル", null).show()
         }
-        val routeEmoji = if (showRouteLines) "🔵" else "⚫"
-        val routeSub   = if (showRouteLines) "経路線 ON → タップで非表示" else "経路線 OFF → タップで表示"
-        row(routeEmoji, "経路線の表示切替", routeSub) {
-            showRouteLines = !showRouteLines
-            updateAllMarkers(viewModel.allDeliveries.value)
-        }
-        row("👁", "他のルートも表示", "複数ルートを地図に重ねて表示する") { showGroupVisibilityDialog() }
-        divider()
-        // ── 周辺情報
-        row("🔍", "近くの施設を探す", "コンビニ・パーキング・道の駅など") { showNearbyFacilitiesDialog(sheet) }
-        if (facilityMarkers.isNotEmpty()) {
-            row("✕", "施設マーカーを消す", "${facilityMarkers.size}件の施設ピンを削除") {
-                facilityMarkers.forEach { it.remove() }
-                facilityMarkers.clear()
-                savedFacilityPlaces.clear()
-            }
-        }
-        divider()
-        // ── 削除
-        row("🗑", "ピンをすべて削除", "現在のルートの全ピンを削除する",
-            ContextCompat.getColor(ctx, R.color.colorActionRed)) {
-            val group = viewModel.currentGroup() ?: return@row
-            androidx.appcompat.app.AlertDialog.Builder(ctx)
-                .setMessage("「${group.name}」のピンを全件削除しますか？")
-                .setPositiveButton("削除") { _, _ -> viewModel.clearCurrentGroup() }
-                .setNegativeButton("キャンセル", null).show()
-        }
+    internal fun MapFragment.toggleRouteLines() {
+        showRouteLines = !showRouteLines
+        updateAllMarkers(viewModel.allDeliveries.value)
+    }
 
-        root.addView(android.view.View(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (20 * dp).toInt())
-        })
+    internal fun MapFragment.clearFacilityMarkers() {
+        facilityMarkers.forEach { it.remove() }
+        facilityMarkers.clear()
+        savedFacilityPlaces.clear()
+    }
 
-        val scrollView = android.widget.ScrollView(ctx).apply { addView(root) }
-        sheet.setContentView(scrollView)
-        sheet.setOnShowListener {
-            val bs = sheet.findViewById<android.view.View>(com.google.android.material.R.id.design_bottom_sheet)
-            bs?.layoutParams?.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
-            bs?.requestLayout()
-            sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
-            sheet.behavior.skipCollapsed = true
-            sheet.behavior.isDraggable = false
-        }
-        sheet.show()
+    internal fun MapFragment.confirmClearAllPins() {
+        val ctx = requireContext()
+        val group = viewModel.currentGroup() ?: return
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setMessage("「${group.name}」のピンを全件削除しますか？")
+            .setPositiveButton("削除") { _, _ -> viewModel.clearCurrentGroup() }
+            .setNegativeButton("キャンセル", null).show()
     }
 
 

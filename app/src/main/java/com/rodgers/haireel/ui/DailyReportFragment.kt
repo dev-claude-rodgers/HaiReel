@@ -127,6 +127,8 @@ class DailyReportFragment : Fragment() {
     private fun setupAssignmentBar() {
         val gid = deliveryViewModel.currentGroupId.value
         if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("DailyReport", "setupAssignmentBar: currentGroupId='$gid', groups=${deliveryViewModel.groups.value.map { it.name }}")
+        // 選択中の案件ごとに日報を分離する（点呼タブと同じ方式）。
+        // 全案件横断で扱うと、同日に複数案件のレコードがある場合に誤って別案件のレコードを上書きしてしまうため。
         reportViewModel.setAssignmentId(gid)
         updateAssignmentBar()
     }
@@ -135,6 +137,7 @@ class DailyReportFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             deliveryViewModel.currentGroupId.collectLatest { groupId ->
                 if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("DailyReport", "currentGroupId emit: '$groupId'")
+                // 案件切り替えに合わせて日報も切り替える。締め日もルートに紐づくパターンから同期する
                 reportViewModel.setAssignmentId(groupId)
                 val group = deliveryViewModel.currentGroup()
                 val linkedPatternId = group?.patternId ?: -1
@@ -205,15 +208,23 @@ class DailyReportFragment : Fragment() {
     private fun generateDayEntries(
         records: List<WorkRecord>, yearMonth: String, closingDay: Int
     ): List<DayEntry> {
+        val groupNames = deliveryViewModel.groups.value.associate { it.id to it.name }
         val (startStr, endStr) = ReportViewModel.computePeriod(yearMonth, closingDay)
         val startDate = LocalDate.parse(startStr)
         val endDate   = LocalDate.parse(endStr)
         val recordMap = records.associateBy { it.date }
+        // 期間内で複数のルートが混在する場合のみルート名を表示する
+        val distinctRoutes = records.map { it.assignmentId }.filter { it.isNotBlank() }.toSet()
+        val showRouteName  = distinctRoutes.size > 1
         return generateSequence(startDate) { it.plusDays(1) }
             .takeWhile { !it.isAfter(endDate) }
             .map { date ->
                 val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                DayEntry(dateStr, recordMap[dateStr])
+                val record  = recordMap[dateStr]
+                val routeName = if (showRouteName && record != null && record.assignmentId.isNotBlank())
+                    groupNames[record.assignmentId] ?: ""
+                else ""
+                DayEntry(dateStr, record, routeName)
             }.toList()
     }
 
@@ -270,7 +281,7 @@ class DailyReportFragment : Fragment() {
 
     internal fun currentPattern(): com.rodgers.haireel.model.ReportPattern {
         val ctx = requireContext()
-        val gid = reportViewModel.assignmentId.value
+        val gid = deliveryViewModel.currentGroupId.value
         val group = deliveryViewModel.groups.value.find { it.id == gid }
         val pid = group?.patternId?.takeIf { it != -1 }
             ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
@@ -317,7 +328,7 @@ class DailyReportFragment : Fragment() {
             fragmentManager   = childFragmentManager,
             isAdded           = { isAdded },
             scope             = viewLifecycleOwner.lifecycleScope,
-            assignmentId      = { reportViewModel.assignmentId.value },
+            assignmentId      = { deliveryViewModel.currentGroupId.value },
             calcIncomeFn      = { pat, dc, wm, pc -> calcIncome(pat, dc, wm, pc) },
             onSave            = { reportViewModel.saveAndWait(it) }
         )

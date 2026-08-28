@@ -153,7 +153,19 @@ internal fun DeliveryListFragment.showListActions() {
             setBackgroundColor(outlineVariant)
         })
 
+        fun sectionLabel(text: String) = root.addView(TextView(ctx).apply {
+            this.text = text; textSize = 11f
+            setTextColor(onSurfaceVariant)
+            setPadding((84 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (2 * dp).toInt())
+        })
+
+        // 地図モードでのみ意味を持つ操作は、リスト表示中に選ばれたら地図表示へ自動で切り替えて実行する
+        val mapFrag         = childFragmentManager.findFragmentByTag("map") as? MapFragment
+        val mapShowRouteLines = mapFrag?.showRouteLines ?: true
+        val facilityCount     = mapFrag?.facilityMarkers?.size ?: 0
+
         // ── 追加・取り込み
+        sectionLabel("追加・取り込み")
         row("📥", "名前・住所を追加", "テキスト・CSV・ファイルから追加する") {
             inputLauncher.launch(Intent(requireContext(), InputActivity::class.java))
         }
@@ -162,16 +174,31 @@ internal fun DeliveryListFragment.showListActions() {
             sheet.dismiss(); showLedger()
         }
         divider()
-        // ── 配達ツール
+        // ── ルート操作
+        sectionLabel("ルート操作")
+        row("🗺", "ルート最適化", "出発地から最短順に並び替える") {
+            runOnMap { showRouteOptimizeDialog() }
+        }
+        row("🕒", "出発・滞在設定", "出発地・帰着地・出発時刻・滞在時間・閉店優先しきい値・巡航速度を設定する") {
+            sheet.dismiss(); showDepartureSettings()
+        }
         val loadSub = if (loadedIds.isEmpty()) "出発前に積み込み確認をする"
                       else "${viewModel.deliveries.value.count { it.id in loadedIds }}/${viewModel.deliveries.value.size}件 積み込み済み"
         row("📦", "積み込みチェック", loadSub) { showLoadingCheckSheet() }
-        row("🕒", "出発・滞在設定", "出発時刻・出発地・帰着地・滞在時間を変更する") {
-            sheet.dismiss(); showDepartureSettings()
+        divider()
+        // ── 地図表示
+        sectionLabel("地図表示")
+        val routeEmoji = if (mapShowRouteLines) "🔵" else "⚫"
+        val routeSub   = if (mapShowRouteLines) "経路線 ON → タップで非表示" else "経路線 OFF → タップで表示"
+        row(routeEmoji, "経路線の表示切替", routeSub) { runOnMap { toggleRouteLines() } }
+        row("👁", "他のルートも表示", "複数ルートを地図に重ねて表示する") { runOnMap { showGroupVisibilityDialog() } }
+        row("🔍", "近くの施設を探す", "コンビニ・パーキング・道の駅など") { runOnMap { showNearbyFacilitiesDialog() } }
+        if (facilityCount > 0) {
+            row("✕", "施設マーカーを消す", "${facilityCount}件の施設ピンを削除") { runOnMap { clearFacilityMarkers() } }
         }
         divider()
-
         // ── 完了・選択操作
+        sectionLabel("完了・選択操作")
         row("✅", "全件を完了にする", "すべてに完了マークをつける") { confirmMarkAllCompleted() }
         row("↩️", "完了をリセット", "全件を未完了に戻す") { confirmResetCompleted() }
         row("🗑️", "完了済みを削除", "完了した配達先を削除してピン番号を振り直す") {
@@ -194,6 +221,7 @@ internal fun DeliveryListFragment.showListActions() {
         }
         divider()
         // ── ルート管理
+        sectionLabel("ルート管理")
         row("➕", "新しいルートを追加", "新しい配達ルートを作成する") { showCreateGroupDialog() }
         row("✏️", "ルートの設定", "ルート名を編集する") { showRenameGroupDialog() }
         row("📄", "ルートを複製", "同じ内容で別ルートを作成する") {
@@ -202,7 +230,8 @@ internal fun DeliveryListFragment.showListActions() {
         }
         row("📤", "ルートを共有", "LINE・メール等で送る") { shareList() }
         divider()
-        // ── 設定・整形
+        // ── 表示・音声設定
+        sectionLabel("表示・音声設定")
         val distOn = com.rodgers.haireel.util.AppSettings.isDistanceVisible(ctx)
         row(
             "📏",
@@ -245,6 +274,10 @@ internal fun DeliveryListFragment.showListActions() {
         }
         divider()
         // ── 危険操作
+        sectionLabel("危険操作")
+        row("🗑", "ピンをすべて削除", "現在のルートの全ピンを削除する", redColor) {
+            runOnMap { confirmClearAllPins() }
+        }
         row("🗑", "このルートを削除", "削除後は元に戻せません", redColor) { confirmDeleteGroup() }
 
         root.addView(android.view.View(ctx).apply {
@@ -289,14 +322,18 @@ internal fun DeliveryListFragment.showDepartureSettings() {
         return til
     }
 
-    val tilDep  = makeField("🏠 出発地",          s.getDepartureAddress(ctx))
-    val tilArr  = makeField("🏁 帰着地",          s.getArrivalAddress(ctx), "空欄で出発地に戻る")
-    val tilTime = makeField("🕒 出発時刻（HH:mm）", s.getDepartureTime(ctx),  "入力すると各配達先の到着予定を表示",
-                            android.text.InputType.TYPE_CLASS_DATETIME or android.text.InputType.TYPE_DATETIME_VARIATION_TIME)
-    val tilDwell = makeField("⏱ 1件あたりの滞在時間", s.getDwellMinutes(ctx).toString(), "",
-                            android.text.InputType.TYPE_CLASS_NUMBER).also {
-        it.suffixText = "分"
-    }
+    val tilDep       = makeField("🏠 出発地",             s.getDepartureAddress(ctx))
+    val tilArr       = makeField("🏁 帰着地",             s.getArrivalAddress(ctx), "空欄で出発地に戻る")
+    val tilTime      = makeField("🕒 出発時刻（HH:mm）",  s.getDepartureTime(ctx),  "入力すると各配達先の到着予定を表示",
+                                 android.text.InputType.TYPE_CLASS_DATETIME or android.text.InputType.TYPE_DATETIME_VARIATION_TIME)
+    val tilDwell     = makeField("⏱ 1件あたりの滞在時間", s.getDwellMinutes(ctx).toString(), "",
+                                 android.text.InputType.TYPE_CLASS_NUMBER).also { it.suffixText = "分" }
+    val tilUrgency   = makeField("⏰ 閉店優先しきい値",    s.getUrgencyThresholdMinutes(ctx).toString(),
+                                 "この時間内に閉まる配達先を距離より優先",
+                                 android.text.InputType.TYPE_CLASS_NUMBER).also { it.suffixText = "分" }
+    val tilSpeed     = makeField("🚗 巡航速度（到着予定の計算に使用）", s.getAvgSpeedKmh(ctx).toString(),
+                                 "到着予定が実際より早い場合は下げてください",
+                                 android.text.InputType.TYPE_CLASS_NUMBER).also { it.suffixText = "km/h" }
 
     val inner = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
@@ -306,6 +343,8 @@ internal fun DeliveryListFragment.showDepartureSettings() {
         addView(tilArr)
         addView(tilTime)
         addView(tilDwell)
+        addView(tilUrgency)
+        addView(tilSpeed)
     }
 
     androidx.appcompat.app.AlertDialog.Builder(ctx)
@@ -313,10 +352,15 @@ internal fun DeliveryListFragment.showDepartureSettings() {
         .setView(inner)
         .setNegativeButton("キャンセル", null)
         .setPositiveButton("保存") { _, _ ->
-            val depAddr  = (tilDep.editText?.text?.toString() ?: "").trim()
-            val arrAddr  = (tilArr.editText?.text?.toString() ?: "").trim()
-            val timeStr  = (tilTime.editText?.text?.toString() ?: "").trim()
-            val dwellStr = (tilDwell.editText?.text?.toString() ?: "").trim()
+            val depAddr    = (tilDep.editText?.text?.toString() ?: "").trim()
+            val arrAddr    = (tilArr.editText?.text?.toString() ?: "").trim()
+            val timeStr    = (tilTime.editText?.text?.toString() ?: "").trim()
+            val dwellStr   = (tilDwell.editText?.text?.toString() ?: "").trim()
+            val urgencyStr = (tilUrgency.editText?.text?.toString() ?: "").trim()
+            val speedStr   = (tilSpeed.editText?.text?.toString() ?: "").trim()
+
+            val depChanged = depAddr != s.getDepartureAddress(ctx)
+            val arrChanged = arrAddr != s.getArrivalAddress(ctx)
 
             s.setDepartureAddress(ctx, depAddr)
             s.setArrivalAddress(ctx, arrAddr)
@@ -330,7 +374,42 @@ internal fun DeliveryListFragment.showDepartureSettings() {
             if (dwellInt != null) s.setDwellMinutes(ctx, dwellInt.coerceIn(0, 120))
             else if (dwellStr.isEmpty()) s.setDwellMinutes(ctx, 5)
 
+            val urgencyInt = urgencyStr.toIntOrNull()
+            if (urgencyInt != null) s.setUrgencyThresholdMinutes(ctx, urgencyInt.coerceIn(1, 600))
+
+            val speedInt = speedStr.toIntOrNull()
+            if (speedInt != null) s.setAvgSpeedKmh(ctx, speedInt.coerceIn(5, 100))
+
             applyFilter()
+
+            if (depChanged || arrChanged) {
+                lifecycleScope.launch {
+                    if (depChanged) {
+                        if (depAddr.isNotBlank()) {
+                            Toast.makeText(ctx, "出発地を検索中...", Toast.LENGTH_SHORT).show()
+                            val geo = withContext(Dispatchers.IO) {
+                                com.rodgers.haireel.util.GeocodingClient.geocodeExact(depAddr)
+                            }
+                            s.setDepartureLatLng(ctx, geo?.lat ?: 0.0, geo?.lng ?: 0.0)
+                            if (geo == null) Toast.makeText(ctx, "出発地の住所が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                        } else {
+                            s.setDepartureLatLng(ctx, 0.0, 0.0)
+                        }
+                    }
+                    if (arrChanged) {
+                        if (arrAddr.isNotBlank()) {
+                            val geo = withContext(Dispatchers.IO) {
+                                com.rodgers.haireel.util.GeocodingClient.geocodeExact(arrAddr)
+                            }
+                            s.setArrivalLatLng(ctx, geo?.lat ?: 0.0, geo?.lng ?: 0.0)
+                            if (geo == null) Toast.makeText(ctx, "帰着地の住所が見つかりませんでした", Toast.LENGTH_SHORT).show()
+                        } else {
+                            s.setArrivalLatLng(ctx, 0.0, 0.0)
+                        }
+                    }
+                    applyFilter()
+                }
+            }
         }
         .show()
 }

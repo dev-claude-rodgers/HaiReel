@@ -480,7 +480,6 @@ class DeliveryListFragment : Fragment() {
         binding.layoutProgress.visibility  = if (isList) View.VISIBLE else View.GONE
         binding.textEmpty.visibility      = if (isList) View.VISIBLE else View.GONE
         binding.chipIncomplete.visibility  = if (isList) View.VISIBLE else View.GONE
-        binding.buttonListMenu.visibility  = if (isList) View.VISIBLE else View.GONE
 
         binding.buttonSubToggle.text = when (viewMode) {
             ViewMode.LIST -> getString(R.string.btn_map_toggle)
@@ -501,6 +500,21 @@ class DeliveryListFragment : Fragment() {
     }
     internal fun switchToListView() {
         viewMode = ViewMode.LIST; applyViewMode()
+    }
+
+    // 統合メニューから地図専用の操作を呼ぶ際のブリッジ。
+    // リスト表示中なら地図表示に切り替え、地図の準備が済んでいなければ準備完了後に実行する。
+    internal fun runOnMap(action: MapFragment.() -> Unit) {
+        if (viewMode != ViewMode.MAP) { viewMode = ViewMode.MAP; applyViewMode() }
+        val frag = childFragmentManager.findFragmentByTag("map") as? MapFragment
+        when {
+            frag?.googleMap != null -> frag.action()
+            frag != null            -> frag.pendingMenuAction = action
+            else -> binding.mapContainer.post {
+                val f = childFragmentManager.findFragmentByTag("map") as? MapFragment
+                if (f?.googleMap != null) f.action() else f?.pendingMenuAction = action
+            }
+        }
     }
 
     override fun onResume() {

@@ -50,6 +50,14 @@ interface KnownAddressDao {
     @Query("SELECT * FROM known_addresses ORDER BY deliveryCount DESC, lastDeliveredAt DESC")
     fun allFlow(): Flow<List<KnownAddressEntity>>
 
+    /** バックアップ用: 全件取得 */
+    @Query("SELECT * FROM known_addresses")
+    suspend fun getAll(): List<KnownAddressEntity>
+
+    /** バックアップ復元用: 既存があれば上書き */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: KnownAddressEntity)
+
     @Query("SELECT COUNT(*) FROM known_addresses")
     suspend fun count(): Int
 

@@ -110,7 +110,13 @@ class SettingsFragment : Fragment() {
 
     private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
-            com.rodgers.haireel.util.BillingManager.subscriptionState.collect { updateLicenseStatus() }
+            com.rodgers.haireel.util.BillingManager.subscriptionState.collect {
+                updateLicenseStatus()
+                com.rodgers.haireel.util.applyGeocodingConfig(
+                    requireContext(),
+                    com.rodgers.haireel.util.GeocodingClient
+                )
+            }
         }
     }
 
@@ -141,14 +147,33 @@ class SettingsFragment : Fragment() {
                             Toast.makeText(ctx, "パスワードを入力してください", Toast.LENGTH_SHORT).show()
                             return@setPositiveButton
                         }
-                        backupHandler.doRestore(uri, pw)
+                        startRestore(uri, pw)
                     }
                     .setNegativeButton("キャンセル", null)
                     .show()
             } else {
-                backupHandler.doRestore(uri)
+                startRestore(uri)
             }
         }
+    }
+
+    private fun startRestore(uri: android.net.Uri, password: String? = null) {
+        backupHandler.doRestore(
+            uri, password,
+            onRestored = {
+                if (isAdded) {
+                    MaterialAlertDialogBuilder(requireContext())
+                        .setTitle("復元完了")
+                        .setMessage("復元しました。OKを押すとアプリを再起動します。")
+                        .setCancelable(false)
+                        .setPositiveButton("OK") { _, _ -> backupHandler.restartApp() }
+                        .show()
+                } else {
+                    backupHandler.restartApp()
+                }
+            },
+            onError = { msg -> if (isAdded) requireContext().showErrorDialog("復元エラー", msg) }
+        )
     }
 
     override fun onDestroyView() {
@@ -255,7 +280,8 @@ class SettingsFragment : Fragment() {
         val ctx = requireContext()
         val s = com.rodgers.haireel.util.AppSettings
         binding.tvLicenseStatus.text = when {
-            s.isSubscriptionActive(ctx) -> "プレミアム会員（Google Play）"
+            s.isSubscriptionActive(ctx) ->
+                if (s.getSubscriptionSource(ctx) == "web") "プレミアム会員（HP）" else "プレミアム会員（Google Play）"
             s.isInTrial(ctx) -> {
                 val days = s.trialDaysLeft(ctx)
                 "無料体験中（残り${days}日）"
@@ -277,9 +303,21 @@ class SettingsFragment : Fragment() {
             .setTitle("⚠️ データをすべて初期化")
             .setMessage("日報・配達先・ルート・帳票パターン・署名を含むすべてのデータを削除します。\n\nこの操作は元に戻せません。\n\n先にバックアップを作成することをおすすめします。")
             .setPositiveButton("初期化する") { _, _ ->
-                resetHandler.resetAllData { msg ->
-                    ctx.showErrorDialog("初期化エラー", msg)
-                }
+                resetHandler.resetAllData(
+                    onReset = {
+                        if (isAdded) {
+                            MaterialAlertDialogBuilder(requireContext())
+                                .setTitle("初期化完了")
+                                .setMessage("初期化が完了しました。OKを押すとアプリを再起動します。")
+                                .setCancelable(false)
+                                .setPositiveButton("OK") { _, _ -> resetHandler.restartApp() }
+                                .show()
+                        } else {
+                            resetHandler.restartApp()
+                        }
+                    },
+                    onError = { msg -> if (isAdded) ctx.showErrorDialog("初期化エラー", msg) }
+                )
             }
             .setNegativeButton("キャンセル", null)
             .show()

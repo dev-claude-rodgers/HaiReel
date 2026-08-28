@@ -1,6 +1,8 @@
 package com.rodgers.haireel.util
 
+import android.content.Context
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.rodgers.haireel.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -9,8 +11,11 @@ import java.net.URLEncoder
 
 object GeocodingClient : GeocodingApi {
 
-    private const val GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+    enum class Mode { NONE, DIRECT_USER_KEY, PROXY }
+
+    @Volatile private var mode: Mode = Mode.NONE
     @Volatile private var apiKey: String = ""
+    @Volatile private var proxyAppContext: Context? = null
     @Volatile private var areaHint: String = ""
     @Volatile override var biasLat: Double = 0.0
         private set
@@ -20,10 +25,38 @@ object GeocodingClient : GeocodingApi {
     @Volatile override var isRequestDenied: Boolean = false
         private set
 
-    override fun configure(apiKey: String) { this.apiKey = apiKey; isRequestDenied = false }
+    /** 自分のGoogle APIキーを直接使うモード */
+    override fun configure(apiKey: String) {
+        this.apiKey = apiKey
+        this.mode = if (apiKey.isNotBlank()) Mode.DIRECT_USER_KEY else Mode.NONE
+        this.proxyAppContext = null
+        isRequestDenied = false
+    }
+
+    /** 運営プロキシ(Cloudflare Worker)経由で使うモード（試用中/サブスク中のユーザー向け） */
+    override fun configureProxy(appContext: Context) {
+        this.mode = Mode.PROXY
+        this.apiKey = ""
+        this.proxyAppContext = appContext.applicationContext
+        isRequestDenied = false
+    }
+
     override fun setAreaHint(hint: String) { areaHint = hint }
     override fun setBias(lat: Double, lng: Double) { biasLat = lat; biasLng = lng }
     override fun hasBias(): Boolean = biasLat != 0.0 && biasLng != 0.0
+
+    private fun apiBase(): String =
+        if (mode == Mode.PROXY) BuildConfig.PROXY_BASE_URL else "https://maps.googleapis.com"
+
+    /** 自分のキーを使うモードのときだけ key= を付与する（プロキシモードではWorker側が自前のキーで中継する） */
+    private fun keyParam(): String =
+        if (mode == Mode.DIRECT_USER_KEY) "&key=$apiKey" else ""
+
+    private fun requestHeaders(): Map<String, String> =
+        if (mode == Mode.PROXY) proxyAppContext?.let { ProxyAuth.buildHeaders(it) } ?: emptyMap()
+        else emptyMap()
+
+    private fun geocodeUrl(): String = "${apiBase()}/maps/api/geocode/json"
 
     data class GeoResult(
         val lat: Double,
@@ -43,7 +76,7 @@ object GeocodingClient : GeocodingApi {
         try {
             val q = if (areaHint.isNotBlank()) "$areaHint $query" else query
             val encoded = URLEncoder.encode(q, "UTF-8")
-            val sb = StringBuilder("https://maps.googleapis.com/maps/api/place/textsearch/json?query=$encoded&language=ja&region=jp&key=$apiKey")
+            val sb = StringBuilder("${apiBase()}/maps/api/place/textsearch/json?query=$encoded&language=ja&region=jp${keyParam()}")
             if (biasLat != 0.0 && biasLng != 0.0) {
                 sb.append("&location=$biasLat,$biasLng&radius=50000")
             }
@@ -69,7 +102,7 @@ object GeocodingClient : GeocodingApi {
             // areaHintは常に先頭に付けて県外ヒットを防ぐ
             val query = if (areaHint.isNotBlank()) "$areaHint $address" else address
             val encoded = URLEncoder.encode(query, "UTF-8")
-            val urlBuilder = StringBuilder("$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey")
+            val urlBuilder = StringBuilder("${geocodeUrl()}?address=$encoded&language=ja&region=jp${keyParam()}")
             if (biasLat != 0.0 && biasLng != 0.0) {
                 urlBuilder.append("&bounds=${biasLat - 0.2},${biasLng - 0.2}|${biasLat + 0.2},${biasLng + 0.2}")
             }
@@ -97,7 +130,7 @@ object GeocodingClient : GeocodingApi {
     override suspend fun geocodeExact(address: String): GeoResult? = withContext(Dispatchers.IO) {
         try {
             val encoded = URLEncoder.encode(address, "UTF-8")
-            val urlBuilder = StringBuilder("$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey")
+            val urlBuilder = StringBuilder("${geocodeUrl()}?address=$encoded&language=ja&region=jp${keyParam()}")
             if (biasLat != 0.0 && biasLng != 0.0) {
                 urlBuilder.append("&bounds=${biasLat - 0.2},${biasLng - 0.2}|${biasLat + 0.2},${biasLng + 0.2}")
             }
@@ -119,7 +152,7 @@ object GeocodingClient : GeocodingApi {
     // 逆ジオコーディング: 座標→住所
     override suspend fun reverseGeocode(lat: Double, lng: Double): GeoResult? = withContext(Dispatchers.IO) {
         try {
-            val url = "$GEOCODE_URL?latlng=$lat,$lng&language=ja&key=$apiKey"
+            val url = "${geocodeUrl()}?latlng=$lat,$lng&language=ja${keyParam()}"
             val json = fetch(url) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
             val resultsRev = json.getJSONArray("results")
@@ -160,7 +193,7 @@ object GeocodingClient : GeocodingApi {
     override suspend fun geocodeCandidates(address: String): List<GeoResult> = withContext(Dispatchers.IO) {
         try {
             val encoded = URLEncoder.encode(address, "UTF-8")
-            val url = "$GEOCODE_URL?address=$encoded&language=ja&region=jp&key=$apiKey"
+            val url = "${geocodeUrl()}?address=$encoded&language=ja&region=jp${keyParam()}"
             val json = fetch(url) ?: return@withContext emptyList()
             if (json.getString("status") != "OK") return@withContext emptyList()
             val results = json.getJSONArray("results")
@@ -180,8 +213,8 @@ object GeocodingClient : GeocodingApi {
     /** 座標から半径30m以内の施設名を返す（住所→店名の推測） */
     override suspend fun searchNearbyName(lat: Double, lng: Double): String? = withContext(Dispatchers.IO) {
         try {
-            val url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json" +
-                "?location=$lat,$lng&radius=30&language=ja&key=$apiKey"
+            val url = "${apiBase()}/maps/api/place/nearbysearch/json" +
+                "?location=$lat,$lng&radius=30&language=ja${keyParam()}"
             val json = fetch(url) ?: return@withContext null
             if (json.getString("status") != "OK") return@withContext null
             val results = json.optJSONArray("results") ?: return@withContext null
@@ -195,6 +228,7 @@ object GeocodingClient : GeocodingApi {
         return try {
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
+            requestHeaders().forEach { (k, v) -> connection.setRequestProperty(k, v) }
             val response = connection.inputStream.bufferedReader().readText()
             JSONObject(response)
         } finally {

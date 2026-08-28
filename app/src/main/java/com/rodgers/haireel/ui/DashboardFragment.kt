@@ -16,10 +16,12 @@ import androidx.lifecycle.lifecycleScope
 import com.rodgers.haireel.R
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.databinding.FragmentDashboardBinding
+import com.rodgers.haireel.model.DeliveryGroup
 import com.rodgers.haireel.model.ReportPattern
 import com.rodgers.haireel.viewmodel.DashboardViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -30,8 +32,8 @@ class DashboardFragment : Fragment() {
 
     private val viewModel: DashboardViewModel by viewModels()
 
-    // ドロップダウンの選択肢（-1 = 全取引先 + 各パターン）
-    private val dropdownIds   = mutableListOf<Int>()    // -1 = 全取引先
+    // ドロップダウンの選択肢（"" = 全ルート + 各グループID）
+    private val dropdownIds   = mutableListOf<String>()
     private val dropdownNames = mutableListOf<String>()
     private var dropdownAdapter: ArrayAdapter<String>? = null
     private var suppressSelection = false
@@ -60,7 +62,10 @@ class DashboardFragment : Fragment() {
         dropdownAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, dropdownNames)
         binding.spinnerAssignment.setAdapter(dropdownAdapter)
         binding.spinnerAssignment.setOnItemClickListener { _, _, position, _ ->
-            if (!suppressSelection) viewModel.setPatternId(dropdownIds.getOrElse(position) { -1 })
+            if (!suppressSelection) {
+                viewModel.setGroupId(dropdownIds.getOrElse(position) { "" })
+                updateRouteInfoBar()
+            }
         }
     }
 
@@ -71,7 +76,8 @@ class DashboardFragment : Fragment() {
 
     private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.patterns.collectLatest { patterns -> updateDropdown(patterns) }
+            combine(viewModel.groups, viewModel.patterns) { g, p -> Pair(g, p) }
+                .collectLatest { (groups, patterns) -> updateDropdown(groups, patterns) }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.year.collectLatest { year ->
@@ -89,30 +95,70 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    private fun updateDropdown(patterns: List<ReportPattern>) {
+    private fun updateDropdown(groups: List<DeliveryGroup>, patterns: List<ReportPattern>) {
         suppressSelection = true
-        val currentId = viewModel.patternId.value
+        val currentId = viewModel.groupId.value
 
         dropdownIds.clear()
         dropdownNames.clear()
-        dropdownIds.add(-1)
-        dropdownNames.add("全取引先")
-        patterns.forEach { p ->
-            dropdownIds.add(p.id)
-            // 取引先名 → カスタムタイトル → 番号 の順で優先表示
-            val label = when {
-                p.clientName.isNotBlank() -> p.clientName
-                p.title.isNotBlank() -> p.title
-                else -> "帳票${p.id + 1}"
-            }
+        dropdownIds.add("")
+        dropdownNames.add("全ルート")
+
+        groups.forEach { g ->
+            val pattern = patterns.find { it.id == g.patternId }
+            val clientLabel = pattern?.clientName?.ifBlank { null }
+            val label = if (clientLabel != null) "${g.name} — $clientLabel" else g.name
+            dropdownIds.add(g.id)
             dropdownNames.add(label)
         }
 
         dropdownAdapter?.notifyDataSetChanged()
 
         val idx = dropdownIds.indexOf(currentId).coerceAtLeast(0)
-        binding.spinnerAssignment.setText(dropdownNames.getOrElse(idx) { "全取引先" }, false)
+        binding.spinnerAssignment.setText(dropdownNames.getOrElse(idx) { "全ルート" }, false)
         suppressSelection = false
+
+        updateRouteInfoBar(groups, patterns)
+    }
+
+    private fun updateRouteInfoBar(
+        groups: List<DeliveryGroup>   = viewModel.groups.value,
+        patterns: List<ReportPattern> = viewModel.patterns.value
+    ) {
+        val gid = viewModel.groupId.value
+        if (gid.isEmpty()) {
+            binding.tvRouteInfo.text = "📋 全ルート  ·  暦月（月初〜月末）"
+            binding.tvRouteInfo.visibility = View.VISIBLE
+            binding.tvRouteInfo.setBackgroundColor(android.graphics.Color.parseColor("#22888888"))
+            return
+        }
+        val group = groups.find { it.id == gid }
+        if (group != null) {
+            val pattern = patterns.find { it.id == group.patternId }
+            val closingLabel = pattern?.closingDay?.let {
+                if (it >= 31) "月末締め" else "${it}日締め"
+            }
+            val parts = listOfNotNull(
+                "📦 ${group.name}",
+                pattern?.clientName?.ifBlank { null },
+                closingLabel
+            )
+            binding.tvRouteInfo.text = parts.joinToString("  ·  ")
+            binding.tvRouteInfo.visibility = View.VISIBLE
+            try {
+                val base = android.graphics.Color.parseColor(group.colorHex)
+                binding.tvRouteInfo.setBackgroundColor(
+                    android.graphics.Color.argb(55,
+                        android.graphics.Color.red(base),
+                        android.graphics.Color.green(base),
+                        android.graphics.Color.blue(base))
+                )
+            } catch (_: Exception) {
+                binding.tvRouteInfo.setBackgroundColor(android.graphics.Color.parseColor("#22000000"))
+            }
+        } else {
+            binding.tvRouteInfo.visibility = View.GONE
+        }
     }
 
     private fun updateSummaryCards(summaries: List<DashboardViewModel.MonthlySummary>) {

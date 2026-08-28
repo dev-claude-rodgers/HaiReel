@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
-    internal fun MapFragment.showNearbyFacilitiesDialog(parentSheet: com.google.android.material.bottomsheet.BottomSheetDialog) {
+    internal fun MapFragment.showNearbyFacilitiesDialog() {
         val ctx = requireContext()
         val depLat = com.rodgers.haireel.util.AppSettings.getDepartureLat(ctx)
         val depLng = com.rodgers.haireel.util.AppSettings.getDepartureLng(ctx)
@@ -68,11 +68,11 @@ import kotlinx.coroutines.withContext
                             if (loc == null) {
                                 Toast.makeText(ctx, "現在地が取得できません。位置情報を許可してください。", Toast.LENGTH_LONG).show()
                             } else {
-                                showFacilityTypeDialog(parentSheet, loc.latitude, loc.longitude)
+                                showFacilityTypeDialog(loc.latitude, loc.longitude)
                             }
                         }
-                        which == 1 && hasDep -> showFacilityTypeDialog(parentSheet, depLat, depLng)
-                        else                 -> showFacilityTypeDialog(parentSheet, arrLat, arrLng)
+                        which == 1 && hasDep -> showFacilityTypeDialog(depLat, depLng)
+                        else                 -> showFacilityTypeDialog(arrLat, arrLng)
                     }
                 }
                 .setNegativeButton("キャンセル", null).show()
@@ -82,12 +82,11 @@ import kotlinx.coroutines.withContext
                 Toast.makeText(ctx, "現在地が取得できません。位置情報を許可してください。", Toast.LENGTH_LONG).show()
                 return
             }
-            showFacilityTypeDialog(parentSheet, loc.latitude, loc.longitude)
+            showFacilityTypeDialog(loc.latitude, loc.longitude)
         }
     }
 
     private fun MapFragment.showFacilityTypeDialog(
-        parentSheet: com.google.android.material.bottomsheet.BottomSheetDialog,
         lat: Double,
         lng: Double
     ) {
@@ -108,7 +107,6 @@ import kotlinx.coroutines.withContext
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setTitle("近くの施設を探す")
             .setItems(options) { _, which ->
-                parentSheet.dismiss()
                 searchNearbyFacilities(lat, lng, types[which], keywords[which], options[which])
             }
             .setNegativeButton("キャンセル", null).show()

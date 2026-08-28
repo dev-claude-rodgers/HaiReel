@@ -8,6 +8,15 @@ object AppSettings {
     const val ENCRYPTED_PREFS = "kado_secure"
     const val HAIREEL_PREFS = "haireel_prefs"
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    // バックアップ復元時にLongがIntとして書き戻される可能性があるため防御的に読む
+    private fun getLongPref(p: android.content.SharedPreferences, key: String, default: Long = 0L): Long =
+        when (val v = p.all[key]) {
+            is Long -> v
+            is Int  -> v.toLong()
+            else    -> default
+        }
+
     private fun encryptedPrefs(ctx: Context): android.content.SharedPreferences = try {
         val master = MasterKey.Builder(ctx)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -116,13 +125,13 @@ object AppSettings {
     // 休憩アラームタイマー状態（state: "IDLE" | "DRIVING" | "ON_BREAK"）
     fun getDriveTimerState(ctx: Context): String = prefs(ctx).getString("drive_timer_state", "IDLE") ?: "IDLE"
     fun setDriveTimerState(ctx: Context, v: String) = prefs(ctx).edit().putString("drive_timer_state", v).apply()
-    fun getDriveSegmentStartMs(ctx: Context): Long = prefs(ctx).getLong("drive_seg_start_ms", 0L)
+    fun getDriveSegmentStartMs(ctx: Context): Long = getLongPref(prefs(ctx), "drive_seg_start_ms")
     fun setDriveSegmentStartMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("drive_seg_start_ms", v).apply()
-    fun getDriveAccumulatedMs(ctx: Context): Long = prefs(ctx).getLong("drive_accum_ms", 0L)
+    fun getDriveAccumulatedMs(ctx: Context): Long = getLongPref(prefs(ctx), "drive_accum_ms")
     fun setDriveAccumulatedMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("drive_accum_ms", v).apply()
-    fun getBreakSegmentStartMs(ctx: Context): Long = prefs(ctx).getLong("break_seg_start_ms", 0L)
+    fun getBreakSegmentStartMs(ctx: Context): Long = getLongPref(prefs(ctx), "break_seg_start_ms")
     fun setBreakSegmentStartMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("break_seg_start_ms", v).apply()
-    fun getBreakAccumulatedMs(ctx: Context): Long = prefs(ctx).getLong("break_accum_ms", 0L)
+    fun getBreakAccumulatedMs(ctx: Context): Long = getLongPref(prefs(ctx), "break_accum_ms")
     fun setBreakAccumulatedMs(ctx: Context, v: Long) = prefs(ctx).edit().putLong("break_accum_ms", v).apply()
 
     // 時間帯テンプレート（名前＋色）
@@ -233,8 +242,8 @@ object AppSettings {
     // ルート最適化: 出発地（住所・座標）
     fun getDepartureAddress(ctx: Context): String = prefs(ctx).getString("departure_address", "") ?: ""
     fun setDepartureAddress(ctx: Context, v: String) = prefs(ctx).edit().putString("departure_address", v).apply()
-    fun getDepartureLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("departure_lat_bits", 0L))
-    fun getDepartureLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("departure_lng_bits", 0L))
+    fun getDepartureLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "departure_lat_bits"))
+    fun getDepartureLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "departure_lng_bits"))
     fun setDepartureLatLng(ctx: Context, lat: Double, lng: Double) = prefs(ctx).edit()
         .putLong("departure_lat_bits", java.lang.Double.doubleToRawLongBits(lat))
         .putLong("departure_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
@@ -255,8 +264,8 @@ object AppSettings {
     // ルート最適化: 帰着地（空の場合は出発地と同じ扱い）
     fun getArrivalAddress(ctx: Context): String = prefs(ctx).getString("arrival_address", "") ?: ""
     fun setArrivalAddress(ctx: Context, v: String) = prefs(ctx).edit().putString("arrival_address", v).apply()
-    fun getArrivalLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("arrival_lat_bits", 0L))
-    fun getArrivalLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(prefs(ctx).getLong("arrival_lng_bits", 0L))
+    fun getArrivalLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "arrival_lat_bits"))
+    fun getArrivalLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "arrival_lng_bits"))
     fun setArrivalLatLng(ctx: Context, lat: Double, lng: Double) = prefs(ctx).edit()
         .putLong("arrival_lat_bits", java.lang.Double.doubleToRawLongBits(lat))
         .putLong("arrival_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
@@ -282,6 +291,15 @@ object AppSettings {
     fun getUserApiKey(ctx: Context): String = encryptedPrefs(ctx).getString("user_api_key", "") ?: ""
     fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).apply() }
     fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
+
+    // 運営プロキシ認証用のデバイスID（初回生成しEncryptedSharedPreferencesに保存）
+    fun getOrCreateDeviceId(ctx: Context): String {
+        val prefs = encryptedPrefs(ctx)
+        prefs.getString("device_id", null)?.let { return it }
+        val newId = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString("device_id", newId).apply()
+        return newId
+    }
 
 
 
@@ -326,7 +344,7 @@ object AppSettings {
         }
     }
 
-    fun getInstallDate(ctx: Context): Long = prefs(ctx).getLong(KEY_INSTALL_DATE, System.currentTimeMillis())
+    fun getInstallDate(ctx: Context): Long = getLongPref(prefs(ctx), KEY_INSTALL_DATE, System.currentTimeMillis())
 
     // 試用期間内かどうか
     fun isInTrial(ctx: Context): Boolean {
@@ -341,11 +359,13 @@ object AppSettings {
         return maxOf(0, (remaining / (24 * 60 * 60 * 1000L)).toInt())
     }
 
-    // ─── Google Play IAP サブスクリプション ──────────────────────
-    // Play Billing で購入確認済みのとき true を保存する
+    // ─── Google Play IAP / 自社HP のサブスクリプション ──────────────
+    // Play Billing または 自社HP経由（Stripe）のどちらかで購入確認済みのとき true を保存する
     // ネットワーク不要でオフラインでも機能するようにローカルにキャッシュする
     private const val KEY_SUBSCRIPTION_ACTIVE = "iap_subscription_active"
     private const val KEY_SUBSCRIPTION_CHECKED_AT = "iap_subscription_checked_at"
+    private const val KEY_SUBSCRIPTION_SOURCE = "subscription_source" // "play" | "web"
+    private const val KEY_WEB_LICENSE_CODE = "web_license_code"
 
     fun isSubscriptionActive(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_SUBSCRIPTION_ACTIVE, false)
@@ -354,12 +374,29 @@ object AppSettings {
         prefs(ctx).edit()
             .putBoolean(KEY_SUBSCRIPTION_ACTIVE, active)
             .putLong(KEY_SUBSCRIPTION_CHECKED_AT, System.currentTimeMillis())
+            .putString(KEY_SUBSCRIPTION_SOURCE, "play")
             .apply()
     }
 
+    /** 自社HP（Stripe）経由のライセンスコードでの認証結果を保存する */
+    fun setWebLicense(ctx: Context, code: String, active: Boolean) {
+        prefs(ctx).edit()
+            .putBoolean(KEY_SUBSCRIPTION_ACTIVE, active)
+            .putLong(KEY_SUBSCRIPTION_CHECKED_AT, System.currentTimeMillis())
+            .putString(KEY_SUBSCRIPTION_SOURCE, "web")
+            .putString(KEY_WEB_LICENSE_CODE, code)
+            .apply()
+    }
+
+    fun getSubscriptionSource(ctx: Context): String =
+        prefs(ctx).getString(KEY_SUBSCRIPTION_SOURCE, "play") ?: "play"
+
+    fun getWebLicenseCode(ctx: Context): String =
+        prefs(ctx).getString(KEY_WEB_LICENSE_CODE, "") ?: ""
+
     // サブスク確認が古すぎる場合は再確認を促す（7日以内なら信頼）
     fun isSubscriptionCheckStale(ctx: Context): Boolean {
-        val checkedAt = prefs(ctx).getLong(KEY_SUBSCRIPTION_CHECKED_AT, 0L)
+        val checkedAt = getLongPref(prefs(ctx), KEY_SUBSCRIPTION_CHECKED_AT)
         val sevenDays = 7L * 24 * 60 * 60 * 1000
         return System.currentTimeMillis() - checkedAt > sevenDays
     }

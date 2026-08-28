@@ -23,3 +23,8 @@ google-services.json
 
 # Logs
 *.log
+
+# Cloudflare Worker (geo-proxy)
+worker/node_modules/
+worker/.wrangler/
+worker/.dev.vars

@@ -34,6 +34,13 @@ class DeliveryRepository @Inject constructor(
     suspend fun getAllDeliveries(): List<Delivery> =
         db.deliveryDao().getAll().map { it.toDelivery() }
 
+    /** 台帳キー（"名前|住所"形式）に一致する完了済み配達先を全グループから完全削除（進行中の配達先は保護） */
+    suspend fun deleteLedgerEntry(ledgerKey: String) {
+        val name    = ledgerKey.substringBefore("|")
+        val address = ledgerKey.substringAfter("|")
+        db.deliveryDao().deleteByNameAndAddress(name, address)
+    }
+
     /** 全配達先の住所・名前を全角に一括変換して保存 */
     suspend fun normalizeAllAddressesToFullWidth() {
         val fw = com.rodgers.haireel.util.AddressParser::toFullWidth

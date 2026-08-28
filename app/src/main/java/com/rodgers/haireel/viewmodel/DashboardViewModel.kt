@@ -45,20 +45,21 @@ class DashboardViewModel @Inject constructor(
     private val _year        = MutableStateFlow(LocalDate.now().year)
     val year: StateFlow<Int> = _year
 
-    // -1 = 全取引先、それ以外は ReportPattern.id
-    private val _patternId         = MutableStateFlow(-1)
-    val patternId: StateFlow<Int>  = _patternId
+    // "" = 全ルート、それ以外は DeliveryGroup.id
+    private val _groupId         = MutableStateFlow("")
+    val groupId: StateFlow<String> = _groupId
 
-    private val _patterns                         = MutableStateFlow<List<ReportPattern>>(emptyList())
-    val patterns: StateFlow<List<ReportPattern>>  = _patterns
+    private val _patterns                        = MutableStateFlow<List<ReportPattern>>(emptyList())
+    val patterns: StateFlow<List<ReportPattern>> = _patterns
 
-    private val _groups = MutableStateFlow<List<DeliveryGroup>>(emptyList())
+    private val _groups                      = MutableStateFlow<List<DeliveryGroup>>(emptyList())
+    val groups: StateFlow<List<DeliveryGroup>> = _groups
 
     init {
         viewModelScope.launch { refresh() }
     }
 
-    fun setPatternId(id: Int) { _patternId.value = id }
+    fun setGroupId(id: String) { _groupId.value = id }
 
     suspend fun refresh() {
         _patterns.value = PatternStorage.getAll(getApplication())
@@ -66,26 +67,26 @@ class DashboardViewModel @Inject constructor(
     }
 
     val monthlySummaries: StateFlow<List<MonthlySummary>> =
-        combine(_year, _patternId, _patterns, _groups) { year, pid, patterns, groups ->
-            // 選択パターンの締め日を使用。未選択（-1）はアクティブパターン or デフォルト
-            val cd = when {
-                pid != -1 -> patterns.find { it.id == pid }?.closingDay
-                patterns.isNotEmpty() -> {
-                    val activeId = PatternStorage.getActiveId(getApplication())
-                    patterns.find { it.id == activeId }?.closingDay ?: patterns[0].closingDay
-                }
-                else -> null
-            } ?: AppSettings.getClosingDay(getApplication())
+        combine(_year, _groupId, _patterns, _groups) { year, gid, patterns, groups ->
+            val cd: Int
+            val targetGroupIds: Set<String>?
 
-            // パターンに紐づくグループIDセット（null = 全件）
-            val groupIds: Set<String>? = if (pid != -1) {
-                groups.filter { it.patternId == pid }.map { it.id }.toSet()
-            } else null
+            if (gid.isEmpty()) {
+                // 全ルートは暦月を使用（ルート切り替えで締め日が変わる問題を防ぐ）
+                cd = 31
+                targetGroupIds = null
+            } else {
+                val group = groups.find { it.id == gid }
+                val pattern = if (group?.patternId != null && group.patternId != -1)
+                    patterns.find { it.id == group.patternId } else null
+                cd = pattern?.closingDay ?: AppSettings.getClosingDay(getApplication())
+                targetGroupIds = setOf(gid)
+            }
 
-            Triple(year, cd, groupIds)
+            Triple(year, cd, targetGroupIds)
         }
         .flatMapLatest { triple ->
-            val (year, cd, groupIds) = triple
+            val (year, cd, targetGroupIds) = triple
             val periods = (1..12).map { month ->
                 val ym = "%04d-%02d".format(year, month)
                 ReportViewModel.computePeriod(ym, cd)
@@ -94,16 +95,22 @@ class DashboardViewModel @Inject constructor(
             val queryEnd   = periods.last().second
             dao.recordsForPeriodFlow(queryStart, queryEnd)
                 .map { records ->
-                    // パターン絞り込み: グループIDが指定されていれば対象グループ + 旧データ(未紐付け)に限定
-                    val scoped = if (groupIds != null && groupIds.isNotEmpty()) {
-                        records.filter { it.assignmentId in groupIds || it.assignmentId.isEmpty() }
-                    } else records
+                    val scoped = when {
+                        targetGroupIds == null      -> records
+                        targetGroupIds.isNotEmpty() -> records.filter {
+                            it.assignmentId in targetGroupIds || it.assignmentId.isEmpty()
+                        }
+                        else                        -> emptyList()
+                    }
 
-                    // 同一日付は1件のみ: assignmentId有りを優先、複数ある場合はid最大（最新）を選択
+                    // 日付ごとに「同一ルート内の重複」だけを1件に潰す。異なるルートの記録は
+                    // 別々に残して合算する（潰しすぎると全ルート表示時に金額が過少になる）
                     val deduped = scoped.groupBy { it.date }
-                        .map { (_, recs) ->
+                        .flatMap { (_, recs) ->
                             val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
-                            (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
+                            val candidates = if (nonBlank.isNotEmpty()) nonBlank else recs
+                            candidates.groupBy { it.assignmentId }
+                                .map { (_, sameRoute) -> sameRoute.maxByOrNull { it.id }!! }
                         }
                         .sortedBy { it.date }
                     periods.mapIndexed { idx, (start, end) ->

@@ -80,7 +80,7 @@ internal fun DailyReportFragment.showPatternListDialog() {
 
             val selectAction: () -> Unit = {
                 PatternStorage.setActiveId(ctx, pattern.id)
-                val gid = reportViewModel.assignmentId.value
+                val gid = deliveryViewModel.currentGroupId.value
                 if (gid.isNotBlank()) deliveryViewModel.linkPatternToGroup(gid, pattern.id)
                 reportViewModel.setClosingDay(pattern.closingDay)
                 rebuildList()
@@ -124,6 +124,14 @@ internal fun DailyReportFragment.showPatternListDialog() {
                 card.addView(TextView(ctx).apply {
                     text = "担当者: ${pattern.driverName}"; textSize = 12f
                     setTextColor(secondaryColor)
+                })
+            }
+            val linkedRouteNames = deliveryViewModel.groups.value
+                .filter { it.patternId == pattern.id }.map { it.name }
+            if (linkedRouteNames.isNotEmpty()) {
+                card.addView(TextView(ctx).apply {
+                    text = "📦 ${linkedRouteNames.joinToString(" · ")}"; textSize = 12f
+                    setTextColor(if (isActive) primaryColor else secondaryColor)
                 })
             }
 
@@ -213,6 +221,22 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
         setText(value); this.hint = hint
         inputType = InputType.TYPE_CLASS_TEXT
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+    }
+
+    val editLinkedRoutes = deliveryViewModel.groups.value
+        .filter { it.patternId == base.id }.map { it.name }
+    if (editLinkedRoutes.isNotEmpty()) {
+        root.addView(TextView(ctx).apply {
+            text = "📦 使用ルート: ${editLinkedRoutes.joinToString(" · ")}"; textSize = 13f
+            setTextColor(ContextCompat.getColor(ctx, R.color.colorReportPrimary))
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+                .also { it.bottomMargin = (10 * dp).toInt() }
+        })
+        root.addView(android.view.View(ctx).apply {
+            setBackgroundColor(colorOutlineVariant)
+            layoutParams = LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
+                .also { it.bottomMargin = (12 * dp).toInt() }
+        })
     }
 
     root.addView(label("帳票タイトル"))
@@ -478,7 +502,7 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
             try {
                 PatternStorage.save(ctx, updated)
             } catch (e: Exception) {
-                Toast.makeText(ctx, "保存に失敗しました: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+                ctx.showErrorDialog("保存エラー", e.localizedMessage ?: "パターンの保存に失敗しました。")
                 return@setOnClickListener
             }
             if (isNew) PatternStorage.setActiveId(ctx, updated.id)

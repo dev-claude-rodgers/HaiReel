@@ -16,7 +16,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-data class DayEntry(val date: String, val record: WorkRecord?)
+data class DayEntry(val date: String, val record: WorkRecord?, val routeName: String = "")
 
 class DayEntryAdapter(
     private val onTap:    (DayEntry) -> Unit,
@@ -124,6 +124,10 @@ class DayEntryAdapter(
                 }
             }
             root.addView(headerRow)
+
+            if (entry.routeName.isNotBlank()) {
+                root.addView(tv(entry.routeName, 11f, secondaryColor))
+            }
 
             if (r == null) {
                 val addRow = LinearLayout(ctx).apply {

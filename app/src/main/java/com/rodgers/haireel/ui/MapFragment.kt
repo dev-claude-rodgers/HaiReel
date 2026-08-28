@@ -54,6 +54,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     internal var _binding: FragmentMapBinding? = null
     internal val binding get() = _binding!!
     internal var googleMap: GoogleMap? = null
+    // 統合メニュー（リスト表示中）から地図専用操作を呼んだ際、地図準備完了後に実行する保留アクション
+    internal var pendingMenuAction: (MapFragment.() -> Unit)? = null
     private val markers = mutableMapOf<String, Marker>()          // 施設ピン用（配達ピンはClusterManagerが管理）
     internal val facilityMarkers = mutableListOf<Marker>()
     internal val savedFacilityPlaces = mutableListOf<NearbyPlace>()
@@ -168,7 +170,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 .show()
         }
 
-        binding.buttonMenu.setOnClickListener { showMapMenu() }
         binding.buttonZoomIn.setOnClickListener {
             googleMap?.animateCamera(CameraUpdateFactory.zoomIn())
         }
@@ -300,6 +301,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 }
             }
         }
+
+        pendingMenuAction?.let { it(this) }
+        pendingMenuAction = null
     }
 
     internal fun updateAllMarkers(allMap: Map<String, List<Delivery>>) {

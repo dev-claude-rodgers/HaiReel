@@ -26,6 +26,7 @@ import com.rodgers.haireel.repository.DeliveryRepository
 import com.rodgers.haireel.util.AddressParser
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.GeocodingApi
+import com.rodgers.haireel.util.applyGeocodingConfig
 import com.rodgers.haireel.util.GeocodingClient
 import com.rodgers.haireel.util.GeocodingManager
 import com.rodgers.haireel.util.RouteOptimizer
@@ -203,10 +204,8 @@ class DeliveryViewModel @Inject constructor(
     data class GeocodingProgress(val current: Int, val total: Int, val isRunning: Boolean, val successCount: Int = 0)
 
     init {
-        // ユーザーが設定したAPIキーのみ使用（フォールバックなし）
-        // 未設定の場合は空文字のまま → ジオコーディングは REQUEST_DENIED になりUIで案内
-        val userKey = try { AppSettings.getUserApiKey(getApplication()) } catch (_: Exception) { "" }
-        geocodingApi.configure(userKey)
+        // 優先順位: ①自分のAPIキー ②試用中/サブスク中なら運営プロキシ ③どちらもなければ未設定
+        try { applyGeocodingConfig(getApplication(), geocodingApi) } catch (_: Exception) {}
         viewModelScope.launch {
             loadAll()
             val groupId = _currentGroupId.value
@@ -471,6 +470,21 @@ class DeliveryViewModel @Inject constructor(
             }
             commitDeliveries(groupId, updated)
             if (result == null) startGeocoding(groupId)
+        }
+    }
+
+    // 台帳から完全削除（全グループの完了済みレコードをDBから削除。進行中の配達先は保護）
+    fun deleteLedgerEntry(ledgerKey: String) {
+        val name    = ledgerKey.substringBefore("|").trim()
+        val address = ledgerKey.substringAfter("|").trim()
+        viewModelScope.launch {
+            repo.deleteLedgerEntry(ledgerKey)
+            // _allDeliveries・_deliveries をインプレースで更新（未完了は保護するため残す）
+            val newAll = _allDeliveries.value.mapValues { (_, list) ->
+                list.filter { !(it.isCompleted && it.name?.trim().orEmpty() == name && it.address.trim() == address) }
+            }
+            _allDeliveries.value = newAll
+            _deliveries.value = newAll[_currentGroupId.value] ?: emptyList()
         }
     }
 

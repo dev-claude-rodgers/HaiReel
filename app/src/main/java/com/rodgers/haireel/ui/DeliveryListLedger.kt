@@ -256,25 +256,46 @@ private fun DeliveryListFragment.showLedgerExcluded() {
         return
     }
 
-    val keys = excluded.sorted()
-    val names = keys.map { it.substringBefore("|").ifBlank { it.substringAfter("|") } }.toTypedArray()
+    val keys  = excluded.sorted().toMutableList()
+    val names = keys.map { it.substringBefore("|").ifBlank { it.substringAfter("|") } }.toMutableList()
 
-    androidx.appcompat.app.AlertDialog.Builder(ctx)
-        .setTitle("🗑 削除済みの配達先")
-        .setItems(names) { _, idx ->
-            val key = keys[idx]
-            val name = names[idx]
-            androidx.appcompat.app.AlertDialog.Builder(ctx)
-                .setMessage("「$name」を台帳に戻しますか？")
-                .setNegativeButton("キャンセル", null)
-                .setPositiveButton("戻す") { _, _ ->
-                    AppSettings.removeLedgerExcluded(ctx, key)
-                    Toast.makeText(ctx, "「$name」を台帳に戻しました", Toast.LENGTH_SHORT).show()
-                }
-                .show()
+    fun showList(prev: androidx.appcompat.app.AlertDialog? = null) {
+        prev?.dismiss()
+        if (keys.isEmpty()) {
+            Toast.makeText(ctx, "ゴミ箱は空です", Toast.LENGTH_SHORT).show()
+            return
         }
-        .setNegativeButton("閉じる", null)
-        .show()
+        var listDialog: androidx.appcompat.app.AlertDialog? = null
+        listDialog = androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle("🗑 ゴミ箱  ${keys.size}件")
+            .setItems(names.toTypedArray()) { _, idx ->
+                val key  = keys[idx]
+                val name = names[idx]
+                androidx.appcompat.app.AlertDialog.Builder(ctx)
+                    .setTitle(name)
+                    .setMessage("この配達先をどうしますか？\n\n「完全に削除する」は完了済みの履歴のみ削除します。進行中のルートに残っている場合はそちらは削除されません。")
+                    .setNeutralButton("キャンセル", null)
+                    .setNegativeButton("台帳に戻す") { _, _ ->
+                        AppSettings.removeLedgerExcluded(ctx, key)
+                        keys.removeAt(idx); names.removeAt(idx)
+                        Toast.makeText(ctx, "「$name」を台帳に戻しました", Toast.LENGTH_SHORT).show()
+                        showList(listDialog)
+                    }
+                    .setPositiveButton("完全に削除する") { _, _ ->
+                        AppSettings.removeLedgerExcluded(ctx, key)
+                        viewModel.deleteLedgerEntry(key)
+                        keys.removeAt(idx); names.removeAt(idx)
+                        Toast.makeText(ctx, "「$name」を削除しました", Toast.LENGTH_SHORT).show()
+                        showList(listDialog)
+                    }
+                    .show()
+            }
+            .setNegativeButton("閉じる", null)
+            .create()
+        listDialog!!.show()
+    }
+
+    showList()
 }
 
 private fun dividerView(ctx: Context, color: Int) = View(ctx).apply {

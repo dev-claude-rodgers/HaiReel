@@ -142,13 +142,16 @@ object BackupManager {
         ((this[2].toInt() and 0xFF) shl 8)  or  (this[3].toInt() and 0xFF)
 
     suspend fun createBackup(context: Context): File {
-        val db         = AppDatabase.getInstance(context)
-        val records    = db.workRecordDao().getAll()
-        val tenkoList  = db.tenkoDao().getAll()
-        val patterns   = PatternStorage.getAll(context)
-        val activeId   = PatternStorage.getActiveId(context)
-        val groups     = db.deliveryGroupDao().getAll()
-        val deliveries = db.deliveryDao().getAll()
+        val db             = AppDatabase.getInstance(context)
+        val records        = db.workRecordDao().getAll()
+        val tenkoList      = db.tenkoDao().getAll()
+        val patterns       = PatternStorage.getAll(context)
+        val activeId       = PatternStorage.getActiveId(context)
+        val groups         = db.deliveryGroupDao().getAll()
+        val deliveries     = db.deliveryDao().getAll()
+        val knownAddresses = db.knownAddressDao().getAll()
+        val fuelRecords    = db.fuelRecordDao().getAll()
+        val vehicles       = db.vehicleDao().getAll()
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPANESE).format(Date())
         val zipFile = File(context.cacheDir, "HaiReel_backup_$timestamp.zip")
@@ -161,6 +164,9 @@ object BackupManager {
             zos.utf8Entry("groups.json",     groupsToJson(groups).toString())
             bundleDeliveryPhotos(context, deliveries, zos)   // deliveries.json より先に写真を書く
             zos.utf8Entry("deliveries.json", deliveriesToJson(deliveries).toString())
+            zos.utf8Entry("known_addresses.json", knownAddressesToJson(knownAddresses).toString())
+            zos.utf8Entry("fuel_records.json",    fuelRecordsToJson(fuelRecords).toString())
+            zos.utf8Entry("vehicles.json",        vehiclesToJson(vehicles).toString())
             zos.utf8Entry("settings.json",      settingsToJson(context).toString())
             zos.utf8Entry("haireel_prefs.json", hairreelPrefsToJson(context).toString())
 
@@ -317,6 +323,30 @@ object BackupManager {
                             } catch (e: Exception) { Log.w("BackupManager", "配達先の復元失敗: item $i", e) }
                         }
                     }
+                    "known_addresses.json" -> {
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
+                        db.knownAddressDao().deleteAll()
+                        for (i in 0 until arr.length()) {
+                            try { db.knownAddressDao().upsert(knownAddressFromJson(arr.getJSONObject(i))) }
+                            catch (e: Exception) { Log.w("BackupManager", "配達先台帳の復元失敗: item $i", e) }
+                        }
+                    }
+                    "fuel_records.json" -> {
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
+                        db.fuelRecordDao().deleteAll()
+                        for (i in 0 until arr.length()) {
+                            try { db.fuelRecordDao().upsert(fuelRecordFromJson(arr.getJSONObject(i))) }
+                            catch (e: Exception) { Log.w("BackupManager", "給油記録の復元失敗: item $i", e) }
+                        }
+                    }
+                    "vehicles.json" -> {
+                        val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
+                        db.vehicleDao().deleteAll()
+                        for (i in 0 until arr.length()) {
+                            try { db.vehicleDao().upsert(vehicleFromJson(arr.getJSONObject(i))) }
+                            catch (e: Exception) { Log.w("BackupManager", "車両情報の復元失敗: item $i", e) }
+                        }
+                    }
                     "sig_driver.png" -> {
                         try {
                             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let {
@@ -461,6 +491,74 @@ object BackupManager {
         noWork        = j.optBoolean("noWork", false)
     )
 
+    internal fun knownAddressesToJson(list: List<com.rodgers.haireel.db.KnownAddressEntity>): JSONArray {
+        val arr = JSONArray()
+        for (a in list) {
+            arr.put(JSONObject().apply {
+                put("address",        a.address)
+                put("name",           a.name ?: "")
+                put("deliveryCount",  a.deliveryCount)
+                put("lastDeliveredAt", a.lastDeliveredAt)
+            })
+        }
+        return arr
+    }
+
+    internal fun knownAddressFromJson(j: JSONObject) = com.rodgers.haireel.db.KnownAddressEntity(
+        address         = j.getString("address"),
+        name            = j.optString("name").ifBlank { null },
+        deliveryCount   = j.optInt("deliveryCount", 1),
+        lastDeliveredAt = j.optLong("lastDeliveredAt", System.currentTimeMillis())
+    )
+
+    internal fun fuelRecordsToJson(list: List<com.rodgers.haireel.model.FuelRecord>): JSONArray {
+        val arr = JSONArray()
+        for (f in list) {
+            arr.put(JSONObject().apply {
+                put("id",            f.id)
+                put("date",          f.date)
+                put("liters",        f.liters.toDouble())
+                put("pricePerLiter", f.pricePerLiter)
+                put("totalCost",     f.totalCost)
+                put("odometer",      f.odometer)
+                put("note",          f.note)
+                put("vehicleId",     f.vehicleId)
+            })
+        }
+        return arr
+    }
+
+    internal fun fuelRecordFromJson(j: JSONObject) = com.rodgers.haireel.model.FuelRecord(
+        id            = j.optLong("id", 0L),
+        date          = j.optString("date", ""),
+        liters        = j.optDouble("liters", 0.0).toFloat(),
+        pricePerLiter = j.optInt("pricePerLiter", 0),
+        totalCost     = j.optInt("totalCost", 0),
+        odometer      = j.optInt("odometer", 0),
+        note          = j.optString("note", ""),
+        vehicleId     = j.optLong("vehicleId", 0L)
+    )
+
+    internal fun vehiclesToJson(list: List<com.rodgers.haireel.model.Vehicle>): JSONArray {
+        val arr = JSONArray()
+        for (v in list) {
+            arr.put(JSONObject().apply {
+                put("id",              v.id)
+                put("name",            v.name)
+                put("initialOdometer", v.initialOdometer)
+                put("note",            v.note)
+            })
+        }
+        return arr
+    }
+
+    internal fun vehicleFromJson(j: JSONObject) = com.rodgers.haireel.model.Vehicle(
+        id              = j.optLong("id", 0L),
+        name            = j.optString("name", ""),
+        initialOdometer = j.optInt("initialOdometer", 0),
+        note            = j.optString("note", "")
+    )
+
     private fun patternsToJson(patterns: List<com.rodgers.haireel.model.ReportPattern>, activeId: Int): JSONObject {
         val arr = JSONArray()
         for (p in patterns) {
@@ -484,16 +582,18 @@ object BackupManager {
     private fun hairreelPrefsToJson(context: Context): JSONObject {
         val prefs = context.getSharedPreferences(AppSettings.HAIREEL_PREFS, Context.MODE_PRIVATE)
         val json = JSONObject()
+        val longKeys = JSONArray()
         prefs.all.forEach { (k, v) ->
             when (v) {
                 is String  -> json.put(k, v)
                 is Int     -> json.put(k, v)
                 is Boolean -> json.put(k, v)
                 is Float   -> json.put(k, v)
-                is Long    -> json.put(k, v)
+                is Long    -> { json.put(k, v); longKeys.put(k) }
                 is Set<*>  -> json.put(k, JSONArray(v.toList()))
             }
         }
+        if (longKeys.length() > 0) json.put("__long_keys__", longKeys)
         return json
     }
 
@@ -501,10 +601,14 @@ object BackupManager {
         val prefs = context.getSharedPreferences(AppSettings.HAIREEL_PREFS, Context.MODE_PRIVATE)
         val editor = prefs.edit()
         editor.clear()
+        val longKeys = json.optJSONArray("__long_keys__")
+            ?.let { arr -> (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }.toSet() }
+            ?: emptySet()
         json.keys().forEach { key ->
+            if (key == "__long_keys__") return@forEach
             when (val v = json.get(key)) {
                 is String  -> editor.putString(key, v)
-                is Int     -> editor.putInt(key, v)
+                is Int     -> if (key in longKeys) editor.putLong(key, v.toLong()) else editor.putInt(key, v)
                 is Boolean -> editor.putBoolean(key, v)
                 is Double  -> editor.putFloat(key, v.toFloat())
                 is Long    -> editor.putLong(key, v)
@@ -520,16 +624,18 @@ object BackupManager {
     private fun settingsToJson(context: Context): JSONObject {
         val prefs = context.getSharedPreferences(AppSettings.PREFS, Context.MODE_PRIVATE)
         val json = JSONObject()
+        val longKeys = JSONArray()
         prefs.all.forEach { (k, v) ->
             when (v) {
                 is String  -> json.put(k, v)
                 is Int     -> json.put(k, v)
                 is Boolean -> json.put(k, v)
                 is Float   -> json.put(k, v)
-                is Long    -> json.put(k, v)
+                is Long    -> { json.put(k, v); longKeys.put(k) }
                 is Set<*>  -> json.put(k, JSONArray(v.toList()))
             }
         }
+        if (longKeys.length() > 0) json.put("__long_keys__", longKeys)
         // APIキーも保存（空でなければ）
         val apiKey = try { AppSettings.getUserApiKey(context) } catch (_: Exception) { "" }
         if (apiKey.isNotBlank()) json.put("_user_api_key", apiKey)
@@ -539,11 +645,15 @@ object BackupManager {
     private fun restoreSettings(context: Context, json: JSONObject) {
         val prefs = context.getSharedPreferences(AppSettings.PREFS, Context.MODE_PRIVATE)
         val editor = prefs.edit()
+        editor.clear()
+        val longKeys = json.optJSONArray("__long_keys__")
+            ?.let { arr -> (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }.toSet() }
+            ?: emptySet()
         json.keys().forEach { key ->
-            if (key == "_user_api_key") return@forEach
+            if (key == "__long_keys__" || key == "_user_api_key") return@forEach
             when (val v = json.get(key)) {
                 is String  -> editor.putString(key, v)
-                is Int     -> editor.putInt(key, v)
+                is Int     -> if (key in longKeys) editor.putLong(key, v.toLong()) else editor.putInt(key, v)
                 is Boolean -> editor.putBoolean(key, v)
                 is Double  -> editor.putFloat(key, v.toFloat())
                 is Long    -> editor.putLong(key, v)

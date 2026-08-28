@@ -20,6 +20,10 @@ interface DeliveryDao {
     @Query("DELETE FROM deliveries WHERE group_id = :groupId")
     suspend fun deleteByGroup(groupId: String)
 
+    // 完了済みのみ削除。進行中ルートに残る同一配達先（未完了）は誤って消さないよう保護する
+    @Query("DELETE FROM deliveries WHERE TRIM(COALESCE(name,'')) = :name AND TRIM(address) = :address AND is_completed = 1")
+    suspend fun deleteByNameAndAddress(name: String, address: String)
+
     @Query("DELETE FROM deliveries")
     suspend fun deleteAll()
 

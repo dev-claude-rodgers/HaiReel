@@ -1,11 +1,14 @@
 package com.rodgers.haireel.util
 
+import android.content.Context
+
 interface GeocodingApi {
     val isRequestDenied: Boolean
     val biasLat: Double
     val biasLng: Double
 
     fun configure(apiKey: String)
+    fun configureProxy(appContext: Context)
     fun setAreaHint(hint: String)
     fun setBias(lat: Double, lng: Double)
     fun hasBias(): Boolean

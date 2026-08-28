@@ -33,8 +33,10 @@ android {
         val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: ""
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
-        val geocodingApiKey = localProps.getProperty("GEOCODING_API_KEY") ?: ""
-        buildConfigField("String", "GEOCODING_API_KEY", "\"$geocodingApiKey\"")
+        val proxyClientSecret = localProps.getProperty("PROXY_CLIENT_SECRET") ?: ""
+        buildConfigField("String", "PROXY_CLIENT_SECRET", "\"$proxyClientSecret\"")
+        val proxyBaseUrl = localProps.getProperty("PROXY_BASE_URL") ?: ""
+        buildConfigField("String", "PROXY_BASE_URL", "\"$proxyBaseUrl\"")
     }
 
     signingConfigs {

@@ -127,7 +127,7 @@ internal fun DailyReportFragment.shareReportText() {
             }
             appendLine()
             val workRecords = records.filter { !it.noWork }
-            val workDays = workRecords.sumOf { 1 + it.endDateOffset }
+            val workDays = workRecords.distinctBy { it.date }.size
             appendLine("稼働日数: ${workDays}日")
             cols.forEach { col ->
                 when (col.type) {

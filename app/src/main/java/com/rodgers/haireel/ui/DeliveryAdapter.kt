@@ -35,6 +35,7 @@ class DeliveryAdapter(
     private var etas: Map<String, Int?> = emptyMap()
 
     fun setEtas(newEtas: Map<String, Int?>) {
+        if (isDragging) return
         if (newEtas == etas) return
         etas = newEtas
         notifyDataSetChanged()

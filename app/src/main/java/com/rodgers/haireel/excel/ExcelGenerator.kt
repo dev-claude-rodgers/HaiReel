@@ -156,7 +156,8 @@ class ExcelGenerator(private val context: Context) {
                 totalDist   = workRecords.sumOf { it.distanceKm.toDouble() },
                 totalFuel   = workRecords.sumOf { it.fuelCost },
                 totalIncome = workRecords.sumOf { it.income },
-                workingDays = workRecords.sumOf { 1 + it.endDateOffset }
+                // 日をまたぐ勤務（endDateOffset>0）も1日として数える（収支画面の集計方式と統一）
+                workingDays = workRecords.distinctBy { it.date }.size
             )
         }
     }
@@ -385,7 +386,13 @@ class ExcelGenerator(private val context: Context) {
         val sumRow = dayCount + 6
         // 合計ラベルは左端から最大3セル（A列 + 最大2列）をマージして表示する
         // データ列が1本(numCols=2)の場合はマージなし（span=0）にして合計値を必ず出力する
-        val sumLabelSpan = minOf(numCols - 2, 2).coerceAtLeast(0)
+        // マージ対象は「合計値を持たない列」だけに限定する。先頭列が開始/終了時刻とは限らないため、
+        // 固定で2列マージすると配達件数・収入などの合計が誤って隠れてしまう。
+        val maxSpan = minOf(numCols - 2, 2).coerceAtLeast(0)
+        var sumLabelSpan = 0
+        while (sumLabelSpan < maxSpan && columns.getOrNull(sumLabelSpan)?.totalValue.isNullOrBlank()) {
+            sumLabelSpan++
+        }
         if (sumLabelSpan >= 1) merges.add("A${sumRow}:${colLetter(sumLabelSpan)}${sumRow}")
         sb.append("""<row r="$sumRow" ht="18" customHeight="1">""")
         sb.append(sc("A", sumRow, "合計（${workingDays}日稼働）", s = 2))

@@ -1,0 +1,2 @@
+GOOGLE_API_KEY=your-google-geocoding-places-api-key
+PROXY_CLIENT_SECRET=same-value-as-android-local-properties

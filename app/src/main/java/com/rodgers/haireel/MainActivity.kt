@@ -29,6 +29,7 @@ import com.rodgers.haireel.databinding.ActivityMainBinding
 import com.rodgers.haireel.ui.DailyReportFragment
 import com.rodgers.haireel.ui.DeliveryListFragment
 import com.rodgers.haireel.ui.TenkoFragment
+import com.rodgers.haireel.ui.showWebLicenseCodeDialog
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -110,6 +111,10 @@ class MainActivity : AppCompatActivity() {
         }
         // Google Play サブスク状態をバックグラウンドで確認・更新
         BillingManager.init(this)
+        // 自社HP（Stripe）経由で登録済みの場合はそちらの状態も確認・更新する
+        if (AppSettings.getSubscriptionSource(this) == "web" && AppSettings.getWebLicenseCode(this).isNotBlank()) {
+            lifecycleScope.launch { com.rodgers.haireel.util.WebLicenseManager.recheckSavedLicense(this@MainActivity) }
+        }
         if (AppSettings.isAppLockEnabled(this)) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         }
@@ -502,6 +507,7 @@ class MainActivity : AppCompatActivity() {
         buildSubscriptionDialog(this,
             onYearly  = { BillingManager.launchSubscription(this, BillingManager.PRODUCT_YEARLY) },
             onMonthly = { BillingManager.launchSubscription(this, BillingManager.PRODUCT_MONTHLY) },
+            onEnterCode = { showWebLicenseCodeDialog(this, this) },
             onClose   = { finishAffinity() },
             cancelable = false
         ).show()
@@ -512,6 +518,7 @@ class MainActivity : AppCompatActivity() {
         ctx: android.content.Context,
         onYearly: () -> Unit,
         onMonthly: () -> Unit,
+        onEnterCode: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
         cancelable: Boolean = true
     ): AlertDialog {
@@ -588,6 +595,24 @@ class MainActivity : AppCompatActivity() {
             gravity = android.view.Gravity.CENTER
             setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
         })
+
+        // ── HP購入のライセンスコードをお持ちの方 ──────────────
+        if (onEnterCode != null) {
+            root.addView(android.widget.TextView(ctx).apply {
+                text = "HPで購入したコードをお持ちの方はこちら"
+                textSize = 13f
+                gravity = android.view.Gravity.CENTER
+                setTextColor(android.graphics.Color.parseColor("#1565C0"))
+                setPadding(0, (14 * dp).toInt(), 0, 0)
+                background = android.util.TypedValue().also {
+                    ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
+                }.resourceId.let { androidx.core.content.ContextCompat.getDrawable(ctx, it) }
+                setOnClickListener {
+                    dlgRef[0]?.dismiss()
+                    onEnterCode()
+                }
+            })
+        }
 
         val dlg = AlertDialog.Builder(ctx)
             .setView(root)

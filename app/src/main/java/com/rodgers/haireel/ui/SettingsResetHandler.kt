@@ -17,7 +17,7 @@ class SettingsResetHandler(private val appContext: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun resetAllData(onError: (String) -> Unit) {
+    fun resetAllData(onReset: () -> Unit, onError: (String) -> Unit) {
         scope.launch {
             try {
                 val db = AppDatabase.getInstance(appContext)
@@ -43,19 +43,32 @@ class SettingsResetHandler(private val appContext: Context) {
                     SignatureStorage.fileFor(appContext, type).delete()
                 }
 
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(appContext, "初期化が完了しました。アプリを再起動します。", Toast.LENGTH_LONG).show()
-                }
-                delay(1500)
-                appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
-                    ?.apply { addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    ?.let { appContext.startActivity(it) }
-                android.os.Process.killProcess(android.os.Process.myPid())
+                withContext(Dispatchers.Main) { onReset() }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     onError(e.localizedMessage ?: "データの初期化に失敗しました。")
                 }
             }
+        }
+    }
+
+    // 初期化完了ダイアログでユーザーが確認した後に呼び出す再起動処理
+    fun restartApp() {
+        scope.launch {
+            val launchIntent = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)
+            if (launchIntent != null) {
+                launchIntent.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                )
+                appContext.startActivity(launchIntent)
+                delay(300)
+            } else {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(appContext, "アプリをランチャーから開いてください", Toast.LENGTH_LONG).show()
+                }
+                delay(2000)
+            }
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
     }
 }

@@ -17,11 +17,20 @@ interface WorkRecordDao {
     @Query("SELECT * FROM work_records WHERE date >= :startDate AND date <= :endDate AND (:assignmentId = '' OR assignmentId = :assignmentId OR assignmentId = '') ORDER BY date ASC")
     suspend fun recordsForPeriod(startDate: String, endDate: String, assignmentId: String = ""): List<WorkRecord>
 
-    @Query("SELECT * FROM work_records WHERE date LIKE :yearMonth || '%' ORDER BY date ASC")
-    suspend fun recordsForMonth(yearMonth: String): List<WorkRecord>
-
-    // 指定案件を優先し、なければ旧データ(assignmentId="")を返す
-    @Query("SELECT * FROM work_records WHERE date = :date AND (:assignmentId = '' OR assignmentId = :assignmentId OR assignmentId = '') ORDER BY CASE WHEN assignmentId = :assignmentId THEN 0 ELSE 1 END LIMIT 1")
+    // assignmentIdが空: 同日に複数ルードの記録があれば非空ルードを優先し、id降順（最新保存分）で1件選ぶ。
+    // assignmentIdが指定: その案件を優先し、なければ旧データ(assignmentId="")を返す。
+    // ReportViewModel.records の重複排除ロジックと選択基準を一致させ、表示中のカードと編集対象がズレないようにする。
+    @Query("""
+        SELECT * FROM work_records WHERE date = :date AND (:assignmentId = '' OR assignmentId = :assignmentId OR assignmentId = '')
+        ORDER BY
+            CASE
+                WHEN :assignmentId != '' AND assignmentId = :assignmentId THEN 0
+                WHEN :assignmentId = ''  AND assignmentId != ''           THEN 0
+                ELSE 1
+            END,
+            id DESC
+        LIMIT 1
+    """)
     suspend fun recordForDate(date: String, assignmentId: String = ""): WorkRecord?
 
     @Query("SELECT * FROM work_records WHERE date LIKE :year || '%' ORDER BY date ASC")

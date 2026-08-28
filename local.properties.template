@@ -6,3 +6,10 @@ sdk.dir=C\:\\Users\\rodge\\AppData\\Local\\Android\\Sdk
 ## Google Maps Platform で取得したAPIキー
 ## https://console.cloud.google.com/ → Maps SDK for Android を有効化
 MAPS_API_KEY=YOUR_API_KEY_HERE
+
+## 運営プロキシ(Cloudflare Worker, worker/ ディレクトリ参照)への認証用シークレット
+## Worker側で `wrangler secret put PROXY_CLIENT_SECRET` に設定する値と同じものを入れる
+PROXY_CLIENT_SECRET=YOUR_PROXY_CLIENT_SECRET_HERE
+
+## デプロイ済みのCloudflare WorkerのURL（例: https://haireel-geo-proxy.xxxx.workers.dev）
+PROXY_BASE_URL=YOUR_WORKER_URL_HERE

@@ -325,7 +325,7 @@ internal fun TenkoFragment.backupData() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }, "バックアップを共有"))
         } catch (e: Exception) {
-            Toast.makeText(ctx, "バックアップエラー: ${e.localizedMessage ?: "不明なエラー"}", Toast.LENGTH_LONG).show()
+            if (isAdded) ctx.showErrorDialog("バックアップエラー", e.localizedMessage ?: "不明なエラーが発生しました。")
         }
     }
 }

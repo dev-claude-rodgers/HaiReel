@@ -211,14 +211,14 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- 締め日パターン選択（収支の月別集計期間を決定する） -->
+        <!-- ルート選択ドロップダウン -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/assignmentFilterLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:hint="取引先">
+            android:layout_marginBottom="6dp"
+            android:hint="ルート">
 
             <AutoCompleteTextView
                 android:id="@+id/spinnerAssignment"
@@ -227,6 +227,18 @@
                 android:inputType="none"
                 android:textSize="14sp"/>
         </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- 選択ルート情報バー（ルート名・取引先・締め日） -->
+        <TextView
+            android:id="@+id/tvRouteInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:textSize="13sp"
+            android:textColor="@color/colorReportPrimary"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp"/>
 
         <!-- グラフタイトル + 凡例 -->
         <LinearLayout

@@ -1,0 +1,18 @@
+name = "haireel-geo-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-08-05"
+
+[observability]
+enabled = true
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "5827aba4d9eb4e65b2ad63c0056673a2"
+
+[vars]
+DAILY_QUOTA_PER_DEVICE = "300"
+ALLOWED_PACKAGES = "com.rodgers.haireel,com.rodgers.haireel.debug"
+
+# secrets（このファイルには書かない。以下のコマンドで投入する）:
+#   wrangler secret put GOOGLE_API_KEY
+#   wrangler secret put PROXY_CLIENT_SECRET
