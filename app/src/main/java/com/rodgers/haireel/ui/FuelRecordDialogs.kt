@@ -15,7 +15,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.model.FuelRecord
 import com.rodgers.haireel.model.Vehicle
 import com.rodgers.haireel.util.AppSettings
+import com.rodgers.haireel.util.sheetPalette
 import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.themeResId
 import com.rodgers.haireel.viewmodel.FuelViewModel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -34,11 +36,8 @@ internal fun DailyReportFragment.showFuelRecordSheet(fuelViewModel: FuelViewMode
     val ctx = requireContext()
     val dp  = ctx.resources.displayMetrics.density
 
-    val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-    val onSurface        = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-    val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-    val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-    val primaryColor     = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
+    val (surfaceColor, onSurface, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
+    val primaryColor = ctx.themeColor(com.google.android.material.R.attr.colorPrimary)
 
     val sheet = BottomSheetDialog(ctx)
     val root  = LinearLayout(ctx).apply {
@@ -230,10 +229,7 @@ internal fun DailyReportFragment.showFuelRecordSheet(fuelViewModel: FuelViewMode
                 orientation = LinearLayout.VERTICAL
                 setPadding((16 * dp).toInt(), (10 * dp).toInt(), (16 * dp).toInt(), (10 * dp).toInt())
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                val ripple = android.util.TypedValue().also {
-                    ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-                }.resourceId
-                setBackgroundResource(ripple); isClickable = true
+                setBackgroundResource(ctx.themeResId(android.R.attr.selectableItemBackground)); isClickable = true
             }
 
             val line1 = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -605,7 +601,8 @@ private fun DailyReportFragment.showFuelInputDialog(
                     totalCost     = total ?: (liters * price).toInt(),
                     odometer      = odometerIn.text.toString().toIntOrNull() ?: 0,
                     note          = noteIn.text.toString().trim(),
-                    vehicleId     = selectedVehicleId
+                    vehicleId     = selectedVehicleId,
+                    assignmentId  = existing?.assignmentId ?: currentPattern().id.toString()
                 ))
                 Toast.makeText(ctx, "給油記録を保存しました", Toast.LENGTH_SHORT).show()
                 onSaved()

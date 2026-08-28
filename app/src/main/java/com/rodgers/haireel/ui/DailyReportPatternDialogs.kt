@@ -10,6 +10,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.R
 import com.rodgers.haireel.model.ColumnType
@@ -18,6 +19,7 @@ import com.rodgers.haireel.model.ReportPattern
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
 import com.rodgers.haireel.util.themeColor
+import kotlinx.coroutines.launch
 
 internal fun DailyReportFragment.showPatternListDialog() {
     if (!isAdded) return
@@ -80,9 +82,9 @@ internal fun DailyReportFragment.showPatternListDialog() {
 
             val selectAction: () -> Unit = {
                 PatternStorage.setActiveId(ctx, pattern.id)
-                val gid = deliveryViewModel.currentGroupId.value
-                if (gid.isNotBlank()) deliveryViewModel.linkPatternToGroup(gid, pattern.id)
+                reportViewModel.setAssignmentId(pattern.id.toString())
                 reportViewModel.setClosingDay(pattern.closingDay)
+                updateAssignmentBar()
                 rebuildList()
                 Toast.makeText(ctx, "「${pattern.title}」を選択しました", Toast.LENGTH_SHORT).show()
             }
@@ -126,15 +128,6 @@ internal fun DailyReportFragment.showPatternListDialog() {
                     setTextColor(secondaryColor)
                 })
             }
-            val linkedRouteNames = deliveryViewModel.groups.value
-                .filter { it.patternId == pattern.id }.map { it.name }
-            if (linkedRouteNames.isNotEmpty()) {
-                card.addView(TextView(ctx).apply {
-                    text = "📦 ${linkedRouteNames.joinToString(" · ")}"; textSize = 12f
-                    setTextColor(if (isActive) primaryColor else secondaryColor)
-                })
-            }
-
             val btnRow = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
                 layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
@@ -157,13 +150,29 @@ internal fun DailyReportFragment.showPatternListDialog() {
             })
             if (patterns.size > 1) {
                 btnRow.addView(rowBtn("削除", redColor) {
-                    MaterialAlertDialogBuilder(ctx)
-                        .setMessage("「${pattern.title}」を削除しますか？")
-                        .setPositiveButton("削除") { _, _ ->
-                            PatternStorage.delete(ctx, pattern.id)
-                            rebuildList()
-                        }
-                        .setNegativeButton("キャンセル", null).show()
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val pid = pattern.id.toString()
+                        val workCount  = reportViewModel.countByAssignment(pid)
+                        val tenkoCount = tenkoViewModel.countByAssignment(pid)
+                        val fuelCount  = fuelViewModel.countByAssignment(pid)
+                        if (!isAdded) return@launch
+                        val recordTotal = workCount + tenkoCount + fuelCount
+                        val message = if (recordTotal > 0)
+                            "「${pattern.title}」を削除しますか？\n\nこの取引先の日報${workCount}件・点呼${tenkoCount}件・給油記録${fuelCount}件は削除されずに残りますが、以後どのパターンからも表示・編集できなくなります。"
+                        else
+                            "「${pattern.title}」を削除しますか？"
+                        MaterialAlertDialogBuilder(ctx)
+                            .setMessage(message)
+                            .setPositiveButton("削除") { _, _ ->
+                                PatternStorage.delete(ctx, pattern.id)
+                                val newActive = PatternStorage.ensureDefault(ctx)
+                                reportViewModel.setAssignmentId(newActive.id.toString())
+                                reportViewModel.setClosingDay(newActive.closingDay)
+                                updateAssignmentBar()
+                                rebuildList()
+                            }
+                            .setNegativeButton("キャンセル", null).show()
+                    }
                 })
             }
             card.addView(btnRow)
@@ -206,38 +215,13 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
     val colorSurfaceVariant   = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
     val colorOutlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
 
-    fun label(text: String) = TextView(ctx).apply {
-        this.text = text; textSize = 13f; setTextColor(colorOnSurfaceVariant)
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
-    }
+    fun label(text: String) = ctx.formLabel(text, dp, colorOnSurfaceVariant)
     fun divider() = android.view.View(ctx).apply {
         setBackgroundColor(colorOutlineVariant)
         layoutParams = LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
             .also { it.topMargin = (16 * dp).toInt(); it.bottomMargin = (12 * dp).toInt() }
     }
-    fun field(value: String, hint: String = "") = EditText(ctx).apply {
-        setText(value); this.hint = hint
-        inputType = InputType.TYPE_CLASS_TEXT
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-    }
-
-    val editLinkedRoutes = deliveryViewModel.groups.value
-        .filter { it.patternId == base.id }.map { it.name }
-    if (editLinkedRoutes.isNotEmpty()) {
-        root.addView(TextView(ctx).apply {
-            text = "📦 使用ルート: ${editLinkedRoutes.joinToString(" · ")}"; textSize = 13f
-            setTextColor(ContextCompat.getColor(ctx, R.color.colorReportPrimary))
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.bottomMargin = (10 * dp).toInt() }
-        })
-        root.addView(android.view.View(ctx).apply {
-            setBackgroundColor(colorOutlineVariant)
-            layoutParams = LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
-                .also { it.bottomMargin = (12 * dp).toInt() }
-        })
-    }
+    fun field(value: String, hint: String = "") = ctx.formField(value, dp, hint)
 
     root.addView(label("帳票タイトル"))
     val titleIn   = field(base.title, "稼働報告書")
@@ -507,7 +491,9 @@ internal fun DailyReportFragment.showPatternEditDialog(pattern: ReportPattern?, 
             }
             if (isNew) PatternStorage.setActiveId(ctx, updated.id)
             if (PatternStorage.getActiveId(ctx) == updated.id) {
+                reportViewModel.setAssignmentId(updated.id.toString())
                 reportViewModel.setClosingDay(updated.closingDay)
+                updateAssignmentBar()
             }
             val msg = when {
                 titleStr.isBlank() -> "帳票タイトルが未入力のため「稼働報告書」を使用します"

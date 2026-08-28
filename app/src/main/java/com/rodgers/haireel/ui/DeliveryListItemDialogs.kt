@@ -36,7 +36,9 @@ import com.rodgers.haireel.model.Room
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
 import com.rodgers.haireel.util.hasPermission
+import com.rodgers.haireel.util.sheetPalette
 import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.themeResId
 import com.rodgers.haireel.util.TimeSlotColor
 import com.rodgers.haireel.viewmodel.DeliveryViewModel
 import java.io.File
@@ -52,10 +54,7 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         val dp = ctx.resources.displayMetrics.density
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
 
-        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        val (surfaceColor, onSurfaceColor, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -104,9 +103,7 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         headerRow.addView(TextView(ctx).apply {
             text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
             setTextColor(onSurfaceVariant)
-            background = android.util.TypedValue().also {
-                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
+            background = ContextCompat.getDrawable(ctx, ctx.themeResId(android.R.attr.selectableItemBackgroundBorderless))
             layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
             setOnClickListener { sheet.dismiss() }
         })
@@ -117,9 +114,7 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
         })
 
         // ── 行ヘルパー ───────────────────────────────────────────
-        val rippleRes = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val rippleRes = ctx.themeResId(android.R.attr.selectableItemBackground)
 
         fun row(emoji: String, title: String, sub: String, color: Int = onSurfaceColor, action: () -> Unit) {
             val row = LinearLayout(ctx).apply {
@@ -358,9 +353,7 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         val colorOnSurface        = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         val colorOnSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
         val colorSurfaceVariant   = ctx.themeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-        val ripple = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val ripple = ctx.themeResId(android.R.attr.selectableItemBackground)
 
         val scroll = ScrollView(ctx)
         val layout = LinearLayout(ctx).apply {

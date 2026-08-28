@@ -46,19 +46,7 @@ class ReportViewModel @Inject constructor(
             if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("ReportVM", "records query: aid='$aid', period=$start~$end")
             dao.recordsForPeriodFlow(start, end, aid).map { list ->
                 if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("ReportVM", "records result: ${list.size}件, income=${list.sumOf { it.income }}, assignmentIds=${list.map { it.assignmentId }.distinct()}")
-                list.groupBy { it.date }
-                    .map { (_, recs) ->
-                        if (aid.isBlank()) {
-                            // 全案件: 同日にblankとグループ両方ある場合はblankを除外し、
-                            // 同日に複数グループがある場合も1件（最新のid）に絞る（合計の二重計上防止）
-                            val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
-                            (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
-                        } else {
-                            // 特定案件: グループレコード優先、なければblankを使用（1件）
-                            recs.firstOrNull { it.assignmentId == aid } ?: recs.first()
-                        }
-                    }
-                    .sortedBy { it.date }
+                list.pickOnePerDate(aid)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -105,25 +93,32 @@ class ReportViewModel @Inject constructor(
 
     suspend fun recordForDate(date: String): WorkRecord? = dao.recordForDate(date, _assignmentId.value)
 
+    suspend fun countByAssignment(assignmentId: String): Int = dao.countByAssignment(assignmentId)
+
     suspend fun recordsForPeriod(startDate: String, endDate: String): List<WorkRecord> =
         recordsForPeriodWithAssignment(startDate, endDate, _assignmentId.value)
 
     // Excel出力・テキスト共有からも使うため、records と同じ重複排除ロジックを適用する。
     // 適用しないと同日に複数ルートの記録がある場合に合計・稼働日数が二重計上される。
     suspend fun recordsForPeriodWithAssignment(startDate: String, endDate: String, assignmentId: String): List<WorkRecord> =
-        dao.recordsForPeriod(startDate, endDate, assignmentId)
-            .groupBy { it.date }
-            .map { (_, recs) ->
-                if (assignmentId.isBlank()) {
-                    val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
-                    (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
-                } else {
-                    recs.firstOrNull { it.assignmentId == assignmentId } ?: recs.first()
-                }
-            }
-            .sortedBy { it.date }
+        dao.recordsForPeriod(startDate, endDate, assignmentId).pickOnePerDate(assignmentId)
 
     companion object {
+        // 同日に複数レコードがある場合に代表1件へ絞る（合計・稼働日数の二重計上防止）。
+        // assignmentIdが空(全案件): blankを除外した上でid最大の1件。
+        // assignmentIdが指定: その案件のレコードを優先し、なければ旧データ(blank)を使う。
+        private fun List<WorkRecord>.pickOnePerDate(assignmentId: String): List<WorkRecord> =
+            groupBy { it.date }
+                .map { (_, recs) ->
+                    if (assignmentId.isBlank()) {
+                        val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
+                        (if (nonBlank.isNotEmpty()) nonBlank else recs).maxByOrNull { it.id }!!
+                    } else {
+                        recs.firstOrNull { it.assignmentId == assignmentId } ?: recs.first()
+                    }
+                }
+                .sortedBy { it.date }
+
         // 締め日から集計期間の開始日・終了日を返す (ISO文字列のPair)
         fun computePeriod(yearMonth: String, closingDay: Int): Pair<String, String> {
             val parsed = java.time.YearMonth.parse(yearMonth)

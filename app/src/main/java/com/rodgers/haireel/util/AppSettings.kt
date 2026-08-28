@@ -63,14 +63,6 @@ object AppSettings {
     fun isColRemarks(ctx: Context): Boolean = prefs(ctx).getBoolean("col_remarks", true)
     fun setColRemarks(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("col_remarks", v).apply()
 
-    // 報酬設定
-    // 0 = 日当制, 1 = 件数単価制
-    fun getPaymentType(ctx: Context): Int = prefs(ctx).getInt("payment_type", 0)
-    fun setPaymentType(ctx: Context, v: Int) = prefs(ctx).edit().putInt("payment_type", v).apply()
-
-    fun getUnitPrice(ctx: Context): Int = prefs(ctx).getInt("unit_price", 0)
-    fun setUnitPrice(ctx: Context, v: Int) = prefs(ctx).edit().putInt("unit_price", v).apply()
-
     // 点呼設定
     fun getCheckerName(ctx: Context): String = prefs(ctx).getString("checker_name", "") ?: ""
     fun setCheckerName(ctx: Context, v: String) = prefs(ctx).edit().putString("checker_name", v).apply()
@@ -199,33 +191,14 @@ object AppSettings {
     fun getEmploymentType(ctx: Context): String = prefs(ctx).getString("employment_type", "contractor") ?: "contractor"
     fun setEmploymentType(ctx: Context, v: String) = prefs(ctx).edit().putString("employment_type", v).apply()
 
-    // ── 案件（グループ）別 報酬・雇用形態設定（未設定時はグローバル値にフォールバック）
-    fun getEmploymentType(ctx: Context, groupId: String): String {
-        if (groupId.isBlank()) return getEmploymentType(ctx)
-        val sp = prefs(ctx); val key = "employment_type_$groupId"
+    // ── 取引先（帳票パターン）別 雇用形態設定（未設定時はグローバル値にフォールバック）
+    fun getEmploymentType(ctx: Context, patternId: String): String {
+        if (patternId.isBlank()) return getEmploymentType(ctx)
+        val sp = prefs(ctx); val key = "employment_type_$patternId"
         return if (sp.contains(key)) sp.getString(key, "contractor") ?: "contractor" else getEmploymentType(ctx)
     }
-    fun setEmploymentType(ctx: Context, groupId: String, v: String) =
-        prefs(ctx).edit().putString("employment_type_$groupId", v).apply()
-
-    fun getPaymentType(ctx: Context, groupId: String): Int {
-        if (groupId.isBlank()) return getPaymentType(ctx)
-        val sp = prefs(ctx); val key = "payment_type_$groupId"
-        return if (sp.contains(key)) sp.getInt(key, 0) else getPaymentType(ctx)
-    }
-    fun setPaymentType(ctx: Context, groupId: String, v: Int) =
-        prefs(ctx).edit().putInt("payment_type_$groupId", v).apply()
-
-    fun getUnitPrice(ctx: Context, groupId: String): Int {
-        if (groupId.isBlank()) return getUnitPrice(ctx)
-        val sp = prefs(ctx); val key = "unit_price_$groupId"
-        return if (sp.contains(key)) sp.getInt(key, 0) else getUnitPrice(ctx)
-    }
-    fun setUnitPrice(ctx: Context, groupId: String, v: Int) =
-        prefs(ctx).edit().putInt("unit_price_$groupId", v).apply()
-
-    fun hasGroupPaymentSettings(ctx: Context, groupId: String): Boolean =
-        prefs(ctx).contains("payment_type_$groupId")
+    fun setEmploymentType(ctx: Context, patternId: String, v: String) =
+        prefs(ctx).edit().putString("employment_type_$patternId", v).apply()
 
     // 点呼リスト右端表示 ("alcohol" | "time" | "none")
     fun getTenkoRightDisplay(ctx: Context): String = prefs(ctx).getString("tenko_right_display", "alcohol") ?: "alcohol"

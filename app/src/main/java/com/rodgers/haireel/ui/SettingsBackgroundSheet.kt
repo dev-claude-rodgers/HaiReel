@@ -5,7 +5,8 @@ import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.rodgers.haireel.util.AppSettings
-import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.sheetPalette
+import com.rodgers.haireel.util.themeResId
 
 fun buildBackgroundSummary(ctx: Context): String {
     val items = mutableListOf<String>()
@@ -15,11 +16,8 @@ fun buildBackgroundSummary(ctx: Context): String {
 }
 
 fun showBackgroundSettingsSheet(ctx: Context, onDismiss: () -> Unit) {
-    val dp           = ctx.resources.displayMetrics.density
-    val surfaceBg    = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-    val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-    val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-    val outlineVar   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+    val dp = ctx.resources.displayMetrics.density
+    val (surfaceBg, onSurface, onSurfaceVar, outlineVar) = ctx.sheetPalette()
     val MATCH        = LinearLayout.LayoutParams.MATCH_PARENT
     val WRAP         = LinearLayout.LayoutParams.WRAP_CONTENT
 
@@ -43,9 +41,7 @@ fun showBackgroundSettingsSheet(ctx: Context, onDismiss: () -> Unit) {
 
     fun toggleRow(emoji: String, title: String, isOn: Boolean,
                   onToggle: (Boolean) -> Unit) {
-        val ripple = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val ripple = ctx.themeResId(android.R.attr.selectableItemBackground)
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL

@@ -1,12 +1,15 @@
 package com.rodgers.haireel.ui
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.fragment.app.Fragment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
@@ -21,6 +24,23 @@ fun Context.showErrorDialog(title: String, message: String) {
         .setPositiveButton("閉じる", null)
         .show()
 }
+
+private const val MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+// FileProvider経由でファイルを共有する（Excel出力・バックアップ等）。
+fun Fragment.shareFile(file: java.io.File, mimeType: String, chooserTitle: String) {
+    val ctx = requireContext()
+    val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
+    startActivity(Intent.createChooser(
+        Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }, chooserTitle))
+}
+
+fun Fragment.shareXlsxFile(file: java.io.File, chooserTitle: String) =
+    shareFile(file, MIME_XLSX, chooserTitle)
 
 fun LinearLayout.addMenuRow(
     emoji: String,

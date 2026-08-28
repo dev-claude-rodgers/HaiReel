@@ -33,6 +33,9 @@ class DeliveryAdapter(
     var groupColor: Int = android.graphics.Color.parseColor("#F44336")
     var isDragging = false
     private var etas: Map<String, Int?> = emptyMap()
+    // 時間帯テンプレートはSharedPreferences読み込みを伴うため、bindのたびに読み直さず短時間キャッシュする
+    private var cachedSlotTemplates: List<AppSettings.TimeSlotTemplate> = emptyList()
+    private var slotTemplateCacheMs = 0L
 
     fun setEtas(newEtas: Map<String, Int?>) {
         if (isDragging) return
@@ -136,8 +139,12 @@ class DeliveryAdapter(
                 tvTimeSlot.text = if (hasSlot) "🕐 ${delivery.timeSlot}" else ""
                 tvTimeSlot.visibility = if (hasSlot) View.VISIBLE else View.GONE
                 if (hasSlot) {
-                    val tpls = AppSettings.getTimeSlotTemplatesWithColor(tvTimeSlot.context)
-                    val slotColor = TimeSlotColor.colorFor(delivery.timeSlot, tpls)
+                    val now = System.currentTimeMillis()
+                    if (now - slotTemplateCacheMs > 5_000L) {
+                        cachedSlotTemplates = AppSettings.getTimeSlotTemplatesWithColor(tvTimeSlot.context)
+                        slotTemplateCacheMs = now
+                    }
+                    val slotColor = TimeSlotColor.colorFor(delivery.timeSlot, cachedSlotTemplates)
                     if (slotColor != null) tvTimeSlot.setTextColor(slotColor)
                     else tvTimeSlot.setTextColor(tvTimeSlot.context.getColor(R.color.colorTimeSlot))
                 }

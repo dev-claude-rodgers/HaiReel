@@ -211,14 +211,14 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- ルート選択ドロップダウン -->
+        <!-- 取引先選択ドロップダウン -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/assignmentFilterLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
-            android:hint="ルート">
+            android:hint="取引先">
 
             <AutoCompleteTextView
                 android:id="@+id/spinnerAssignment"
@@ -228,7 +228,7 @@
                 android:textSize="14sp"/>
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- 選択ルート情報バー（ルート名・取引先・締め日） -->
+        <!-- 選択取引先情報バー（取引先名・締め日） -->
         <TextView
             android:id="@+id/tvRouteInfo"
             android:layout_width="match_parent"

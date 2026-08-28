@@ -66,12 +66,7 @@ fun showDailyReportEditDialog(
     }
     scroll.addView(root)
 
-    fun label(text: String) = TextView(ctx).apply {
-        this.text = text; textSize = 13f; setTextColor(colorOnSurfaceVariant)
-        typeface = Typeface.DEFAULT_BOLD
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
-    }
+    fun label(text: String) = ctx.formLabel(text, dp, colorOnSurfaceVariant)
 
     // 稼働あり / 休み トグル
     val workBtnId = View.generateViewId()
@@ -377,11 +372,7 @@ fun showDailyReportEditDialog(
                     2    -> if (wm == 0) "開始・終了時刻を入力してください" else "帳票設定の「単価」を設定してください"
                     else -> "帳票設定の「単価」を設定してください"
                 }
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("自動計算できません")
-                    .setMessage(msg)
-                    .setPositiveButton("閉じる", null)
-                    .show()
+                ctx.showErrorDialog("自動計算できません", msg)
             }
         }
     }
@@ -414,11 +405,7 @@ fun showDailyReportEditDialog(
                     fuelEfficiencyKmL <= 0f                       -> "設定で燃費(km/L)を入力してください"
                     else                                          -> "走行距離を先に入力してください"
                 }
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("自動計算できません")
-                    .setMessage(msg)
-                    .setPositiveButton("閉じる", null)
-                    .show()
+                ctx.showErrorDialog("自動計算できません", msg)
             }
         }
     }

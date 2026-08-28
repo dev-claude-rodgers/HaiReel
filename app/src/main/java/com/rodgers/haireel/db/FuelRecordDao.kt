@@ -16,6 +16,9 @@ interface FuelRecordDao {
     @Query("SELECT * FROM fuel_records ORDER BY date ASC, id ASC")
     suspend fun getAll(): List<FuelRecord>
 
+    @Query("SELECT COUNT(*) FROM fuel_records WHERE assignmentId = :assignmentId")
+    suspend fun countByAssignment(assignmentId: String): Int
+
     @Query("DELETE FROM fuel_records")
     suspend fun deleteAll()
 

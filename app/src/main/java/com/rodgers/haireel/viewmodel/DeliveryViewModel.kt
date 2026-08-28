@@ -193,14 +193,6 @@ class DeliveryViewModel @Inject constructor(
         saveGroups()
     }
 
-    fun linkPatternToGroup(groupId: String, patternId: Int) {
-        val updated = _groups.value.map {
-            if (it.id == groupId) it.copy(patternId = patternId) else it
-        }
-        _groups.value = updated
-        saveGroups()
-    }
-
     data class GeocodingProgress(val current: Int, val total: Int, val isRunning: Boolean, val successCount: Int = 0)
 
     init {
@@ -216,17 +208,19 @@ class DeliveryViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             if (!prefs.getBoolean("known_addr_backfill_v2", false)) {
                 try {
-                    repo.getAllDeliveries()
+                    val now = System.currentTimeMillis()
+                    val entities = repo.getAllDeliveries()
                         .filter { it.address.isNotBlank() }
                         .distinctBy { it.address.trim() }
-                        .forEach { d ->
-                            knownAddressDao.insertIfNew(KnownAddressEntity(
+                        .map { d ->
+                            KnownAddressEntity(
                                 address         = d.address.trim(),
                                 name            = d.name,
                                 deliveryCount   = 1,
-                                lastDeliveredAt = System.currentTimeMillis()
-                            ))
+                                lastDeliveredAt = now
+                            )
                         }
+                    knownAddressDao.insertAllIfNew(entities)
                     prefs.edit().putBoolean("known_addr_backfill_v2", true).apply()
                 } catch (_: Exception) { }
             }

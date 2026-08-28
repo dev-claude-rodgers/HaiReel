@@ -10,6 +10,7 @@ import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.themeResId
 
 fun showThemePickerDialog(ctx: Context, onThemeChanged: () -> Unit) {
     val dp         = ctx.resources.displayMetrics.density
@@ -52,10 +53,7 @@ fun showThemePickerDialog(ctx: Context, onThemeChanged: () -> Unit) {
                 gravity = Gravity.CENTER
                 layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
                 isClickable = true; isFocusable = true
-                val ripple = android.util.TypedValue().also {
-                    ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-                }.resourceId
-                setBackgroundResource(ripple)
+                setBackgroundResource(ctx.themeResId(android.R.attr.selectableItemBackgroundBorderless))
             }
 
             cell.addView(TextView(ctx).apply {

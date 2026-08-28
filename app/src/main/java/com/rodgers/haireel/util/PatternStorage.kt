@@ -20,10 +20,10 @@ object PatternStorage {
     private fun putIds(ctx: Context, ids: List<Int>) =
         p(ctx).edit().putString("ids", ids.joinToString(",")).apply()
 
-    fun get(ctx: Context, id: Int): ReportPattern? {
-        if (!getIds(ctx).contains(id)) return null
-        val sp = p(ctx)
-        val columnsJson = sp.getString("${id}_columns", "") ?: ""
+    // SharedPreferences.all を1回だけ取得し、そこから1件分のフィールドを組み立てる。
+    // get()/getAll() それぞれで id ごとに7項目を個別に読み出すより、まとめて読む方が呼び出し回数が減る。
+    private fun buildPattern(id: Int, all: Map<String, *>): ReportPattern {
+        val columnsJson = all["${id}_columns"] as? String ?: ""
         val columns = if (columnsJson.isNotBlank()) {
             decodeExcelColumns(columnsJson)
         } else {
@@ -32,17 +32,25 @@ object PatternStorage {
         }
         return ReportPattern(
             id          = id,
-            title       = sp.getString("${id}_title",   "稼働報告書") ?: "稼働報告書",
-            clientName  = sp.getString("${id}_client",  "") ?: "",
-            driverName  = sp.getString("${id}_driver",  "") ?: "",
-            closingDay  = sp.getInt(   "${id}_closing", 31),
+            title       = all["${id}_title"] as? String ?: "稼働報告書",
+            clientName  = all["${id}_client"] as? String ?: "",
+            driverName  = all["${id}_driver"] as? String ?: "",
+            closingDay  = all["${id}_closing"] as? Int ?: 31,
             excelColumns = columns,
-            paymentType = sp.getInt(   "${id}_pay_type",   3),
-            unitPrice   = sp.getInt(   "${id}_unit_price", 0)
+            paymentType = all["${id}_pay_type"] as? Int ?: 3,
+            unitPrice   = all["${id}_unit_price"] as? Int ?: 0
         )
     }
 
-    fun getAll(ctx: Context): List<ReportPattern> = getIds(ctx).mapNotNull { get(ctx, it) }
+    fun get(ctx: Context, id: Int): ReportPattern? {
+        if (!getIds(ctx).contains(id)) return null
+        return buildPattern(id, p(ctx).all)
+    }
+
+    fun getAll(ctx: Context): List<ReportPattern> {
+        val all = p(ctx).all
+        return getIds(ctx).map { buildPattern(it, all) }
+    }
 
     fun save(ctx: Context, pattern: ReportPattern) {
         val ids = getIds(ctx).toMutableList()
@@ -78,8 +86,6 @@ object PatternStorage {
     fun setActiveId(ctx: Context, id: Int) = p(ctx).edit().putInt("active_id", id).apply()
 
     fun setNextId(ctx: Context, id: Int) = p(ctx).edit().putInt("next_id", id).apply()
-
-    fun getActive(ctx: Context): ReportPattern = ensureDefault(ctx)
 
     fun ensureDefault(ctx: Context): ReportPattern {
         val ids = getIds(ctx)

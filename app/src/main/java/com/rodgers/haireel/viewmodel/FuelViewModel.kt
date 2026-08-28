@@ -51,6 +51,8 @@ class FuelViewModel @Inject constructor(
         catch (e: Exception) { android.util.Log.e("FuelViewModel", "delete 失敗", e) }
     }
 
+    suspend fun countByAssignment(assignmentId: String): Int = dao.countByAssignment(assignmentId)
+
     fun upsertVehicle(vehicle: Vehicle) = viewModelScope.launch {
         try { vehicleDao.upsert(vehicle) }
         catch (e: Exception) { android.util.Log.e("FuelViewModel", "upsertVehicle 失敗", e) }

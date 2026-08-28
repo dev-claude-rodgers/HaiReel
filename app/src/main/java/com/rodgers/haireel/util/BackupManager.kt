@@ -6,6 +6,8 @@ import android.util.Log
 import android.net.Uri
 import androidx.room.withTransaction
 import com.rodgers.haireel.db.AppDatabase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import com.rodgers.haireel.model.ColumnType
 import com.rodgers.haireel.model.ExcelColumn
 import com.rodgers.haireel.model.ReportPattern
@@ -141,17 +143,37 @@ object BackupManager {
         ((this[0].toInt() and 0xFF) shl 24) or ((this[1].toInt() and 0xFF) shl 16) or
         ((this[2].toInt() and 0xFF) shl 8)  or  (this[3].toInt() and 0xFF)
 
+    private data class BackupSourceData(
+        val records: List<WorkRecord>,
+        val tenkoList: List<com.rodgers.haireel.model.TenkoRecord>,
+        val patterns: List<ReportPattern>,
+        val activeId: Int,
+        val groups: List<com.rodgers.haireel.db.DeliveryGroupEntity>,
+        val deliveries: List<com.rodgers.haireel.db.DeliveryEntity>,
+        val knownAddresses: List<com.rodgers.haireel.db.KnownAddressEntity>,
+        val fuelRecords: List<com.rodgers.haireel.model.FuelRecord>,
+        val vehicles: List<com.rodgers.haireel.model.Vehicle>
+    )
+
     suspend fun createBackup(context: Context): File {
-        val db             = AppDatabase.getInstance(context)
-        val records        = db.workRecordDao().getAll()
-        val tenkoList      = db.tenkoDao().getAll()
-        val patterns       = PatternStorage.getAll(context)
-        val activeId       = PatternStorage.getActiveId(context)
-        val groups         = db.deliveryGroupDao().getAll()
-        val deliveries     = db.deliveryDao().getAll()
-        val knownAddresses = db.knownAddressDao().getAll()
-        val fuelRecords    = db.fuelRecordDao().getAll()
-        val vehicles       = db.vehicleDao().getAll()
+        val db = AppDatabase.getInstance(context)
+        // 互いに独立した読み取りなので並列に取得する
+        val (records, tenkoList, patterns, activeId, groups, deliveries, knownAddresses, fuelRecords, vehicles) =
+            coroutineScope {
+                val recordsD       = async { db.workRecordDao().getAll() }
+                val tenkoListD     = async { db.tenkoDao().getAll() }
+                val patternsD      = async { PatternStorage.getAll(context) }
+                val activeIdD      = async { PatternStorage.getActiveId(context) }
+                val groupsD        = async { db.deliveryGroupDao().getAll() }
+                val deliveriesD    = async { db.deliveryDao().getAll() }
+                val knownAddressesD = async { db.knownAddressDao().getAll() }
+                val fuelRecordsD   = async { db.fuelRecordDao().getAll() }
+                val vehiclesD      = async { db.vehicleDao().getAll() }
+                BackupSourceData(
+                    recordsD.await(), tenkoListD.await(), patternsD.await(), activeIdD.await(),
+                    groupsD.await(), deliveriesD.await(), knownAddressesD.await(), fuelRecordsD.await(), vehiclesD.await()
+                )
+            }
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPANESE).format(Date())
         val zipFile = File(context.cacheDir, "HaiReel_backup_$timestamp.zip")

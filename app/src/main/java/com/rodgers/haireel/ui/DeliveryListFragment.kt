@@ -381,9 +381,11 @@ class DeliveryListFragment : Fragment() {
         val ctx = requireContext()
         val s = com.rodgers.haireel.util.AppSettings
         val showDist = s.isDistanceVisible(ctx)
+        val depLat = s.getDepartureLat(ctx); val depLng = s.getDepartureLng(ctx)
+        val arrLat = s.getArrivalLat(ctx);   val arrLng = s.getArrivalLng(ctx)
         distanceDecoration.isEnabled = showDist
-        distanceDecoration.setDeparture(s.getDepartureLat(ctx), s.getDepartureLng(ctx))
-        distanceDecoration.setArrival(s.getArrivalLat(ctx), s.getArrivalLng(ctx))
+        distanceDecoration.setDeparture(depLat, depLng)
+        distanceDecoration.setArrival(arrLat, arrLng)
         distanceDecoration.update(sorted)
         binding.recyclerView.invalidateItemDecorations()
         binding.textEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
@@ -410,8 +412,8 @@ class DeliveryListFragment : Fragment() {
         val totalKm = distanceDecoration.totalKm
         if (showDist && sorted.size >= 2 && totalKm > 0) {
             binding.tvTotalDistance.visibility = View.VISIBLE
-            val hasDep = s.getDepartureLat(ctx) != 0.0 || s.getDepartureLng(ctx) != 0.0
-            val hasArr = s.getArrivalLat(ctx) != 0.0  || s.getArrivalLng(ctx) != 0.0
+            val hasDep = depLat != 0.0 || depLng != 0.0
+            val hasArr = arrLat != 0.0 || arrLng != 0.0
             binding.tvTotalDistance.text = when {
                 hasDep && hasArr -> "🏠→🏁 概算${"%.1f".format(totalKm)}km"
                 hasDep           -> "↻ 概算${"%.1f".format(totalKm)}km"

@@ -317,13 +317,7 @@ internal fun TenkoFragment.backupData() {
     lifecycleScope.launch {
         try {
             val file = BackupManager.createBackup(ctx)
-            val uri  = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
-            startActivity(Intent.createChooser(
-                Intent(Intent.ACTION_SEND).apply {
-                    type = "application/zip"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }, "バックアップを共有"))
+            shareFile(file, "application/zip", "バックアップを共有")
         } catch (e: Exception) {
             if (isAdded) ctx.showErrorDialog("バックアップエラー", e.localizedMessage ?: "不明なエラーが発生しました。")
         }

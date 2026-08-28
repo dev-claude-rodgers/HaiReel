@@ -9,7 +9,7 @@ interface TenkoDao {
     @Query("""
         SELECT * FROM tenko_records
         WHERE date LIKE :monthPrefix || '%'
-          AND (:assignmentId = '' OR assignmentId = :assignmentId)
+          AND (:assignmentId = '' OR assignmentId = :assignmentId OR assignmentId = '')
         ORDER BY date ASC
     """)
     fun getByMonthFlow(monthPrefix: String, assignmentId: String = ""): Flow<List<TenkoRecord>>
@@ -17,7 +17,7 @@ interface TenkoDao {
     @Query("""
         SELECT * FROM tenko_records
         WHERE date = :date
-          AND (:assignmentId = '' OR assignmentId = :assignmentId)
+          AND (:assignmentId = '' OR assignmentId = :assignmentId OR assignmentId = '')
         LIMIT 1
     """)
     suspend fun getByDate(date: String, assignmentId: String = ""): TenkoRecord?
@@ -25,7 +25,7 @@ interface TenkoDao {
     @Query("""
         SELECT * FROM tenko_records
         WHERE date LIKE :monthPrefix || '%'
-          AND (:assignmentId = '' OR assignmentId = :assignmentId)
+          AND (:assignmentId = '' OR assignmentId = :assignmentId OR assignmentId = '')
         ORDER BY date ASC
     """)
     suspend fun getByMonth(monthPrefix: String, assignmentId: String = ""): List<TenkoRecord>
@@ -36,6 +36,9 @@ interface TenkoDao {
 
     @Query("SELECT * FROM tenko_records ORDER BY date ASC")
     suspend fun getAll(): List<TenkoRecord>
+
+    @Query("SELECT COUNT(*) FROM tenko_records WHERE assignmentId = :assignmentId")
+    suspend fun countByAssignment(assignmentId: String): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: TenkoRecord)

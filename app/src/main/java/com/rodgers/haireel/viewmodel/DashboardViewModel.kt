@@ -3,10 +3,7 @@ package com.rodgers.haireel.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.rodgers.haireel.db.DeliveryGroupDao
 import com.rodgers.haireel.db.WorkRecordDao
-import com.rodgers.haireel.db.toGroup
-import com.rodgers.haireel.model.DeliveryGroup
 import com.rodgers.haireel.model.ReportPattern
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
@@ -29,8 +26,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModel @Inject constructor(
     app: Application,
-    private val dao: WorkRecordDao,
-    private val groupDao: DeliveryGroupDao
+    private val dao: WorkRecordDao
 ) : AndroidViewModel(app) {
 
     data class MonthlySummary(
@@ -45,48 +41,42 @@ class DashboardViewModel @Inject constructor(
     private val _year        = MutableStateFlow(LocalDate.now().year)
     val year: StateFlow<Int> = _year
 
-    // "" = 全ルート、それ以外は DeliveryGroup.id
-    private val _groupId         = MutableStateFlow("")
-    val groupId: StateFlow<String> = _groupId
+    // "" = 全取引先、それ以外は ReportPattern.id の文字列（帳票設定＝取引先単位で集計する）
+    private val _patternSel         = MutableStateFlow("")
+    val patternId: StateFlow<String> = _patternSel
 
     private val _patterns                        = MutableStateFlow<List<ReportPattern>>(emptyList())
     val patterns: StateFlow<List<ReportPattern>> = _patterns
-
-    private val _groups                      = MutableStateFlow<List<DeliveryGroup>>(emptyList())
-    val groups: StateFlow<List<DeliveryGroup>> = _groups
 
     init {
         viewModelScope.launch { refresh() }
     }
 
-    fun setGroupId(id: String) { _groupId.value = id }
+    fun setPatternId(id: String) { _patternSel.value = id }
 
     suspend fun refresh() {
         _patterns.value = PatternStorage.getAll(getApplication())
-        _groups.value   = groupDao.getAll().map { it.toGroup() }
     }
 
     val monthlySummaries: StateFlow<List<MonthlySummary>> =
-        combine(_year, _groupId, _patterns, _groups) { year, gid, patterns, groups ->
+        combine(_year, _patternSel, _patterns) { year, sel, patterns ->
             val cd: Int
-            val targetGroupIds: Set<String>?
+            val targetPatternId: String?
 
-            if (gid.isEmpty()) {
-                // 全ルートは暦月を使用（ルート切り替えで締め日が変わる問題を防ぐ）
+            if (sel.isEmpty()) {
+                // 全取引先は暦月を使用（取引先切り替えで締め日が変わる問題を防ぐ）
                 cd = 31
-                targetGroupIds = null
+                targetPatternId = null
             } else {
-                val group = groups.find { it.id == gid }
-                val pattern = if (group?.patternId != null && group.patternId != -1)
-                    patterns.find { it.id == group.patternId } else null
-                cd = pattern?.closingDay ?: AppSettings.getClosingDay(getApplication())
-                targetGroupIds = setOf(gid)
+                cd = patterns.find { it.id.toString() == sel }?.closingDay
+                    ?: AppSettings.getClosingDay(getApplication())
+                targetPatternId = sel
             }
 
-            Triple(year, cd, targetGroupIds)
+            Triple(year, cd, targetPatternId)
         }
         .flatMapLatest { triple ->
-            val (year, cd, targetGroupIds) = triple
+            val (year, cd, targetPatternId) = triple
             val periods = (1..12).map { month ->
                 val ym = "%04d-%02d".format(year, month)
                 ReportViewModel.computePeriod(ym, cd)
@@ -95,22 +85,17 @@ class DashboardViewModel @Inject constructor(
             val queryEnd   = periods.last().second
             dao.recordsForPeriodFlow(queryStart, queryEnd)
                 .map { records ->
-                    val scoped = when {
-                        targetGroupIds == null      -> records
-                        targetGroupIds.isNotEmpty() -> records.filter {
-                            it.assignmentId in targetGroupIds || it.assignmentId.isEmpty()
-                        }
-                        else                        -> emptyList()
-                    }
+                    val scoped = if (targetPatternId == null) records
+                        else records.filter { it.assignmentId == targetPatternId || it.assignmentId.isEmpty() }
 
-                    // 日付ごとに「同一ルート内の重複」だけを1件に潰す。異なるルートの記録は
-                    // 別々に残して合算する（潰しすぎると全ルート表示時に金額が過少になる）
+                    // 日付ごとに「同一取引先内の重複」だけを1件に潰す。異なる取引先の記録は
+                    // 別々に残して合算する（潰しすぎると全取引先表示時に金額が過少になる）
                     val deduped = scoped.groupBy { it.date }
                         .flatMap { (_, recs) ->
                             val nonBlank = recs.filter { it.assignmentId.isNotBlank() }
                             val candidates = if (nonBlank.isNotEmpty()) nonBlank else recs
                             candidates.groupBy { it.assignmentId }
-                                .map { (_, sameRoute) -> sameRoute.maxByOrNull { it.id }!! }
+                                .map { (_, sameAssignment) -> sameAssignment.maxByOrNull { it.id }!! }
                         }
                         .sortedBy { it.date }
                     periods.mapIndexed { idx, (start, end) ->

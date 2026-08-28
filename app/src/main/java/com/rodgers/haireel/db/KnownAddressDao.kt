@@ -32,6 +32,9 @@ interface KnownAddressDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIfNew(entity: KnownAddressEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAllIfNew(entities: List<KnownAddressEntity>)
+
     @Query("""
         UPDATE known_addresses
         SET deliveryCount = deliveryCount + 1,

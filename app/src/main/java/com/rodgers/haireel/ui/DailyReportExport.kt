@@ -16,19 +16,20 @@ import kotlinx.coroutines.launch
 
 internal fun DailyReportFragment.exportExcel() {
     if (!isAdded) return
-    val ctx    = requireContext()
-    val ym     = reportViewModel.yearMonth.value
-    val groups = deliveryViewModel.groups.value
-    if (groups.size <= 1) {
-        exportNippo(ctx, ym, reportViewModel.assignmentId.value, deliveryViewModel.currentGroup()?.name ?: "")
+    val ctx      = requireContext()
+    val ym       = reportViewModel.yearMonth.value
+    val patterns = PatternStorage.getAll(ctx)
+    if (patterns.size <= 1) {
+        val pattern = currentPattern()
+        exportNippo(ctx, ym, pattern.id.toString(), pattern.clientName.ifBlank { pattern.title })
         return
     }
-    val options = (listOf("すべての案件") + groups.map { it.name }).toTypedArray()
+    val options = (listOf("すべての取引先") + patterns.map { it.clientName.ifBlank { it.title } }).toTypedArray()
     MaterialAlertDialogBuilder(ctx)
-        .setTitle("出力する案件を選択")
+        .setTitle("出力する取引先を選択")
         .setItems(options) { _, which ->
-            val (id, name) = if (which == 0) Pair("", "全案件")
-                             else { val g = groups[which - 1]; Pair(g.id, g.name) }
+            val (id, name) = if (which == 0) Pair("", "全取引先")
+                             else { val p = patterns[which - 1]; Pair(p.id.toString(), p.clientName.ifBlank { p.title }) }
             exportNippo(ctx, ym, id, name)
         }
         .setNegativeButton("キャンセル", null)
@@ -36,10 +37,7 @@ internal fun DailyReportFragment.exportExcel() {
 }
 
 internal fun DailyReportFragment.exportNippo(ctx: android.content.Context, ym: String, assignmentId: String, assignmentName: String) {
-    val group   = if (assignmentId.isNotBlank()) (deliveryViewModel.groups.value).find { it.id == assignmentId } else null
-    val pid     = group?.patternId?.takeIf { it != -1 }
-                  ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
-    val pattern = if (pid != null) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx) else PatternStorage.ensureDefault(ctx)
+    val pattern = assignmentId.toIntOrNull()?.let { PatternStorage.get(ctx, it) } ?: PatternStorage.ensureDefault(ctx)
     lifecycleScope.launch {
         try {
             val (startDate, endDate) = ReportViewModel.computePeriod(ym, pattern.closingDay)
@@ -71,13 +69,7 @@ internal fun DailyReportFragment.exportTenko(ctx: android.content.Context, ym: S
 }
 
 internal fun DailyReportFragment.shareExcel(ctx: android.content.Context, file: java.io.File) {
-    val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
-    startActivity(Intent.createChooser(
-        Intent(Intent.ACTION_SEND).apply {
-            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }, "稼働報告書Excelを共有"))
+    shareXlsxFile(file, "稼働報告書Excelを共有")
 }
 
 internal fun DailyReportFragment.shareReportText() {
@@ -86,15 +78,9 @@ internal fun DailyReportFragment.shareReportText() {
     val ym     = reportViewModel.yearMonth.value
     val (y, m) = ym.split("-").map { it.toInt() }
     lifecycleScope.launch {
-        // exportNippo と同様に案件パターンを優先して取得
-        val group = deliveryViewModel.currentGroup()
-        val pid   = group?.patternId?.takeIf { it != -1 }
-                    ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
-        val pattern = if (pid != null) PatternStorage.get(ctx, pid) ?: PatternStorage.ensureDefault(ctx)
-                      else PatternStorage.ensureDefault(ctx)
+        val pattern = currentPattern()
         val (startDate, endDate) = ReportViewModel.computePeriod(ym, pattern.closingDay)
-        val assignmentId = group?.id ?: reportViewModel.assignmentId.value
-        val records = reportViewModel.recordsForPeriodWithAssignment(startDate, endDate, assignmentId)
+        val records = reportViewModel.recordsForPeriodWithAssignment(startDate, endDate, pattern.id.toString())
         if (records.isEmpty()) {
             Toast.makeText(ctx, "この期間の記録がありません", Toast.LENGTH_SHORT).show()
             return@launch

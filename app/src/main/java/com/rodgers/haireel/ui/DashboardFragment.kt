@@ -16,12 +16,10 @@ import androidx.lifecycle.lifecycleScope
 import com.rodgers.haireel.R
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.databinding.FragmentDashboardBinding
-import com.rodgers.haireel.model.DeliveryGroup
 import com.rodgers.haireel.model.ReportPattern
 import com.rodgers.haireel.viewmodel.DashboardViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -32,7 +30,7 @@ class DashboardFragment : Fragment() {
 
     private val viewModel: DashboardViewModel by viewModels()
 
-    // ドロップダウンの選択肢（"" = 全ルート + 各グループID）
+    // ドロップダウンの選択肢（"" = 全取引先 + 各帳票パターンID）
     private val dropdownIds   = mutableListOf<String>()
     private val dropdownNames = mutableListOf<String>()
     private var dropdownAdapter: ArrayAdapter<String>? = null
@@ -63,7 +61,7 @@ class DashboardFragment : Fragment() {
         binding.spinnerAssignment.setAdapter(dropdownAdapter)
         binding.spinnerAssignment.setOnItemClickListener { _, _, position, _ ->
             if (!suppressSelection) {
-                viewModel.setGroupId(dropdownIds.getOrElse(position) { "" })
+                viewModel.setPatternId(dropdownIds.getOrElse(position) { "" })
                 updateRouteInfoBar()
             }
         }
@@ -76,8 +74,7 @@ class DashboardFragment : Fragment() {
 
     private fun observeFlows() {
         viewLifecycleOwner.lifecycleScope.launch {
-            combine(viewModel.groups, viewModel.patterns) { g, p -> Pair(g, p) }
-                .collectLatest { (groups, patterns) -> updateDropdown(groups, patterns) }
+            viewModel.patterns.collectLatest { patterns -> updateDropdown(patterns) }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.year.collectLatest { year ->
@@ -95,67 +92,49 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    private fun updateDropdown(groups: List<DeliveryGroup>, patterns: List<ReportPattern>) {
+    private fun updateDropdown(patterns: List<ReportPattern>) {
         suppressSelection = true
-        val currentId = viewModel.groupId.value
+        val currentId = viewModel.patternId.value
 
         dropdownIds.clear()
         dropdownNames.clear()
         dropdownIds.add("")
-        dropdownNames.add("全ルート")
+        dropdownNames.add("全取引先")
 
-        groups.forEach { g ->
-            val pattern = patterns.find { it.id == g.patternId }
-            val clientLabel = pattern?.clientName?.ifBlank { null }
-            val label = if (clientLabel != null) "${g.name} — $clientLabel" else g.name
-            dropdownIds.add(g.id)
-            dropdownNames.add(label)
+        patterns.forEach { p ->
+            dropdownIds.add(p.id.toString())
+            dropdownNames.add(p.clientName.ifBlank { p.title })
         }
 
         dropdownAdapter?.notifyDataSetChanged()
 
         val idx = dropdownIds.indexOf(currentId).coerceAtLeast(0)
-        binding.spinnerAssignment.setText(dropdownNames.getOrElse(idx) { "全ルート" }, false)
+        binding.spinnerAssignment.setText(dropdownNames.getOrElse(idx) { "全取引先" }, false)
         suppressSelection = false
 
-        updateRouteInfoBar(groups, patterns)
+        updateRouteInfoBar(patterns)
     }
 
     private fun updateRouteInfoBar(
-        groups: List<DeliveryGroup>   = viewModel.groups.value,
         patterns: List<ReportPattern> = viewModel.patterns.value
     ) {
-        val gid = viewModel.groupId.value
-        if (gid.isEmpty()) {
-            binding.tvRouteInfo.text = "📋 全ルート  ·  暦月（月初〜月末）"
+        val sel = viewModel.patternId.value
+        if (sel.isEmpty()) {
+            binding.tvRouteInfo.text = "📋 全取引先  ·  暦月（月初〜月末）"
             binding.tvRouteInfo.visibility = View.VISIBLE
             binding.tvRouteInfo.setBackgroundColor(android.graphics.Color.parseColor("#22888888"))
             return
         }
-        val group = groups.find { it.id == gid }
-        if (group != null) {
-            val pattern = patterns.find { it.id == group.patternId }
-            val closingLabel = pattern?.closingDay?.let {
-                if (it >= 31) "月末締め" else "${it}日締め"
-            }
+        val pattern = patterns.find { it.id.toString() == sel }
+        if (pattern != null) {
+            val closingLabel = if (pattern.closingDay >= 31) "月末締め" else "${pattern.closingDay}日締め"
             val parts = listOfNotNull(
-                "📦 ${group.name}",
-                pattern?.clientName?.ifBlank { null },
+                "📁 ${pattern.clientName.ifBlank { pattern.title }}",
                 closingLabel
             )
             binding.tvRouteInfo.text = parts.joinToString("  ·  ")
             binding.tvRouteInfo.visibility = View.VISIBLE
-            try {
-                val base = android.graphics.Color.parseColor(group.colorHex)
-                binding.tvRouteInfo.setBackgroundColor(
-                    android.graphics.Color.argb(55,
-                        android.graphics.Color.red(base),
-                        android.graphics.Color.green(base),
-                        android.graphics.Color.blue(base))
-                )
-            } catch (_: Exception) {
-                binding.tvRouteInfo.setBackgroundColor(android.graphics.Color.parseColor("#22000000"))
-            }
+            binding.tvRouteInfo.setBackgroundColor(android.graphics.Color.parseColor("#2242A5F5"))
         } else {
             binding.tvRouteInfo.visibility = View.GONE
         }

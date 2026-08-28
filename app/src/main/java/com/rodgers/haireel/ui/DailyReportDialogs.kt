@@ -74,8 +74,9 @@ Google のプライバシーポリシーは https://policies.google.com/privacy 
 internal fun DailyReportFragment.showAppSettingsDialog() {
     if (!isAdded) return
     val ctx  = requireContext()
-    val settingsGroupId = reportViewModel.assignmentId.value
-    val groupLabel = deliveryViewModel.currentGroup()?.name?.let { "「$it」の設定" } ?: "アプリ設定"
+    val settingsPatternId = reportViewModel.assignmentId.value
+    val currentPatternForSettings = currentPattern()
+    val groupLabel = "「${currentPatternForSettings.clientName.ifBlank { currentPatternForSettings.title }}」の設定"
     val dp   = ctx.resources.displayMetrics.density
     val MATCH = android.widget.LinearLayout.LayoutParams.MATCH_PARENT
     val WRAP  = android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
@@ -125,7 +126,7 @@ internal fun DailyReportFragment.showAppSettingsDialog() {
     val rbContractor  = android.widget.RadioButton(ctx).apply { text = "業務委託"; id = View.generateViewId() }
     val rbEmployee    = android.widget.RadioButton(ctx).apply { text = "正社員・パート"; id = View.generateViewId() }
     empGroup.addView(rbContractor); empGroup.addView(rbEmployee)
-    if (AppSettings.getEmploymentType(ctx, settingsGroupId) == "employee") rbEmployee.isChecked = true
+    if (AppSettings.getEmploymentType(ctx, settingsPatternId) == "employee") rbEmployee.isChecked = true
     else rbContractor.isChecked = true
     root.addView(empGroup)
 
@@ -207,7 +208,7 @@ internal fun DailyReportFragment.showAppSettingsDialog() {
         .setTitle(groupLabel)
         .setView(scroll)
         .setPositiveButton("保存") { _, _ ->
-            AppSettings.setEmploymentType(ctx, settingsGroupId, if (rbEmployee.isChecked) "employee" else "contractor")
+            AppSettings.setEmploymentType(ctx, settingsPatternId, if (rbEmployee.isChecked) "employee" else "contractor")
             AppSettings.setCompanyName(ctx, etCompany.text.toString().trim())
             AppSettings.setVehicleNumber(ctx, etVehicle.text.toString().trim())
             AppSettings.setDriverName(ctx, etDriver.text.toString().trim())

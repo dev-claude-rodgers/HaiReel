@@ -25,7 +25,9 @@ import com.rodgers.haireel.R
 import com.rodgers.haireel.databinding.FragmentMapBinding
 import com.rodgers.haireel.model.Delivery
 import com.rodgers.haireel.util.GeocodingClient
+import com.rodgers.haireel.util.sheetPalette
 import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.themeResId
 import com.rodgers.haireel.util.MarkerIconFactory
 import com.rodgers.haireel.util.TimeSlotColor
 import com.rodgers.haireel.viewmodel.DeliveryViewModel
@@ -45,10 +47,7 @@ import kotlinx.coroutines.withContext
         val dp = ctx.resources.displayMetrics.density
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
 
-        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        val (surfaceColor, onSurfaceColor, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -92,9 +91,7 @@ import kotlinx.coroutines.withContext
         headerRow.addView(TextView(ctx).apply {
             text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
             setTextColor(onSurfaceVariant)
-            background = android.util.TypedValue().also {
-                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
+            background = ContextCompat.getDrawable(ctx, ctx.themeResId(android.R.attr.selectableItemBackgroundBorderless))
             layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
             setOnClickListener { sheet.dismiss() }
         })
@@ -105,9 +102,7 @@ import kotlinx.coroutines.withContext
         })
 
         // ── 配達リスト ───────────────────────────────────────────
-        val rippleRes = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val rippleRes = ctx.themeResId(android.R.attr.selectableItemBackground)
 
         deliveries.forEach { delivery ->
             val row = LinearLayout(ctx).apply {
@@ -245,10 +240,7 @@ import kotlinx.coroutines.withContext
         val dp = ctx.resources.displayMetrics.density
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
 
-        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+        val (surfaceColor, onSurfaceColor, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
         val slotTemplates    = com.rodgers.haireel.util.AppSettings.getTimeSlotTemplatesWithColor(ctx)
 
         val root = LinearLayout(ctx).apply {
@@ -338,9 +330,7 @@ import kotlinx.coroutines.withContext
         headerRow.addView(TextView(ctx).apply {
             text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
             setTextColor(onSurfaceVariant)
-            background = android.util.TypedValue().also {
-                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
+            background = ContextCompat.getDrawable(ctx, ctx.themeResId(android.R.attr.selectableItemBackgroundBorderless))
             layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
             setOnClickListener { sheet.dismiss() }
         })

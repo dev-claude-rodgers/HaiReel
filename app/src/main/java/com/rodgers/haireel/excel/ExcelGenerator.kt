@@ -47,7 +47,7 @@ class ExcelGenerator(private val context: Context) {
         val file = File(dir, "${prefix}_${ts}.xlsx")
 
         // 締め日ベースの集計期間でカレンダーを生成
-        val (periodStartStr, periodEndStr) = periodForPattern(yearMonth, pattern.closingDay)
+        val (periodStartStr, periodEndStr) = com.rodgers.haireel.viewmodel.ReportViewModel.computePeriod(yearMonth, pattern.closingDay)
         val periodStart = LocalDate.parse(periodStartStr)
         val periodEnd   = LocalDate.parse(periodEndStr)
         val allDays = generateSequence(periodStart) { it.plusDays(1) }
@@ -101,22 +101,6 @@ class ExcelGenerator(private val context: Context) {
 
     private fun String.esc() =
         replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-    // 締め日から集計期間の開始日・終了日を返す（ReportViewModelと同ロジック）
-    internal fun periodForPattern(yearMonth: String, closingDay: Int): Pair<String, String> {
-        val parsed = java.time.YearMonth.parse(yearMonth)
-        val ym = LocalDate.of(parsed.year, parsed.monthValue, 1)
-        val lastDay = ym.lengthOfMonth()
-        val fmt = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE
-        return if (closingDay >= 31) {
-            ym.format(fmt) to ym.withDayOfMonth(lastDay).format(fmt)
-        } else {
-            val prev = ym.minusMonths(1)
-            val start = prev.withDayOfMonth(minOf(closingDay + 1, prev.lengthOfMonth()))
-            val end   = ym.withDayOfMonth(minOf(closingDay, lastDay))
-            start.format(fmt) to end.format(fmt)
-        }
-    }
 
     internal fun colLetter(idx: Int): String =
         if (idx < 26) ('A' + idx).toString()

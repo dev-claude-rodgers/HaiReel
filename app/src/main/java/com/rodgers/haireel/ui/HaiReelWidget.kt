@@ -19,12 +19,17 @@ class HaiReelWidget : AppWidgetProvider() {
         private const val PREFS = "widget_prefs"
 
         fun saveStats(context: Context, groupName: String, done: Int, total: Int) {
+            // ウィジェットが1つも配置されていなければ、SharedPreferences書き込み自体が無駄なのでスキップする
+            val manager = AppWidgetManager.getInstance(context) ?: return
+            val ids = manager.getAppWidgetIds(ComponentName(context, HaiReelWidget::class.java))
+            if (ids.isEmpty()) return
+
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("group", groupName)
                 .putInt("done", done)
                 .putInt("total", total)
                 .apply()
-            refresh(context)
+            HaiReelWidget().onUpdate(context, manager, ids)
         }
 
         fun refresh(context: Context) {

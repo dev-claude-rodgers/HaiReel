@@ -16,7 +16,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-data class DayEntry(val date: String, val record: WorkRecord?, val routeName: String = "")
+data class DayEntry(val date: String, val record: WorkRecord?)
 
 class DayEntryAdapter(
     private val onTap:    (DayEntry) -> Unit,
@@ -26,6 +26,38 @@ class DayEntryAdapter(
 ) : RecyclerView.Adapter<DayEntryAdapter.VH>() {
 
     private val items = mutableListOf<DayEntry>()
+
+    // テーマ依存の色。bindのたびにgetColor()/themeColor()を呼ぶ無駄を避けるため、初回だけ解決してキャッシュする
+    private var colorsInitialized = false
+    private var primaryColor = 0
+    private var secondaryColor = 0
+    private var accentColor = 0
+    private var satColor = 0
+    private var sunColor = 0
+    private var weekdayColor = 0
+    private var surfaceColor = 0
+    private var onSurfaceColor = 0
+    private var todayBgColor = 0
+    private var dayBgColor = 0
+    private var greenColor = 0
+    private var redColor = 0
+
+    private fun ensureColors(ctx: android.content.Context) {
+        if (colorsInitialized) return
+        primaryColor   = ContextCompat.getColor(ctx, R.color.colorReportPrimary)
+        secondaryColor = ContextCompat.getColor(ctx, R.color.colorReportSecondaryText)
+        accentColor    = ContextCompat.getColor(ctx, R.color.colorAccentOrange)
+        satColor       = ContextCompat.getColor(ctx, R.color.colorSaturdayText)
+        sunColor       = ContextCompat.getColor(ctx, R.color.colorSundayText)
+        weekdayColor   = ContextCompat.getColor(ctx, R.color.colorWeekdayText)
+        surfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
+        onSurfaceColor = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
+        todayBgColor   = ContextCompat.getColor(ctx, R.color.colorTodayBg)
+        dayBgColor     = ContextCompat.getColor(ctx, R.color.colorDayBg)
+        greenColor     = ContextCompat.getColor(ctx, R.color.colorActionGreen)
+        redColor       = ContextCompat.getColor(ctx, R.color.colorActionRed)
+        colorsInitialized = true
+    }
 
     fun submitList(list: List<DayEntry>) {
         val oldList = items.toList()
@@ -60,18 +92,7 @@ class DayEntryAdapter(
         fun bind(entry: DayEntry) {
             root.removeAllViews()
             val ctx = root.context
-            val primaryColor   = ContextCompat.getColor(ctx, R.color.colorReportPrimary)
-            val secondaryColor = ContextCompat.getColor(ctx, R.color.colorReportSecondaryText)
-            val accentColor    = ContextCompat.getColor(ctx, R.color.colorAccentOrange)
-            val satColor       = ContextCompat.getColor(ctx, R.color.colorSaturdayText)
-            val sunColor       = ContextCompat.getColor(ctx, R.color.colorSundayText)
-            val weekdayColor   = ContextCompat.getColor(ctx, R.color.colorWeekdayText)
-            val surfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-            val onSurfaceColor = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-            val todayBgColor   = ContextCompat.getColor(ctx, R.color.colorTodayBg)
-            val dayBgColor     = ContextCompat.getColor(ctx, R.color.colorDayBg)
-            val greenColor     = ContextCompat.getColor(ctx, R.color.colorActionGreen)
-            val redColor       = ContextCompat.getColor(ctx, R.color.colorActionRed)
+            ensureColors(ctx)
 
             val dateLocal = LocalDate.parse(entry.date)
             val dayOfWeek = dateLocal.dayOfWeek
@@ -124,10 +145,6 @@ class DayEntryAdapter(
                 }
             }
             root.addView(headerRow)
-
-            if (entry.routeName.isNotBlank()) {
-                root.addView(tv(entry.routeName, 11f, secondaryColor))
-            }
 
             if (r == null) {
                 val addRow = LinearLayout(ctx).apply {

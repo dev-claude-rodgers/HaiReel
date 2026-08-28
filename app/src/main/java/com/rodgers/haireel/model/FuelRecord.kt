@@ -12,5 +12,6 @@ data class FuelRecord(
     val totalCost: Int,         // 合計金額（円）
     val odometer: Int = 0,      // オドメーター（km）
     val note: String = "",
-    val vehicleId: Long = 0     // 0 = 未設定
+    val vehicleId: Long = 0,    // 0 = 未設定
+    val assignmentId: String = ""  // 取引先(帳票パターン)ID。"" = 旧データ/未設定
 )

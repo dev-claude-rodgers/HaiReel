@@ -7,27 +7,23 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.rodgers.haireel.R
 import com.rodgers.haireel.util.AppSettings
-import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.sheetPalette
+import com.rodgers.haireel.util.themeResId
 
 internal fun TenkoFragment.showTenkoMenu() {
     val ctx = requireContext()
     val dp  = ctx.resources.displayMetrics.density
     val sheet = BottomSheetDialog(ctx)
 
-    val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-    val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-    val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-    val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-    val redColor         = ContextCompat.getColor(ctx, R.color.colorActionRed)
+    val (surfaceColor, onSurfaceColor, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
+    val redColor = ContextCompat.getColor(ctx, R.color.colorActionRed)
 
     val root = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundColor(surfaceColor)
     }
 
-    val ripple = android.util.TypedValue().also {
-        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-    }.resourceId
+    val ripple = ctx.themeResId(android.R.attr.selectableItemBackground)
 
     root.addMenuHeader("点呼メニュー", dp, onSurfaceColor, onSurfaceVariant, outlineVariant) { sheet.dismiss() }
 

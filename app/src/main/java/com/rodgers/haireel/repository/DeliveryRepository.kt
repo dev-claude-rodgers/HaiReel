@@ -137,10 +137,10 @@ class DeliveryRepository @Inject constructor(
         val groups = loadOrMigrateGroups()
 
         val allEntities = db.deliveryDao().getAll()
+        val entitiesByGroup = allEntities.groupBy { it.groupId }
         val allDeliveries = mutableMapOf<String, List<Delivery>>()
         groups.forEach { group ->
-            allDeliveries[group.id] = allEntities
-                .filter { it.groupId == group.id }
+            allDeliveries[group.id] = (entitiesByGroup[group.id] ?: emptyList())
                 .sortedBy { it.order }
                 .map { it.toDelivery() }
         }

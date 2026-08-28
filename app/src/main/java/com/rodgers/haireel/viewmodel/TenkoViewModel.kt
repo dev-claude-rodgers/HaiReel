@@ -87,15 +87,7 @@ class TenkoViewModel @Inject constructor(
         vehicleNumber: String = ""
     ) = viewModelScope.launch {
         val aid = _assignmentId.value
-        val record = existing?.copy(
-            beforeMethod = method, beforeTime = time,
-            beforeHealth = health, beforeFatigue = fatigue,
-            beforeAlcohol = alcohol, beforeInspection = inspection,
-            beforeInstruction = instruction.ifBlank { null },
-            beforeChecker = checker.ifBlank { null },
-            vehicleNumber = vehicleNumber.ifBlank { null }
-        ) ?: TenkoRecord(
-            date = date, assignmentId = aid,
+        val record = (existing ?: TenkoRecord(date = date, assignmentId = aid)).copy(
             beforeMethod = method, beforeTime = time,
             beforeHealth = health, beforeFatigue = fatigue,
             beforeAlcohol = alcohol, beforeInspection = inspection,
@@ -116,16 +108,7 @@ class TenkoViewModel @Inject constructor(
         instruction: String, checker: String, note: String = ""
     ) = viewModelScope.launch {
         val aid = _assignmentId.value
-        val record = existing?.copy(
-            afterMethod = method, afterTime = time,
-            afterHealth = health, afterFatigue = fatigue,
-            afterAlcohol = alcohol, afterAccident = accident,
-            afterVehicle = vehicle,
-            afterInstruction = instruction.ifBlank { null },
-            afterChecker = checker.ifBlank { null },
-            note = note.ifBlank { null }
-        ) ?: TenkoRecord(
-            date = date, assignmentId = aid,
+        val record = (existing ?: TenkoRecord(date = date, assignmentId = aid)).copy(
             afterMethod = method, afterTime = time,
             afterHealth = health, afterFatigue = fatigue,
             afterAlcohol = alcohol, afterAccident = accident,
@@ -174,4 +157,6 @@ class TenkoViewModel @Inject constructor(
 
     suspend fun allRecordsForMonth(yearMonth: String): List<TenkoRecord> =
         dao.getAllByMonth(yearMonth)
+
+    suspend fun countByAssignment(assignmentId: String): Int = dao.countByAssignment(assignmentId)
 }

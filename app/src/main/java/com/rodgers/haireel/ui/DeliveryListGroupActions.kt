@@ -36,7 +36,9 @@ import com.rodgers.haireel.model.Room
 import com.rodgers.haireel.util.AddressParser
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.PatternStorage
+import com.rodgers.haireel.util.sheetPalette
 import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.themeResId
 import com.rodgers.haireel.util.TimeSlotColor
 import com.rodgers.haireel.viewmodel.DeliveryViewModel
 import com.rodgers.haireel.viewmodel.*
@@ -52,11 +54,8 @@ internal fun DeliveryListFragment.showListActions() {
         val dp = ctx.resources.displayMetrics.density
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
 
-        val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-        val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-        val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-        val redColor         = ContextCompat.getColor(ctx, R.color.colorActionRed)
+        val (surfaceColor, onSurfaceColor, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
+        val redColor = ContextCompat.getColor(ctx, R.color.colorActionRed)
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -97,9 +96,7 @@ internal fun DeliveryListFragment.showListActions() {
         headerRow.addView(TextView(ctx).apply {
             text = "✕"; textSize = 22f; gravity = android.view.Gravity.CENTER
             setTextColor(onSurfaceVariant)
-            background = android.util.TypedValue().also {
-                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
-            }.resourceId.let { ContextCompat.getDrawable(ctx, it) }
+            background = ContextCompat.getDrawable(ctx, ctx.themeResId(android.R.attr.selectableItemBackgroundBorderless))
             layoutParams = LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt())
             setOnClickListener { sheet.dismiss() }
         })
@@ -109,9 +106,7 @@ internal fun DeliveryListFragment.showListActions() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())
         })
 
-        val rippleRes = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val rippleRes = ctx.themeResId(android.R.attr.selectableItemBackground)
 
         fun row(emoji: String, title: String, sub: String, color: Int = onSurfaceColor, action: () -> Unit) {
             val row = LinearLayout(ctx).apply {
@@ -630,10 +625,7 @@ internal fun DeliveryListFragment.showTtsDictionaryDialog() {
     val dp    = ctx.resources.displayMetrics.density
     val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
 
-    val surfaceColor     = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-    val onSurfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-    val onSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-    val outlineVariant   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
+    val (surfaceColor, onSurfaceColor, onSurfaceVariant, outlineVariant) = ctx.sheetPalette()
 
     // ── 全体レイアウト（上から固定順: タイトル・リスト・追加フォーム）──
     val root = LinearLayout(ctx).apply {
@@ -922,34 +914,6 @@ internal fun DeliveryListFragment.showCreateGroupDialog() {
         }
     }
 
-internal fun DeliveryListFragment.showLinkPatternDialog(parentSheet: com.google.android.material.bottomsheet.BottomSheetDialog) {
-        val ctx = requireContext()
-        val group = viewModel.currentGroup() ?: return
-        val patterns = com.rodgers.haireel.util.PatternStorage.getAll(ctx)
-        if (patterns.isEmpty()) {
-            android.widget.Toast.makeText(ctx, "帳票パターンがありません。先に帳票設定から作成してください。", android.widget.Toast.LENGTH_LONG).show()
-            return
-        }
-        val items = (listOf("設定しない") + patterns.map { it.title }).toTypedArray()
-        val currentIdx = if (group.patternId == -1) 0 else patterns.indexOfFirst { it.id == group.patternId }.let { if (it < 0) 0 else it + 1 }
-        parentSheet.dismiss()
-        AlertDialog.Builder(ctx)
-            .setTitle("「${group.name}」の帳票パターン")
-            .setSingleChoiceItems(items, currentIdx, null)
-            .setPositiveButton("設定") { dialog, _ ->
-                val lv = (dialog as AlertDialog).listView
-                val sel = lv.checkedItemPosition
-                val newPatternId = if (sel <= 0) -1 else patterns[sel - 1].id
-                viewModel.linkPatternToGroup(group.id, newPatternId)
-                android.widget.Toast.makeText(ctx,
-                    if (newPatternId == -1) "帳票パターンの設定を解除しました"
-                    else "「${patterns[sel - 1].title}」を設定しました",
-                    android.widget.Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("キャンセル", null)
-            .show()
-    }
-
 internal fun DeliveryListFragment.confirmResetCompleted() {
         val done = viewModel.deliveries.value.count { it.isCompleted }
         if (done == 0) {
@@ -1033,14 +997,9 @@ internal fun DeliveryListFragment.showLoadingCheckSheet() {
     }
 
     val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(ctx)
-    val surfaceColor   = ctx.themeColor(com.google.android.material.R.attr.colorSurface)
-    val onSurfaceColor = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-    val onSurfaceVar   = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-    val outlineVar     = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-    val greenColor     = android.graphics.Color.parseColor("#4CAF50")
-    val rippleRes      = android.util.TypedValue().also {
-        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-    }.resourceId
+    val (surfaceColor, onSurfaceColor, onSurfaceVar, outlineVar) = ctx.sheetPalette()
+    val greenColor = android.graphics.Color.parseColor("#4CAF50")
+    val rippleRes  = ctx.themeResId(android.R.attr.selectableItemBackground)
 
     val root = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL

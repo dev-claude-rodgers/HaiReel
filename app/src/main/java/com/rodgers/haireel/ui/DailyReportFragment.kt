@@ -20,7 +20,6 @@ import com.rodgers.haireel.model.WorkRecord
 import com.rodgers.haireel.util.PatternStorage
 import com.rodgers.haireel.viewmodel.*
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -41,8 +40,6 @@ class DailyReportFragment : Fragment() {
     val tenkoViewModel: TenkoViewModel by activityViewModels()
     val fuelViewModel: FuelViewModel by viewModels()
     private lateinit var adapter: DayEntryAdapter
-
-    private val monthFmt = DateTimeFormatter.ofPattern("yyyy-MM")
 
     var fuelPricePerL:     Int    = 0
     var fuelEfficiencyKmL: Float  = 0f
@@ -90,72 +87,23 @@ class DailyReportFragment : Fragment() {
         reportViewModel.setClosingDay(initPattern.closingDay)
     }
 
-    private fun updateAssignmentBar() {
+    // 配達タブのルート(グループ)とは独立に、帳票設定(取引先)を日報・収支の管理単位とする。
+    // ルート切り替えは配達先リストの表示切り替えに過ぎず、日報・収支のデータには影響させない。
+    internal fun updateAssignmentBar() {
         if (!isAdded) return
-        val group = deliveryViewModel.currentGroup()
-        if (group != null && group.name.isNotBlank()) {
-            val ctx = requireContext()
-            val patternId = group.patternId.takeIf { it != -1 }
-            val label = patternId?.let { pid ->
-                val p = PatternStorage.get(ctx, pid) ?: return@let null
-                when {
-                    p.clientName.isNotBlank() -> p.clientName
-                    p.title.isNotBlank() -> p.title
-                    else -> "帳票${p.id + 1}"
-                }
-            } ?: group.name
-            binding.tvAssignment.visibility = View.VISIBLE
-            binding.tvAssignment.text = "📦 $label"
-            try {
-                val color = android.graphics.Color.parseColor(group.colorHex)
-                binding.tvAssignment.setBackgroundColor(
-                    android.graphics.Color.argb(60,
-                        android.graphics.Color.red(color),
-                        android.graphics.Color.green(color),
-                        android.graphics.Color.blue(color))
-                )
-            } catch (_: Exception) {
-                binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#222222"))
-            }
-        } else {
-            binding.tvAssignment.visibility = View.VISIBLE
-            binding.tvAssignment.text = "📋 全取引先"
-            binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#333333"))
-        }
+        val pattern = currentPattern()
+        val label = pattern.clientName.ifBlank { pattern.title }
+        binding.tvAssignment.visibility = View.VISIBLE
+        binding.tvAssignment.text = "📁 $label"
+        binding.tvAssignment.setBackgroundColor(android.graphics.Color.parseColor("#333333"))
     }
 
     private fun setupAssignmentBar() {
-        val gid = deliveryViewModel.currentGroupId.value
-        if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("DailyReport", "setupAssignmentBar: currentGroupId='$gid', groups=${deliveryViewModel.groups.value.map { it.name }}")
-        // 選択中の案件ごとに日報を分離する（点呼タブと同じ方式）。
-        // 全案件横断で扱うと、同日に複数案件のレコードがある場合に誤って別案件のレコードを上書きしてしまうため。
-        reportViewModel.setAssignmentId(gid)
+        reportViewModel.setAssignmentId(currentPattern().id.toString())
         updateAssignmentBar()
     }
 
     private fun observeFlows() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            deliveryViewModel.currentGroupId.collectLatest { groupId ->
-                if (com.rodgers.haireel.BuildConfig.DEBUG) android.util.Log.d("DailyReport", "currentGroupId emit: '$groupId'")
-                // 案件切り替えに合わせて日報も切り替える。締め日もルートに紐づくパターンから同期する
-                reportViewModel.setAssignmentId(groupId)
-                val group = deliveryViewModel.currentGroup()
-                val linkedPatternId = group?.patternId ?: -1
-                if (linkedPatternId != -1) {
-                    val pattern = PatternStorage.get(requireContext(), linkedPatternId)
-                    if (pattern != null) {
-                        PatternStorage.setActiveId(requireContext(), linkedPatternId)
-                        reportViewModel.setClosingDay(pattern.closingDay)
-                    }
-                }
-                updateAssignmentBar()
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            deliveryViewModel.groups.collectLatest { updateAssignmentBar() }
-        }
-
         viewLifecycleOwner.lifecycleScope.launch {
             combine(
                 reportViewModel.yearMonth,
@@ -208,23 +156,15 @@ class DailyReportFragment : Fragment() {
     private fun generateDayEntries(
         records: List<WorkRecord>, yearMonth: String, closingDay: Int
     ): List<DayEntry> {
-        val groupNames = deliveryViewModel.groups.value.associate { it.id to it.name }
         val (startStr, endStr) = ReportViewModel.computePeriod(yearMonth, closingDay)
         val startDate = LocalDate.parse(startStr)
         val endDate   = LocalDate.parse(endStr)
         val recordMap = records.associateBy { it.date }
-        // 期間内で複数のルートが混在する場合のみルート名を表示する
-        val distinctRoutes = records.map { it.assignmentId }.filter { it.isNotBlank() }.toSet()
-        val showRouteName  = distinctRoutes.size > 1
         return generateSequence(startDate) { it.plusDays(1) }
             .takeWhile { !it.isAfter(endDate) }
             .map { date ->
                 val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                val record  = recordMap[dateStr]
-                val routeName = if (showRouteName && record != null && record.assignmentId.isNotBlank())
-                    groupNames[record.assignmentId] ?: ""
-                else ""
-                DayEntry(dateStr, record, routeName)
+                DayEntry(dateStr, recordMap[dateStr])
             }.toList()
     }
 
@@ -245,9 +185,11 @@ class DailyReportFragment : Fragment() {
         binding.tvSummaryDeliveries.text = "配達 ${records.filter { !it.noWork }.sumOf { it.deliveryCount }}件"
         binding.tvSummaryDistance.text   = "走行 ${"%.0f".format(records.filter { !it.noWork }.sumOf { it.distanceKm.toDouble() })}km"
         val pattern     = currentPattern()
+        val assignmentId = pattern.id.toString()
         val totalIncome = records.sumOf { it.income }
         val actualFuelCost = fuelRecords
             .filter { it.date >= startStr && it.date <= endStr }
+            .filter { it.assignmentId == assignmentId || it.assignmentId.isEmpty() }
             .sumOf { it.totalCost }
         val estimatedFuelCost = records.sumOf { it.fuelCost }
         val totalFuel  = if (actualFuelCost > 0) actualFuelCost else estimatedFuelCost
@@ -255,7 +197,7 @@ class DailyReportFragment : Fragment() {
 
         val balance = totalIncome - totalFuel
         val trackIncome = pattern.excelColumns.any { it.type == ColumnType.INCOME } || pattern.paymentType != 3 || totalIncome > 0
-        if (trackIncome && totalIncome > 0) {
+        if (totalIncome > 0) {
             binding.tvSummaryIncome.visibility = View.VISIBLE
             binding.tvSummaryIncome.text = "収入 %,d円".format(totalIncome)
         } else {
@@ -279,16 +221,8 @@ class DailyReportFragment : Fragment() {
         }
     }
 
-    internal fun currentPattern(): com.rodgers.haireel.model.ReportPattern {
-        val ctx = requireContext()
-        val gid = deliveryViewModel.currentGroupId.value
-        val group = deliveryViewModel.groups.value.find { it.id == gid }
-        val pid = group?.patternId?.takeIf { it != -1 }
-            ?: PatternStorage.getActiveId(ctx).takeIf { it != -1 }
-        return if (pid != null) PatternStorage.get(ctx, pid)
-                                ?: PatternStorage.ensureDefault(ctx)
-               else PatternStorage.ensureDefault(ctx)
-    }
+    internal fun currentPattern(): com.rodgers.haireel.model.ReportPattern =
+        PatternStorage.ensureDefault(requireContext())
 
     private fun calcIncome(pattern: com.rodgers.haireel.model.ReportPattern, delivCount: Int, workMinutes: Int, packageCount: Int = delivCount): Int =
         com.rodgers.haireel.util.calcIncome(pattern, delivCount, workMinutes, packageCount)
@@ -328,7 +262,7 @@ class DailyReportFragment : Fragment() {
             fragmentManager   = childFragmentManager,
             isAdded           = { isAdded },
             scope             = viewLifecycleOwner.lifecycleScope,
-            assignmentId      = { deliveryViewModel.currentGroupId.value },
+            assignmentId      = { currentPattern().id.toString() },
             calcIncomeFn      = { pat, dc, wm, pc -> calcIncome(pat, dc, wm, pc) },
             onSave            = { reportViewModel.saveAndWait(it) }
         )
@@ -369,11 +303,6 @@ class DailyReportFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
-
-    private fun estimateFuelCost(distM: Int): Int =
-        if (fuelEfficiencyKmL > 0f && fuelPricePerL > 0)
-            (distM / 1000.0 * fuelPricePerL / fuelEfficiencyKmL).toInt()
-        else 0
 
     companion object {
         val FUEL_PRICES = linkedMapOf(

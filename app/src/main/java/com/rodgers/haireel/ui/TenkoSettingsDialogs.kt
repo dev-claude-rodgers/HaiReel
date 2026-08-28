@@ -195,16 +195,8 @@ internal fun TenkoFragment.showTenkoSettings() {
 
     val colorOnSurfaceVariant = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
 
-    fun label(text: String) = TextView(ctx).apply {
-        this.text = text; textSize = 13f; setTextColor(colorOnSurfaceVariant)
-        typeface = Typeface.DEFAULT_BOLD
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-            .also { it.topMargin = (12 * dp).toInt(); it.bottomMargin = (4 * dp).toInt() }
-    }
-    fun field(value: String, hint: String) = android.widget.EditText(ctx).apply {
-        setText(value); this.hint = hint; inputType = InputType.TYPE_CLASS_TEXT
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
-    }
+    fun label(text: String) = ctx.formLabel(text, dp, colorOnSurfaceVariant)
+    fun field(value: String, hint: String) = ctx.formField(value, dp, hint)
 
     root.addView(label("乗務員名"))
     val etDriver  = field(AppSettings.getDriverName(ctx), "例: 〇〇 〇〇")

@@ -14,6 +14,7 @@ import com.rodgers.haireel.databinding.FragmentSettingsBinding
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.BackupManager
 import com.rodgers.haireel.util.themeColor
+import com.rodgers.haireel.util.themeResId
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -212,9 +213,7 @@ class SettingsFragment : Fragment() {
         val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
         val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
         val outlineVar   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-        val ripple       = android.util.TypedValue().also {
-            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val ripple       = ctx.themeResId(android.R.attr.selectableItemBackground)
 
         binding.settingsRoot.addView(android.view.View(ctx).apply {
             setBackgroundColor(outlineVar)
@@ -261,14 +260,8 @@ class SettingsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val file = backupHandler.createBackup()
-                val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
                 val mime = if (file.name.endsWith(".rbe")) "application/octet-stream" else "application/zip"
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = mime
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(Intent.createChooser(intent, "バックアップを保存"))
+                shareFile(file, mime, "バックアップを保存")
             } catch (e: Exception) {
                 ctx.showErrorDialog("バックアップエラー", e.localizedMessage ?: "バックアップの作成に失敗しました。\nストレージの空き容量を確認してください。")
             }

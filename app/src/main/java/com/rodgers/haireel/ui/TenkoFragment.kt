@@ -24,6 +24,7 @@ import com.rodgers.haireel.R
 import com.rodgers.haireel.databinding.FragmentTenkoBinding
 import com.rodgers.haireel.model.TenkoRecord
 import com.rodgers.haireel.util.AppSettings
+import com.rodgers.haireel.util.PatternStorage
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.viewmodel.*
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,7 +40,6 @@ class TenkoFragment : Fragment() {
     private var _binding: FragmentTenkoBinding? = null
     private val binding get() = _binding!!
     val viewModel: TenkoViewModel by activityViewModels()
-    val deliveryViewModel: DeliveryViewModel by activityViewModels()
 
     lateinit var adapter: TenkoMonthAdapter
 
@@ -74,7 +74,19 @@ class TenkoFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
         setupButtons()
+        syncAssignmentId()
         observeFlows()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 配達タブのルート(グループ)とは独立に、帳票設定(取引先)を点呼記録の管理単位とする
+        syncAssignmentId()
+    }
+
+    private fun syncAssignmentId() {
+        val patternId = PatternStorage.getActiveId(requireContext())
+        viewModel.setAssignmentId(if (patternId != -1) patternId.toString() else "")
     }
 
     private fun setupRecyclerView() {
@@ -115,12 +127,6 @@ class TenkoFragment : Fragment() {
                 viewModel.noWorkDates
             ) { ym, _, _ -> ym }
                 .collectLatest { ym -> rebuildList(ym) }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            deliveryViewModel.currentGroupId.collectLatest { groupId ->
-                viewModel.setAssignmentId(groupId)
-            }
         }
     }
 
