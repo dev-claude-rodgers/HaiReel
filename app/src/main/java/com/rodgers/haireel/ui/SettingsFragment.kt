@@ -13,8 +13,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.databinding.FragmentSettingsBinding
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.BackupManager
-import com.rodgers.haireel.util.themeColor
-import com.rodgers.haireel.util.themeResId
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,36 +44,6 @@ class SettingsFragment : Fragment() {
     private fun setupRows() {
         val ctx = requireContext()
         binding.rowAppSettings.setOnClickListener { showAppSettingsDialog() }
-        val themeNames = mapOf(
-            "blue"   to "ブルー（デフォルト）",
-            "teal"   to "ティール",
-            "green"  to "グリーン",
-            "orange" to "オレンジ",
-            "purple" to "パープル",
-            "red"    to "レッド",
-            "indigo" to "インディゴ",
-            "brown"  to "アース",
-        )
-        binding.tvThemeName.text = themeNames[AppSettings.getThemeKey(ctx)] ?: "ブルー（デフォルト）"
-        binding.rowTheme.setOnClickListener { showThemePickerDialog() }
-        binding.tvApiKeyStatus.text = if (AppSettings.hasUserApiKey(ctx))
-            "設定済み（自分のAPIキーを使用中）" else "未設定（住所変換・地図機能が使えません）"
-        binding.rowApiKey.setOnClickListener {
-            if (AppSettings.hasUserApiKey(ctx)) {
-                MaterialAlertDialogBuilder(ctx)
-                    .setTitle("🔑 Google APIキー")
-                    .setItems(arrayOf("動作確認する", "キーを変更する", "キャンセル")) { _, which ->
-                        when (which) {
-                            0 -> testApiKey(ctx)
-                            1 -> showApiKeyWizard()
-                        }
-                    }
-                    .show()
-            } else {
-                showApiKeyWizard()
-            }
-        }
-        addBackgroundRow()
         updateLicenseStatus()
         binding.rowLicense.setOnClickListener { showLicensePurchaseDialog() }
         binding.rowResetData.setOnClickListener { showResetDataDialog() }
@@ -113,10 +81,6 @@ class SettingsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             com.rodgers.haireel.util.BillingManager.subscriptionState.collect {
                 updateLicenseStatus()
-                com.rodgers.haireel.util.applyGeocodingConfig(
-                    requireContext(),
-                    com.rodgers.haireel.util.GeocodingClient
-                )
             }
         }
     }
@@ -161,11 +125,15 @@ class SettingsFragment : Fragment() {
     private fun startRestore(uri: android.net.Uri, password: String? = null) {
         backupHandler.doRestore(
             uri, password,
-            onRestored = {
+            onRestored = { failedCount ->
                 if (isAdded) {
+                    val message = if (failedCount > 0)
+                        "復元しました。ただし${failedCount}件のデータは復元できませんでした。\nOKを押すとアプリを再起動します。"
+                    else
+                        "復元しました。OKを押すとアプリを再起動します。"
                     MaterialAlertDialogBuilder(requireContext())
                         .setTitle("復元完了")
-                        .setMessage("復元しました。OKを押すとアプリを再起動します。")
+                        .setMessage(message)
                         .setCancelable(false)
                         .setPositiveButton("OK") { _, _ -> backupHandler.restartApp() }
                         .show()
@@ -182,78 +150,6 @@ class SettingsFragment : Fragment() {
         _binding = null
     }
 
-    private fun testApiKey(ctx: android.content.Context) {
-        testApiKey(
-            ctx           = ctx,
-            scope         = viewLifecycleOwner.lifecycleScope,
-            onStatusChanged = { if (isAdded) binding.tvApiKeyStatus.text = it },
-            onShowWizard  = { showApiKeyWizard() }
-        )
-    }
-
-    private fun showApiKeyWizard() {
-        val ctx = requireContext()
-        showApiKeyWizardDialog(
-            ctx           = ctx,
-            onLaunchIntent = { startActivity(it) },
-            onTestApiKey   = { testApiKey(ctx) },
-            onStatusChanged = { if (isAdded) binding.tvApiKeyStatus.text = it }
-        )
-    }
-
-    private fun showThemePickerDialog() {
-        showThemePickerDialog(requireContext()) { requireActivity().recreate() }
-    }
-
-    private fun addBackgroundRow() {
-        val ctx          = requireContext()
-        val dp           = ctx.resources.displayMetrics.density
-        val MATCH        = android.widget.LinearLayout.LayoutParams.MATCH_PARENT
-        val WRAP         = android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-        val onSurface    = ctx.themeColor(com.google.android.material.R.attr.colorOnSurface)
-        val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
-        val outlineVar   = ctx.themeColor(com.google.android.material.R.attr.colorOutlineVariant)
-        val ripple       = ctx.themeResId(android.R.attr.selectableItemBackground)
-
-        binding.settingsRoot.addView(android.view.View(ctx).apply {
-            setBackgroundColor(outlineVar)
-            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, (1 * dp).toInt())
-                .also { it.setMargins((84 * dp).toInt(), (4 * dp).toInt(), 0, (4 * dp).toInt()) }
-        }, 4)
-
-        val subTv = android.widget.TextView(ctx).apply {
-            textSize = 14f; setTextColor(onSurfaceVar)
-            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                .also { it.topMargin = (2 * dp).toInt() }
-            text = buildBackgroundSummary(ctx)
-        }
-        val col = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            layoutParams = android.widget.LinearLayout.LayoutParams(0, WRAP, 1f)
-                .also { it.marginStart = (14 * dp).toInt() }
-            addView(android.widget.TextView(ctx).apply {
-                text = "バックグラウンド処理"; textSize = 17f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD; setTextColor(onSurface)
-            })
-            addView(subTv)
-        }
-        val row = android.widget.LinearLayout(ctx).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setBackgroundResource(ripple)
-            setPadding((20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt())
-            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-            addView(android.widget.TextView(ctx).apply {
-                text = "📲"; textSize = 28f; gravity = android.view.Gravity.CENTER
-                layoutParams = android.widget.LinearLayout.LayoutParams((52 * dp).toInt(), WRAP)
-            })
-            addView(col)
-            setOnClickListener {
-                showBackgroundSettingsSheet(ctx) { subTv.text = buildBackgroundSummary(ctx) }
-            }
-        }
-        binding.settingsRoot.addView(row, 5)
-    }
 
     private fun createBackup() {
         val ctx = requireContext()

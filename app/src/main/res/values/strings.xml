@@ -13,7 +13,6 @@
     <!-- 配達リスト -->
     <string name="filter_all">すべて</string>
     <string name="btn_select_mode">選択</string>
-    <string name="btn_map_toggle">🗺 地図</string>
     <string name="btn_menu">≡</string>
     <string name="btn_select_all">全選択</string>
 

@@ -63,26 +63,6 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- 地図/リスト切替ボタン -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonSubToggle"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:text="@string/btn_map_toggle"
-            android:contentDescription="地図/リスト切替"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@color/colorPrimary"
-            android:minWidth="0dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:layout_marginEnd="8dp"
-            app:strokeColor="@color/colorPrimary"
-            app:cornerRadius="8dp" />
-
         <!-- メニューボタン -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonListMenu"
@@ -144,17 +124,6 @@
                 android:textColor="?attr/colorOnSurfaceVariant" />
 
         </LinearLayout>
-
-        <!-- 2行目: 概算距離 -->
-        <TextView
-            android:id="@+id/tvTotalDistance"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:textColor="?attr/colorPrimary"
-            android:visibility="gone" />
 
     </LinearLayout>
 
@@ -288,16 +257,6 @@
         </LinearLayout>
 
     </LinearLayout>
-
-    <FrameLayout
-        android:id="@+id/mapContainer"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/layoutHeader"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
         android:id="@+id/textEmpty"

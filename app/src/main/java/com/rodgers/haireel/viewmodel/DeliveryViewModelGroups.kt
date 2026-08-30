@@ -25,8 +25,6 @@ fun DeliveryViewModel.createGroup(name: String): DeliveryGroup {
 }
 
 fun DeliveryViewModel.deleteGroup(groupId: String) {
-    geocodingJobs[groupId]?.cancel()
-    geocodingJobs.remove(groupId)
     val group = _groups.value.find { it.id == groupId }
     val updated = _groups.value.filter { it.id != groupId }
     _groups.value = updated
@@ -91,12 +89,10 @@ fun DeliveryViewModel.renameGroup(groupId: String, newName: String) {
 
 fun DeliveryViewModel.switchGroup(groupId: String) {
     if (_currentGroupId.value == groupId) return
-    geocodingJobs[_currentGroupId.value]?.cancel()
-    _geocodingProgress.value = null
     _visibleGroupIds.value = null
     _currentGroupId.value = groupId
     repo.saveCurrentGroupId(groupId)
-    applyAreaHintForGroup(groupId)
+    _areaHint.value = repo.getAreaHint(groupId)
     val list = _allDeliveries.value[groupId] ?: emptyList()
     _deliveries.value = list
     updateAllDeliveries(groupId, list)

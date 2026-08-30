@@ -212,7 +212,8 @@ object BackupManager {
         return encFile
     }
 
-    suspend fun restoreBackup(context: Context, uri: Uri, password: String? = null) {
+    /** @return 個別レコードの復元に失敗した件数（0なら全件成功） */
+    suspend fun restoreBackup(context: Context, uri: Uri, password: String? = null): Int {
         val raw = context.contentResolver.openInputStream(uri)
             ?: error("ファイルを開けませんでした")
 
@@ -245,19 +246,20 @@ object BackupManager {
                 raw
             )
         }
-        restoreFromStream(context, inputStream)
+        return restoreFromStream(context, inputStream)
     }
 
-    private suspend fun restoreFromStream(context: Context, input: InputStream) {
+    private suspend fun restoreFromStream(context: Context, input: InputStream): Int {
         val db  = AppDatabase.getInstance(context)
         val dao = db.workRecordDao()
         // version.txt は常に最初のエントリに書かれるため、以降の処理で参照できる
         var backupVersion = 1
         // photos/ エントリを deliveries.json より先に読み込んでバッファリング（書き込み順序で保証）
         val photoBuffer = mutableMapOf<String, ByteArray>()
+        var failedCount = 0
 
         // トランザクションで囲むことで途中失敗時のDB半壊を防ぐ
-        db.withTransaction {
+        return db.withTransaction {
         ZipInputStream(input).use { zis ->
             var entry = zis.nextEntry
             while (entry != null) {
@@ -271,7 +273,7 @@ object BackupManager {
                         val arr = JSONArray(bytes.toString(Charsets.UTF_8).trimStart('﻿'))
                         dao.deleteAll()
                         for (i in 0 until arr.length()) {
-                            try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { Log.w("BackupManager", "記録の復元失敗: item $i", e) }
+                            try { dao.upsert(recordFromJson(arr.getJSONObject(i))) } catch (e: Exception) { failedCount++; Log.w("BackupManager", "記録の復元失敗: item $i", e) }
                         }
                     }
                     "settings.json" -> {
@@ -286,7 +288,7 @@ object BackupManager {
                         for (i in 0 until arr.length()) {
                             try {
                                 db.tenkoDao().insert(tenkoFromJson(arr.getJSONObject(i)))
-                            } catch (e: Exception) { Log.w("BackupManager", "点呼記録の復元失敗: item $i", e) }
+                            } catch (e: Exception) { failedCount++; Log.w("BackupManager", "点呼記録の復元失敗: item $i", e) }
                         }
                     }
                     "patterns.json" -> {
@@ -305,7 +307,7 @@ object BackupManager {
                                     patternId = o.optInt("patternId", -1),
                                     sortOrder = o.optInt("sortOrder", i)
                                 ))
-                            } catch (e: Exception) { Log.w("BackupManager", "ルートの復元失敗: item $i", e) }
+                            } catch (e: Exception) { failedCount++; Log.w("BackupManager", "ルートの復元失敗: item $i", e) }
                         }
                     }
                     "deliveries.json" -> {
@@ -342,7 +344,7 @@ object BackupManager {
                                     isCompleted     = o.optBoolean("isCompleted", false),
                                     isGeocoded      = o.optBoolean("isGeocoded", false)
                                 ))
-                            } catch (e: Exception) { Log.w("BackupManager", "配達先の復元失敗: item $i", e) }
+                            } catch (e: Exception) { failedCount++; Log.w("BackupManager", "配達先の復元失敗: item $i", e) }
                         }
                     }
                     "known_addresses.json" -> {
@@ -350,7 +352,7 @@ object BackupManager {
                         db.knownAddressDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try { db.knownAddressDao().upsert(knownAddressFromJson(arr.getJSONObject(i))) }
-                            catch (e: Exception) { Log.w("BackupManager", "配達先台帳の復元失敗: item $i", e) }
+                            catch (e: Exception) { failedCount++; Log.w("BackupManager", "配達先台帳の復元失敗: item $i", e) }
                         }
                     }
                     "fuel_records.json" -> {
@@ -358,7 +360,7 @@ object BackupManager {
                         db.fuelRecordDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try { db.fuelRecordDao().upsert(fuelRecordFromJson(arr.getJSONObject(i))) }
-                            catch (e: Exception) { Log.w("BackupManager", "給油記録の復元失敗: item $i", e) }
+                            catch (e: Exception) { failedCount++; Log.w("BackupManager", "給油記録の復元失敗: item $i", e) }
                         }
                     }
                     "vehicles.json" -> {
@@ -366,7 +368,7 @@ object BackupManager {
                         db.vehicleDao().deleteAll()
                         for (i in 0 until arr.length()) {
                             try { db.vehicleDao().upsert(vehicleFromJson(arr.getJSONObject(i))) }
-                            catch (e: Exception) { Log.w("BackupManager", "車両情報の復元失敗: item $i", e) }
+                            catch (e: Exception) { failedCount++; Log.w("BackupManager", "車両情報の復元失敗: item $i", e) }
                         }
                     }
                     "sig_driver.png" -> {
@@ -394,6 +396,7 @@ object BackupManager {
                 entry = zis.nextEntry
             }
         }
+        failedCount
         } // end withTransaction
     }
 
@@ -658,9 +661,6 @@ object BackupManager {
             }
         }
         if (longKeys.length() > 0) json.put("__long_keys__", longKeys)
-        // APIキーも保存（空でなければ）
-        val apiKey = try { AppSettings.getUserApiKey(context) } catch (_: Exception) { "" }
-        if (apiKey.isNotBlank()) json.put("_user_api_key", apiKey)
         return json
     }
 
@@ -672,6 +672,7 @@ object BackupManager {
             ?.let { arr -> (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }.toSet() }
             ?: emptySet()
         json.keys().forEach { key ->
+            // "_user_api_key" は旧バージョンのバックアップに含まれる場合があるため読み飛ばす
             if (key == "__long_keys__" || key == "_user_api_key") return@forEach
             when (val v = json.get(key)) {
                 is String  -> editor.putString(key, v)
@@ -686,11 +687,6 @@ object BackupManager {
             }
         }
         editor.apply()
-        // APIキーを復元（暗号化保存）
-        val apiKey = json.optString("_user_api_key").ifBlank { null }
-        if (apiKey != null) {
-            try { AppSettings.setUserApiKey(context, apiKey) } catch (_: Exception) { }
-        }
     }
 
     internal fun tenkoToJson(list: List<com.rodgers.haireel.model.TenkoRecord>): JSONArray {

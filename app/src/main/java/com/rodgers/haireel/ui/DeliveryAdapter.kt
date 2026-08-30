@@ -32,17 +32,9 @@ class DeliveryAdapter(
     val selectedIds = mutableSetOf<String>()
     var groupColor: Int = android.graphics.Color.parseColor("#F44336")
     var isDragging = false
-    private var etas: Map<String, Int?> = emptyMap()
     // 時間帯テンプレートはSharedPreferences読み込みを伴うため、bindのたびに読み直さず短時間キャッシュする
     private var cachedSlotTemplates: List<AppSettings.TimeSlotTemplate> = emptyList()
     private var slotTemplateCacheMs = 0L
-
-    fun setEtas(newEtas: Map<String, Int?>) {
-        if (isDragging) return
-        if (newEtas == etas) return
-        etas = newEtas
-        notifyDataSetChanged()
-    }
 
     fun submitList(list: List<Delivery>) {
         if (isDragging) return
@@ -88,9 +80,6 @@ class DeliveryAdapter(
         private val tvOrder: TextView = view.findViewById(R.id.tvOrder)
         private val tvName: TextView = view.findViewById(R.id.tvName)
         private val tvAddress: TextView = view.findViewById(R.id.tvAddress)
-        private val tvGeocodedAddress: TextView = view.findViewById(R.id.tvGeocodedAddress)
-        private val tvGeoStatus: TextView = view.findViewById(R.id.tvGeoStatus)
-        private val tvEta: TextView = view.findViewById(R.id.tvEta)
         private val tvNote: TextView = view.findViewById(R.id.tvNote)
         private val layoutSlotPackage: LinearLayout = view.findViewById(R.id.layoutSlotPackage)
         private val tvTimeSlot: TextView = view.findViewById(R.id.tvTimeSlot)
@@ -123,15 +112,6 @@ class DeliveryAdapter(
                 tvAddress.text = delivery.address
             }
 
-            if (!delivery.geocodedAddress.isNullOrBlank() && delivery.geocodedAddress != delivery.address) {
-                tvGeocodedAddress.visibility = View.VISIBLE
-                tvGeocodedAddress.text = "📍 ${delivery.geocodedAddress}"
-            } else {
-                tvGeocodedAddress.visibility = View.GONE
-            }
-
-            tvGeoStatus.text = if (delivery.isGeocoded) "" else "⏳ 検索中"
-
             val hasSlot = !delivery.timeSlot.isNullOrBlank()
             val hasPkg = delivery.packageCount > 0
             if (hasSlot || hasPkg) {
@@ -152,22 +132,6 @@ class DeliveryAdapter(
                 tvPackageCount.visibility = if (hasPkg) View.VISIBLE else View.GONE
             } else {
                 layoutSlotPackage.visibility = View.GONE
-            }
-
-            val eta = etas[delivery.id]
-            if (eta != null) {
-                val etaStr = com.rodgers.haireel.util.EtaCalculator.formatMinutes(eta)
-                val closeMin = delivery.closeTime?.let { com.rodgers.haireel.util.EtaCalculator.parseMinutes(it) } ?: -1
-                if (closeMin >= 0 && eta > closeMin) {
-                    tvEta.text = "→ $etaStr ⚠ 閉店後"
-                    tvEta.setTextColor(android.graphics.Color.parseColor("#E53935"))
-                } else {
-                    tvEta.text = "→ $etaStr"
-                    tvEta.setTextColor(tvEta.context.getColor(R.color.colorTimeSlot))
-                }
-                tvEta.visibility = View.VISIBLE
-            } else {
-                tvEta.visibility = View.GONE
             }
 
             val hasNote = !delivery.note.isNullOrBlank()

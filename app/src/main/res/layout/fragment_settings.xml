@@ -30,7 +30,18 @@
                 android:textColor="?attr/colorOnSurface" />
         </LinearLayout>
 
-        <!-- アプリ設定 -->
+        <!-- 基本設定 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="基本設定"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingStart="84dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp" />
+
         <LinearLayout
             android:id="@+id/rowAppSettings"
             android:layout_width="match_parent"
@@ -73,105 +84,17 @@
             </LinearLayout>
         </LinearLayout>
 
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
-
-        <!-- テーマカラー -->
-        <LinearLayout
-            android:id="@+id/rowTheme"
+        <!-- データ管理 -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="?attr/selectableItemBackground"
-            android:padding="20dp">
-
-            <TextView
-                android:layout_width="52dp"
-                android:layout_height="match_parent"
-                android:text="🎨"
-                android:textSize="28sp"
-                android:gravity="center" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_vertical"
-                android:layout_marginStart="14dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="テーマカラー"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:textColor="?attr/colorOnSurface"
-                    android:includeFontPadding="false" />
-
-                <TextView
-                    android:id="@+id/tvThemeName"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="ブルー（デフォルト）"
-                    android:textSize="14sp"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
-
-        <!-- APIキー設定 -->
-        <LinearLayout
-            android:id="@+id/rowApiKey"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="?attr/selectableItemBackground"
-            android:padding="20dp">
-
-            <TextView
-                android:layout_width="52dp"
-                android:layout_height="match_parent"
-                android:text="🗺️"
-                android:textSize="28sp"
-                android:gravity="center" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_vertical"
-                android:layout_marginStart="14dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Google APIキー設定"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:textColor="?attr/colorOnSurface"
-                    android:includeFontPadding="false" />
-
-                <TextView
-                    android:id="@+id/tvApiKeyStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="未設定（ビルド埋め込みキーを使用中）"
-                    android:textSize="14sp"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
+            android:text="データ管理"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingStart="84dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp" />
 
         <!-- バックアップ作成 -->
         <LinearLayout
@@ -267,7 +190,60 @@
             android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
             android:background="?attr/colorOutlineVariant" />
 
+        <!-- データを初期化 -->
+        <LinearLayout
+            android:id="@+id/rowResetData"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="?attr/selectableItemBackground"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="52dp"
+                android:layout_height="match_parent"
+                android:text="🗑️"
+                android:textSize="28sp"
+                android:gravity="center" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_vertical"
+                android:layout_marginStart="14dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="データをすべて初期化"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorError" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="日報・配達先・ルート・帳票パターン・署名をすべて削除する"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- ライセンス -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="ライセンス"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingStart="84dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp" />
+
         <LinearLayout
             android:id="@+id/rowLicense"
             android:layout_width="match_parent"
@@ -311,11 +287,18 @@
             </LinearLayout>
         </LinearLayout>
 
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
+        <!-- サポート -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="サポート"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingStart="84dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp" />
 
-        <!-- 使い方・ヘルプ -->
         <LinearLayout
             android:id="@+id/rowHelp"
             android:layout_width="match_parent"
@@ -405,11 +388,18 @@
             </LinearLayout>
         </LinearLayout>
 
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
+        <!-- アプリ情報 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="アプリ情報"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingStart="84dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp" />
 
-        <!-- アプリについて -->
         <LinearLayout
             android:id="@+id/rowAbout"
             android:layout_width="match_parent"
@@ -593,57 +583,18 @@
             </LinearLayout>
         </LinearLayout>
 
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
-
-        <!-- データを初期化 -->
-        <LinearLayout
-            android:id="@+id/rowResetData"
+        <!-- その他 -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="?attr/selectableItemBackground"
-            android:padding="20dp">
+            android:text="その他"
+            android:textSize="11sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:paddingStart="84dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="2dp" />
 
-            <TextView
-                android:layout_width="52dp"
-                android:layout_height="match_parent"
-                android:text="🗑️"
-                android:textSize="28sp"
-                android:gravity="center" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center_vertical"
-                android:layout_marginStart="14dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="データをすべて初期化"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:textColor="?attr/colorError" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="日報・配達先・ルート・帳票パターン・署名をすべて削除する"
-                    android:textSize="14sp"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <View android:layout_width="match_parent" android:layout_height="1dp"
-            android:layout_marginStart="84dp" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
-            android:background="?attr/colorOutlineVariant" />
-
-        <!-- アプリを終了 -->
         <LinearLayout
             android:id="@+id/rowExit"
             android:layout_width="match_parent"

@@ -193,10 +193,11 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
         .setPositiveButton("保存", null)
         .setNegativeButton("キャンセル", null).show()
 
-    dlgBefore.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+    dlgBefore.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { btn ->
         if (etChecker.text.toString().trim().isBlank()) {
             etChecker.error = "確認者名を入力してください"; return@setOnClickListener
         }
+        btn.isEnabled = false  // 連打による二重保存を防止
         val alc = (etAlcohol.text.toString().toDoubleOrNull() ?: 0.0).coerceIn(0.0, 9.99)
         if (alc > 0.15) {
             MaterialAlertDialogBuilder(ctx)
@@ -210,7 +211,9 @@ internal fun TenkoFragment.showBeforeDialog(date: String, existing: TenkoRecord?
                     Toast.makeText(ctx, "乗務前点呼を保存しました", Toast.LENGTH_SHORT).show()
                     dlgBefore.dismiss()
                 }
-                .setNegativeButton("入力に戻る", null).show()
+                .setNegativeButton("入力に戻る") { _, _ -> btn.isEnabled = true }
+                .setOnCancelListener { btn.isEnabled = true }
+                .show()
         } else {
             viewModel.saveBefore(date, existing, selMethod, selTime,
                 healthOk, fatigueYes, alc, inspOk,
@@ -389,10 +392,11 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
         .setPositiveButton("保存", null)
         .setNegativeButton("キャンセル", null).show()
 
-    dlgAfter.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+    dlgAfter.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { btn ->
         if (etChecker.text.toString().trim().isBlank()) {
             etChecker.error = "確認者名を入力してください"; return@setOnClickListener
         }
+        btn.isEnabled = false  // 連打による二重保存を防止
         val alc = (etAlcohol.text.toString().toDoubleOrNull() ?: 0.0).coerceIn(0.0, 9.99)
         if (alc > 0.15) {
             MaterialAlertDialogBuilder(ctx)
@@ -406,7 +410,9 @@ internal fun TenkoFragment.showAfterDialog(date: String, existing: TenkoRecord?)
                     Toast.makeText(ctx, "乗務後点呼を保存しました", Toast.LENGTH_SHORT).show()
                     dlgAfter.dismiss()
                 }
-                .setNegativeButton("入力に戻る", null).show()
+                .setNegativeButton("入力に戻る") { _, _ -> btn.isEnabled = true }
+                .setOnCancelListener { btn.isEnabled = true }
+                .show()
         } else {
             viewModel.saveAfter(date, existing, selMethod, selTime,
                 healthOk, fatigueYes, alc, accidentYes, vehicleOk,

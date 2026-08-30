@@ -29,7 +29,6 @@ import com.rodgers.haireel.databinding.ActivityMainBinding
 import com.rodgers.haireel.ui.DailyReportFragment
 import com.rodgers.haireel.ui.DeliveryListFragment
 import com.rodgers.haireel.ui.TenkoFragment
-import com.rodgers.haireel.ui.showWebLicenseCodeDialog
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -37,7 +36,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.BillingManager
 import com.rodgers.haireel.util.TtsManager
-import com.rodgers.haireel.util.applyAppTheme
 import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.viewmodel.DeliveryViewModel
 import com.rodgers.haireel.viewmodel.*
@@ -91,7 +89,6 @@ class MainActivity : AppCompatActivity() {
                 set.start()
             }
         }
-        applyAppTheme()
         super.onCreate(savedInstanceState)
         // 初回起動日を記録
         AppSettings.ensureInstallDate(this)
@@ -111,10 +108,6 @@ class MainActivity : AppCompatActivity() {
         }
         // Google Play サブスク状態をバックグラウンドで確認・更新
         BillingManager.init(this)
-        // 自社HP（Stripe）経由で登録済みの場合はそちらの状態も確認・更新する
-        if (AppSettings.getSubscriptionSource(this) == "web" && AppSettings.getWebLicenseCode(this).isNotBlank()) {
-            lifecycleScope.launch { com.rodgers.haireel.util.WebLicenseManager.recheckSavedLicense(this@MainActivity) }
-        }
         if (AppSettings.isAppLockEnabled(this)) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         }
@@ -166,7 +159,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.deliveries.collectLatest { _ ->
-                val groupName = viewModel.currentGroup()?.name ?: "マップリスト"
+                val groupName = viewModel.currentGroup()?.name ?: "配達リスト"
                 if (binding.viewPager.currentItem == 1) {
                     supportActionBar?.title = "$groupName ▼"
                 }
@@ -177,27 +170,8 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.currentGroupId.collectLatest {
                 if (binding.viewPager.currentItem == 1) {
-                    val groupName = viewModel.currentGroup()?.name ?: "マップリスト"
+                    val groupName = viewModel.currentGroup()?.name ?: "配達リスト"
                     supportActionBar?.title = "$groupName ▼"
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.geocodingProgress.collectLatest { progress ->
-                if (progress == null) return@collectLatest
-                if (progress.isRunning) {
-                    supportActionBar?.subtitle = "処理中… ${progress.current}/${progress.total}"
-                } else {
-                    supportActionBar?.subtitle = null
-                    if (progress.successCount > 0) {
-                        val msg = if (progress.successCount == progress.total) {
-                            "${progress.total}件の住所を地図に配置しました"
-                        } else {
-                            "${progress.total}件中${progress.successCount}件を地図に配置しました"
-                        }
-                        android.widget.Toast.makeText(this@MainActivity, msg, android.widget.Toast.LENGTH_SHORT).show()
-                    }
                 }
             }
         }
@@ -207,25 +181,6 @@ class MainActivity : AppCompatActivity() {
                 if (!msg.isNullOrBlank()) {
                     android.widget.Toast.makeText(this@MainActivity, msg, android.widget.Toast.LENGTH_LONG).show()
                     viewModel.clearError()
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.geocodingFailedCount.collectLatest { count ->
-                if (count > 0) {
-                    Snackbar.make(
-                        binding.root,
-                        "${count}件の住所を特定できませんでした",
-                        Snackbar.LENGTH_LONG
-                    )
-                        .setAction("再試行") { viewModel.retryGeocoding() }
-                        .addCallback(object : Snackbar.Callback() {
-                            override fun onDismissed(snackbar: Snackbar?, event: Int) {
-                                viewModel.clearGeocodingFailure()
-                            }
-                        })
-                        .show()
                 }
             }
         }
@@ -322,7 +277,7 @@ class MainActivity : AppCompatActivity() {
         if (position == listPos) {
             binding.appBarLayout.visibility = View.VISIBLE
             binding.contentFrame.updatePadding(top = 0)
-            val groupName = viewModel.currentGroup()?.name ?: "マップリスト"
+            val groupName = viewModel.currentGroup()?.name ?: "配達リスト"
             supportActionBar?.title = "$groupName ▼"
             supportActionBar?.subtitle = null
         } else {
@@ -448,14 +403,12 @@ class MainActivity : AppCompatActivity() {
                 "© 2026 RODGERS  All rights reserved.\n" +
                 "本アプリのデザイン・機能・UIの模倣・複製を禁じます。\n\n" +
                 "── 使用技術 ──\n" +
-                "地図: Google Maps SDK for Android\n" +
-                "住所変換: Google Geocoding API\n" +
-                "クラッシュ監視: Firebase Crashlytics\n\n" +
+                "クラッシュ監視: Firebase Crashlytics\n" +
+                "利用状況分析: Firebase Analytics\n\n" +
                 "── v1.0.0 リリース内容 ──\n" +
-                "・配達先管理・地図表示・ルート最適化\n" +
+                "・配達先管理（並べ替え・ナビ起動）\n" +
                 "・点呼記録（乗務前・乗務後）\n" +
                 "・日報・帳票 Excel 出力\n" +
-                "・近くの施設を探す（コンビニ・駐車場・ATM・薬局など）\n" +
                 "・ホーム画面ウィジェット\n" +
                 "・バックアップ（AES-256 暗号化）\n" +
                 "・7日間無料体験 → 月額¥300 / 年額¥2,980"
@@ -507,7 +460,6 @@ class MainActivity : AppCompatActivity() {
         buildSubscriptionDialog(this,
             onYearly  = { BillingManager.launchSubscription(this, BillingManager.PRODUCT_YEARLY) },
             onMonthly = { BillingManager.launchSubscription(this, BillingManager.PRODUCT_MONTHLY) },
-            onEnterCode = { showWebLicenseCodeDialog(this, this) },
             onClose   = { finishAffinity() },
             cancelable = false
         ).show()
@@ -518,7 +470,6 @@ class MainActivity : AppCompatActivity() {
         ctx: android.content.Context,
         onYearly: () -> Unit,
         onMonthly: () -> Unit,
-        onEnterCode: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
         cancelable: Boolean = true
     ): AlertDialog {
@@ -543,7 +494,7 @@ class MainActivity : AppCompatActivity() {
 
         // ── 機能一覧 ──────────────────────────────────────
         root.addView(android.widget.TextView(ctx).apply {
-            text = "配達管理 · 地図ルート · 日報 · 点呼 · Excel出力"
+            text = "配達管理 · 日報 · 点呼 · Excel出力"
             textSize = 12f
             gravity = android.view.Gravity.CENTER
             setTextColor(android.graphics.Color.parseColor("#757575"))
@@ -595,24 +546,6 @@ class MainActivity : AppCompatActivity() {
             gravity = android.view.Gravity.CENTER
             setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
         })
-
-        // ── HP購入のライセンスコードをお持ちの方 ──────────────
-        if (onEnterCode != null) {
-            root.addView(android.widget.TextView(ctx).apply {
-                text = "HPで購入したコードをお持ちの方はこちら"
-                textSize = 13f
-                gravity = android.view.Gravity.CENTER
-                setTextColor(android.graphics.Color.parseColor("#1565C0"))
-                setPadding(0, (14 * dp).toInt(), 0, 0)
-                background = android.util.TypedValue().also {
-                    ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-                }.resourceId.let { androidx.core.content.ContextCompat.getDrawable(ctx, it) }
-                setOnClickListener {
-                    dlgRef[0]?.dismiss()
-                    onEnterCode()
-                }
-            })
-        }
 
         val dlg = AlertDialog.Builder(ctx)
             .setView(root)

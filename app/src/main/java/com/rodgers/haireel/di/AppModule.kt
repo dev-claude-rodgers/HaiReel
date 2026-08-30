@@ -6,12 +6,9 @@ import com.rodgers.haireel.db.AppDatabase
 import com.rodgers.haireel.db.DeliveryGroupDao
 import com.rodgers.haireel.db.FuelRecordDao
 import com.rodgers.haireel.db.VehicleDao
-import com.rodgers.haireel.db.GeocodingCacheDao
 import com.rodgers.haireel.db.KnownAddressDao
 import com.rodgers.haireel.db.TenkoDao
 import com.rodgers.haireel.db.WorkRecordDao
-import com.rodgers.haireel.util.GeocodingApi
-import com.rodgers.haireel.util.GeocodingClient
 import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
@@ -48,10 +45,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGeocodingCacheDao(db: AppDatabase): GeocodingCacheDao = db.geocodingCacheDao()
-
-    @Provides
-    @Singleton
     fun provideKnownAddressDao(db: AppDatabase): KnownAddressDao = db.knownAddressDao()
 
     @Provides
@@ -65,8 +58,4 @@ object AppModule {
     @Provides
     @Singleton
     fun provideVehicleDao(db: AppDatabase): VehicleDao = db.vehicleDao()
-
-    @Provides
-    @Singleton
-    fun provideGeocodingApi(): GeocodingApi = GeocodingClient
 }

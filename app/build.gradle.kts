@@ -29,14 +29,6 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "com.rodgers.haireel.HiltTestRunner"
-
-        val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: ""
-        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
-        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
-        val proxyClientSecret = localProps.getProperty("PROXY_CLIENT_SECRET") ?: ""
-        buildConfigField("String", "PROXY_CLIENT_SECRET", "\"$proxyClientSecret\"")
-        val proxyBaseUrl = localProps.getProperty("PROXY_BASE_URL") ?: ""
-        buildConfigField("String", "PROXY_BASE_URL", "\"$proxyBaseUrl\"")
     }
 
     signingConfigs {
@@ -143,9 +135,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.livedata)
     implementation(libs.androidx.fragment)
     implementation(libs.androidx.activity)
-    implementation(libs.maps.sdk)
-    implementation(libs.maps.utils)
-    implementation(libs.play.services.location)
     implementation(libs.coroutines.android)
     implementation(libs.gson)
     implementation(libs.room.ktx)

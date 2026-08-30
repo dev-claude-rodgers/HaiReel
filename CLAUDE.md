@@ -197,20 +197,20 @@ Step 6: Gmailで完了報告を送信
 宅配ドライバー向け業務管理 Android アプリ。
 配達ルート管理・日報作成・点呼記録・複数案件対応を一体化。
 
-- パッケージ名: `com.rodgers.routist`（変更なし）
-- APK名: RouteJin_yyyyMMdd_HHmmss.apk
-- minSdk: 26 / targetSdk: 34 / Kotlin + ViewBinding + Room
-- サブスク: 月額¥300 / 年額¥2,980（Google Play IAP）
+- パッケージ名: `com.rodgers.haireel`
+- APK名: HaiReel_yyyyMMdd_HHmmss.apk
+- minSdk: 26 / targetSdk: 35 / Kotlin + ViewBinding + Room
+- サブスク: 月額¥300 / 年額¥2,980（Google Play IAP。自社HP決済は廃止済み）
 - 販売業者: RODGERS（屋号）
+- Google Maps SDK / Geocoding APIには依存しない（地図・GPS不要の設計）
 
 ## 環境
 
-- プロジェクトパス: `C:\Users\rodge\Desktop\RouteJin`
+- プロジェクトパス: `C:\HaiReel`
 - JDK: `C:\Users\rodge\.jdks\jbr-17.0.14`
-- GitHub: https://github.com/proxyroutine777-coder/RouteJin (private)
-- GitHub CLI: `C:\Tools\gh\bin\gh.exe`（使用前に `$env:PATH = "C:\Tools\gh\bin;$env:PATH"`）
+- GitHub: dev-claude-rodgers/HaiReel (private)
 - ADB: `C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe`
-- キーストア: `C:\Users\rodge\routist-release.keystore`（パスは local.properties 参照）
+- キーストア: `C:\HaiReel\haireel-release.keystore`（パスは local.properties 参照）
 
 ## Git 運用
 
@@ -222,9 +222,9 @@ Step 6: Gmailで完了報告を送信
 
 ```powershell
 # デバッグ（開発中）
-Set-Location "C:\Users\rodge\Desktop\RouteJin"
+Set-Location "C:\HaiReel"
 .\gradlew.bat assembleDebug
-# → app\build\outputs\apk\debug\RouteJin_yyyyMMdd_HHmmss.apk
+# → app\build\outputs\apk\debug\HaiReel_yyyyMMdd_HHmmss.apk
 
 # リリース（配布・Play Store）
 .\build_and_install.ps1
@@ -238,15 +238,14 @@ $adb = "C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 & $adb install -r <apk-path>
 ```
 
-## APIキー設定
+## 署名設定
 
 `local.properties` に記載（Git に含まない）:
 ```
 sdk.dir=C\:\\Users\\rodge\\AppData\\Local\\Android\\Sdk
-MAPS_API_KEY=AIza...
-RELEASE_STORE_FILE=../routist-release.keystore
+RELEASE_STORE_FILE=C\:\\HaiReel\\haireel-release.keystore
 RELEASE_STORE_PASSWORD=...
-RELEASE_KEY_ALIAS=routist
+RELEASE_KEY_ALIAS=...
 RELEASE_KEY_PASSWORD=...
 ```
 
@@ -259,21 +258,23 @@ RELEASE_KEY_PASSWORD=...
 | v6 | tenko_records に assignmentId 追加（現在） |
 
 マイグレーション: `MIGRATION_4_5`, `MIGRATION_5_6` を `AppDatabase.kt` に定義済み。
-`fallbackToDestructiveMigration()` は v4 未満の安全網として残す。
+`fallbackToDestructiveMigration()` が設定されているため、Migrationを書き忘れてバージョンを上げると
+既存ユーザーのデータが警告なく全削除される。**バージョンを上げる際は必ずMigrationを追加すること。**
 
 ## アーキテクチャ（4タブ構成）
 
+Google Maps SDK / Geocoding APIには依存しない。地図タブ・ジオコーディング・ルート最適化は廃止済み。
+
 ```
 MainActivity
-├── DeliveryListFragment（ルートタブ）
-├── MapFragment（地図タブ）
+├── DeliveryListFragment（配達タブ。手動並べ替え・時間帯順自動並べ替え）
 ├── ReportContainerFragment（日報タブ）
 │   └── DailyReportFragment
 ├── TenkoFragment（点呼タブ）
 └── SettingsFragment（設定タブ）
 
 共有 ViewModel（activityViewModels）:
-├── DeliveryViewModel  ← グループ・配達リスト・ジオコーディング
+├── DeliveryViewModel  ← グループ・配達リスト・永続化
 ├── ReportViewModel    ← 日報レコード（案件フィルタ付き）
 └── TenkoViewModel     ← 点呼レコード（案件フィルタ付き）
 ```
@@ -283,8 +284,7 @@ MainActivity
 | ファイル | 役割 |
 |---|---|
 | `MainActivity.kt` | エントリポイント・タブ制御 |
-| `ui/DeliveryListFragment.kt` | ルートリスト・インポート・グループ管理 |
-| `ui/MapFragment.kt` | 地図・ピン・ルート線・ナビ |
+| `ui/DeliveryListFragment.kt` | 配達リスト・インポート・グループ管理 |
 | `ui/DailyReportFragment.kt` | 日報入力・Excel出力・案件別設定 |
 | `ui/TenkoFragment.kt` | 点呼記録・案件フィルタ |
 | `ui/SettingsFragment.kt` | グローバル設定 |
@@ -305,9 +305,9 @@ MainActivity
 
 ## 永続化
 
-- Room DB: WorkRecord・TenkoRecord
+- Room DB: WorkRecord・TenkoRecord・Delivery等
 - SharedPreferences: グループ・配達リスト・設定値
-- Downloads: `RouteJin_グループ名.txt` を自動出力
+- Downloads: `HaiReel_グループ名.txt` を自動出力
 - 写真: `filesDir/camera_photos/`
 
 ## ADB 操作
@@ -315,6 +315,6 @@ MainActivity
 ```powershell
 $adb = "C:\Users\rodge\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 & $adb devices
-& $adb shell am start -n "com.rodgers.routist/.MainActivity"
+& $adb shell am start -n "com.rodgers.haireel.debug/com.rodgers.haireel.MainActivity"
 & $adb shell screencap -p /sdcard/screen.png; & $adb pull /sdcard/screen.png .\screen.png
 ```

@@ -41,11 +41,13 @@ internal fun TenkoFragment.showMonthSummary() {
     }
     val effectiveDays = (if (isCurrentMonth) today.dayOfMonth else daysInMonth) - noWorkCount
 
-    val daysWithBefore    = records.count { it.beforeDone }
-    val daysWithAfter     = records.count { it.afterDone }
-    val daysWithBoth      = records.count { it.beforeDone && it.afterDone }
-    val daysBeforeOnly    = records.count { it.beforeDone && !it.afterDone }
-    val daysAfterOnly     = records.count { !it.beforeDone && it.afterDone }
+    // 1日に複数便を記録できるため、「日」単位の集計は日付でグルーピングしてから判定する
+    val recordsByDate     = records.groupBy { it.date }
+    val runsWithBefore    = records.count { it.beforeDone }
+    val runsWithAfter     = records.count { it.afterDone }
+    val daysWithBoth      = recordsByDate.count { (_, recs) -> recs.any { it.beforeDone } && recs.any { it.afterDone } }
+    val daysBeforeOnly    = recordsByDate.count { (_, recs) -> recs.any { it.beforeDone } && recs.none { it.afterDone } }
+    val daysAfterOnly     = recordsByDate.count { (_, recs) -> recs.none { it.beforeDone } && recs.any { it.afterDone } }
     val recordedDates     = records.map { it.date }.toSet()
     val daysNoRecord      = (effectiveDays - recordedDates.size).coerceAtLeast(0)
     val alcBeforeAbnormal = records.count { (it.beforeAlcohol ?: 0.0) > 0.0 }
@@ -224,14 +226,14 @@ internal fun TenkoFragment.showMonthSummary() {
         cardTitle("📋  記録状況", cBlue)
         progressBar("前後 両方完了", daysWithBoth, effectiveDays,
             if (daysWithBoth == effectiveDays) cGreen else cBlue)
-        statRow("🌅", "乗務前 完了", "${daysWithBefore}便")
-        statRow("🌆", "乗務後 完了", "${daysWithAfter}便")
+        statRow("🌅", "乗務前 完了", "${runsWithBefore}便")
+        statRow("🌆", "乗務後 完了", "${runsWithAfter}便")
         if (daysBeforeOnly > 0 || daysAfterOnly > 0) {
             divider()
             if (daysBeforeOnly > 0)
-                statRow("⚠️", "前のみ（後が未記録）", "${daysBeforeOnly}便", cOrange)
+                statRow("⚠️", "前のみ（後が未記録）", "${daysBeforeOnly}日", cOrange)
             if (daysAfterOnly > 0)
-                statRow("⚠️", "後のみ（前が未記録）", "${daysAfterOnly}便", cOrange)
+                statRow("⚠️", "後のみ（前が未記録）", "${daysAfterOnly}日", cOrange)
         }
         if (noWorkCount > 0) {
             divider()

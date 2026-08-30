@@ -174,12 +174,9 @@ internal fun DeliveryListFragment.showItemOptions(delivery: Delivery, showNavCom
             !delivery.openTime.isNullOrBlank() && !delivery.closeTime.isNullOrBlank() ->
                 "${delivery.openTime}〜${delivery.closeTime}"
             !delivery.closeTime.isNullOrBlank() -> "〜${delivery.closeTime}"
-            else -> "ルート最適化の優先順位に使用する"
+            else -> "時間帯順の並べ替えに使用する"
         }
         row("🏪", "営業時間を設定", businessHoursSub) { showBusinessHoursDialog(delivery) }
-        val dwellSub = delivery.dwellMinutes?.let { "${it}分（個別設定）" }
-            ?: "未設定（全体設定を使用）"
-        row("⏱", "滞在時間を設定", dwellSub) { showDwellDialog(delivery) }
 
         val noteTitle = if (delivery.note.isNullOrBlank()) "メモを追加" else "メモを編集"
         val noteSub   = if (delivery.note.isNullOrBlank()) "受け取り方法・備考などを記録する"
@@ -611,86 +608,17 @@ internal fun DeliveryListFragment.showEditDialog(delivery: Delivery) {
         val dlg = AlertDialog.Builder(ctx)
             .setTitle("名前・住所を編集")
             .setView(scroll)
-            .setPositiveButton("住所で再検索", null)
-            .setNeutralButton("そのまま保存", null)
+            .setPositiveButton("保存", null)
             .setNegativeButton("キャンセル", null)
             .show()
 
-        dlg.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val newName    = nameInput.text.toString().trim()
             val newKana    = kanaInput.text.toString().trim().ifBlank { null }
             val newAddress = addrInput.text.toString().trim()
             if (newAddress.isBlank() && newName.isBlank()) return@setOnClickListener
             viewModel.updateNameAndAddressOnly(delivery.id, newName, newAddress, newKana)
             dlg.dismiss()
-        }
-
-        dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            val newName    = nameInput.text.toString().trim()
-            val newKana    = kanaInput.text.toString().trim().ifBlank { null }
-            val newAddress = addrInput.text.toString().trim()
-            // 住所も店名も両方空なら何もしない
-            if (newAddress.isBlank() && newName.isBlank()) return@setOnClickListener
-            // ふりがなだけ即保存（住所は再ジオコーディングが必要）
-            if (newKana != delivery.nameKana) {
-                viewModel.updateNameKana(delivery.id, newKana)
-            }
-            dlg.dismiss()
-
-            lifecycleScope.launch {
-                // 住所があればジオコーディング候補を取得、なければ空
-                val geoCandidates = if (newAddress.isNotBlank()) {
-                    withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        com.rodgers.haireel.util.GeocodingClient.geocodeCandidates(newAddress)
-                    }
-                } else emptyList()
-                // 店名があればPlaces候補を取得
-                val placeCandidates = if (newName.isNotBlank()) {
-                    withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        com.rodgers.haireel.util.GeocodingClient.searchPlaces(newName)
-                    }
-                } else emptyList()
-
-                if (!isAdded) return@launch
-
-                // 住所・lat・lng の三つ組リスト（表示ラベル / 保存住所 / 座標）
-                val items = mutableListOf<Triple<String, Double, Double>>()
-                // 店名候補を先頭に（住所より関連度が高い）
-                placeCandidates.forEach { p ->
-                    items.add(Triple(p.address, p.lat, p.lng))
-                }
-                // 住所候補を追加（座標が重複するものは除外）
-                geoCandidates.forEach { r ->
-                    val dup = items.any {
-                        Math.abs(it.second - r.lat) < 0.001 && Math.abs(it.third - r.lng) < 0.001
-                    }
-                    if (!dup) items.add(Triple(r.formattedAddress, r.lat, r.lng))
-                }
-
-                if (items.isEmpty()) {
-                    if (newAddress.isBlank()) {
-                        android.widget.Toast.makeText(ctx,
-                            "「$newName」の場所が見つかりませんでした。住所も入力してみてください。",
-                            android.widget.Toast.LENGTH_LONG).show()
-                    } else {
-                        // 候補なし → 通常のジオコーディングにフォールバック
-                        viewModel.editDelivery(delivery.id, newName, newAddress)
-                    }
-                    return@launch
-                }
-
-                val labels = items.map { it.first }.toTypedArray()
-                var selectedIdx = 0
-                AlertDialog.Builder(ctx)
-                    .setTitle(if (newName.isNotBlank()) "「$newName」の場所を選んでください" else "場所を選んでください")
-                    .setSingleChoiceItems(labels, 0) { _, which -> selectedIdx = which }
-                    .setPositiveButton("この場所を使う") { _, _ ->
-                        val sel = items[selectedIdx]
-                        viewModel.applyCandidate(delivery.id, newName, sel.first, sel.second, sel.third)
-                    }
-                    .setNegativeButton("キャンセル", null)
-                    .show()
-            }
         }
     }
 
@@ -823,9 +751,9 @@ internal fun DeliveryListFragment.showBusinessHoursDialog(delivery: Delivery) {
         }, closeH ?: 18, closeM ?: 0, true).show()
     }
 
-    layout.addView(label("開始時間（任意）"))
+    layout.addView(label("開始時間（時間帯順の並べ替えに使用）"))
     layout.addView(btnOpen)
-    layout.addView(label("終了時間（ルート最適化で優先される）"))
+    layout.addView(label("終了時間（任意）"))
     layout.addView(btnClose)
 
     AlertDialog.Builder(ctx)
@@ -839,46 +767,6 @@ internal fun DeliveryListFragment.showBusinessHoursDialog(delivery: Delivery) {
         }
         .setNeutralButton("クリア") { _, _ ->
             viewModel.updateBusinessHours(delivery.id, null, null)
-        }
-        .setNegativeButton("キャンセル", null)
-        .show()
-}
-
-internal fun DeliveryListFragment.showDwellDialog(delivery: Delivery) {
-    val ctx = requireContext()
-    val dp  = ctx.resources.displayMetrics.density
-
-    val til = com.google.android.material.textfield.TextInputLayout(
-        ctx, null, com.google.android.material.R.attr.textInputOutlinedStyle
-    ).apply {
-        hint = "⏱ 滞在時間"
-        helperText = "空欄にすると全体設定（出発・滞在設定）の値を使用します"
-        suffixText = "分"
-        boxBackgroundMode = com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE
-    }
-    com.google.android.material.textfield.TextInputEditText(ctx).apply {
-        inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        delivery.dwellMinutes?.let { setText(it.toString()) }
-        til.addView(this)
-    }
-
-    val layout = LinearLayout(ctx).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (8 * dp).toInt())
-        addView(til)
-    }
-
-    AlertDialog.Builder(ctx)
-        .setTitle("⏱ ${delivery.displayTitle}")
-        .setView(layout)
-        .setPositiveButton("保存") { _, _ ->
-            val v = til.editText?.text?.toString()?.toIntOrNull()?.coerceIn(0, 120)
-            viewModel.updateDwellMinutes(delivery.id, v)
-            Toast.makeText(ctx, if (v != null) "${v}分に設定しました" else "全体設定に戻しました", Toast.LENGTH_SHORT).show()
-        }
-        .setNeutralButton("クリア") { _, _ ->
-            viewModel.updateDwellMinutes(delivery.id, null)
-            Toast.makeText(ctx, "全体設定に戻しました", Toast.LENGTH_SHORT).show()
         }
         .setNegativeButton("キャンセル", null)
         .show()

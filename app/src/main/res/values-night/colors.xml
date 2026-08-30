@@ -29,13 +29,14 @@
     <!-- 行背景 -->
     <color name="colorDayBg">#1A1A1A</color>
     <color name="colorTodayBg">#2A2A2A</color>
-    <!-- 点呼チップ -->
+    <!-- 点呼チップ（乗務前=青・乗務後=赤・休日=オレンジ、実施済みは緑） -->
     <color name="colorTenkoBefore">#64B5F6</color>
     <color name="colorTenkoBeforeBg">#0D1A2A</color>
-    <color name="colorTenkoAfter">#FFAB40</color>
-    <color name="colorTenkoAfterBg">#2A1500</color>
-    <color name="colorTenkoDoneFg">#81C784</color>
-    <color name="colorTenkoDoneBg">#0A2210</color>
-    <color name="colorBannerHintText">#668866</color>
+    <color name="colorTenkoAfter">#E57373</color>
+    <color name="colorTenkoAfterBg">#2A1010</color>
+    <color name="colorTenkoDoneFg">#A5D6A7</color>
+    <color name="colorTenkoDoneBg">#0F2A12</color>
+    <color name="colorTenkoNoWork">#FFB74D</color>
+    <color name="colorTenkoNoWorkBg">#2A1B00</color>
     <color name="colorProgressBg">#444444</color>
 </resources>

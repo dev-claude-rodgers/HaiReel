@@ -72,13 +72,9 @@ class DeliveryListFragment : Fragment() {
 
     enum class ProgressDisplay { COUNT, PERCENT, REMAINING, HIDDEN }
 
-    enum class ViewMode { LIST, MAP }
-    internal var viewMode = ViewMode.LIST
-
     internal var pendingPhotoDeliveryId: String? = null
     internal var pendingPhotoFilePath: String? = null
     private lateinit var itemTouchHelper: ItemTouchHelper
-    private lateinit var distanceDecoration: DistanceItemDecoration
 
     // 積み込みチェック（インメモリ。アプリ再起動でリセット）
     internal val loadedIds = mutableSetOf<String>()
@@ -134,11 +130,9 @@ class DeliveryListFragment : Fragment() {
             onSelectionChanged = { updateSelectionUI() }
         )
 
-        distanceDecoration = DistanceItemDecoration(requireContext())
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             this.adapter = this@DeliveryListFragment.adapter
-            addItemDecoration(distanceDecoration)
         }
 
         itemTouchHelper = buildItemTouchHelper()
@@ -147,7 +141,6 @@ class DeliveryListFragment : Fragment() {
         setupFilterChip()
         setupSelectionBar()
 
-        binding.buttonSubToggle.setOnClickListener { cycleViewMode() }
         binding.buttonListMenu.setOnClickListener { showListActions() }
         binding.layoutProgress.setOnClickListener { cycleProgressDisplay() }
 
@@ -378,50 +371,7 @@ class DeliveryListFragment : Fragment() {
         }
         val sorted = filtered.sortedBy { it.order }
         adapter.submitList(sorted)
-        val ctx = requireContext()
-        val s = com.rodgers.haireel.util.AppSettings
-        val showDist = s.isDistanceVisible(ctx)
-        val depLat = s.getDepartureLat(ctx); val depLng = s.getDepartureLng(ctx)
-        val arrLat = s.getArrivalLat(ctx);   val arrLng = s.getArrivalLng(ctx)
-        distanceDecoration.isEnabled = showDist
-        distanceDecoration.setDeparture(depLat, depLng)
-        distanceDecoration.setArrival(arrLat, arrLng)
-        distanceDecoration.update(sorted)
-        binding.recyclerView.invalidateItemDecorations()
         binding.textEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
-
-        // ETA 計算
-        val depTimeStr = s.getDepartureTime(ctx)
-        val depMinutes = com.rodgers.haireel.util.EtaCalculator.parseMinutes(depTimeStr)
-        if (showDist && depMinutes >= 0) {
-            val etaList = com.rodgers.haireel.util.EtaCalculator.compute(
-                sorted.size,
-                distanceDecoration.depToFirst,
-                distanceDecoration.distances,
-                depMinutes,
-                s.getDwellMinutes(ctx),
-                s.getAvgSpeedKmh(ctx),
-                sorted.map { it.dwellMinutes }
-            )
-            adapter.setEtas(sorted.mapIndexed { i, d -> d.id to etaList.getOrNull(i) }.toMap())
-        } else {
-            adapter.setEtas(emptyMap())
-        }
-
-        // 合計距離バッジ更新
-        val totalKm = distanceDecoration.totalKm
-        if (showDist && sorted.size >= 2 && totalKm > 0) {
-            binding.tvTotalDistance.visibility = View.VISIBLE
-            val hasDep = depLat != 0.0 || depLng != 0.0
-            val hasArr = arrLat != 0.0 || arrLng != 0.0
-            binding.tvTotalDistance.text = when {
-                hasDep && hasArr -> "🏠→🏁 概算${"%.1f".format(totalKm)}km"
-                hasDep           -> "↻ 概算${"%.1f".format(totalKm)}km"
-                else             -> "⟷ 概算${"%.1f".format(totalKm)}km"
-            }
-        } else {
-            binding.tvTotalDistance.visibility = View.GONE
-        }
 
         val total = list.size
         val done  = list.count { it.isCompleted }
@@ -463,66 +413,9 @@ class DeliveryListFragment : Fragment() {
         }
     }
 
-    /** リスト→地図→リスト と切り替え */
-    internal fun cycleViewMode() {
-        viewMode = when (viewMode) {
-            ViewMode.LIST -> ViewMode.MAP
-            ViewMode.MAP  -> ViewMode.LIST
-        }
-        applyViewMode()
-    }
-
-    internal fun applyViewMode() {
-        val isMap  = viewMode == ViewMode.MAP
-        val isList = viewMode == ViewMode.LIST
-
-        binding.mapContainer.visibility   = if (isMap)  View.VISIBLE else View.GONE
-        binding.recyclerView.visibility   = if (isList) View.VISIBLE else View.GONE
-        binding.layoutProgress.isClickable = isList
-        binding.layoutProgress.visibility  = if (isList) View.VISIBLE else View.GONE
-        binding.textEmpty.visibility      = if (isList) View.VISIBLE else View.GONE
-        binding.chipIncomplete.visibility  = if (isList) View.VISIBLE else View.GONE
-
-        binding.buttonSubToggle.text = when (viewMode) {
-            ViewMode.LIST -> getString(R.string.btn_map_toggle)
-            ViewMode.MAP  -> "📋 リスト"
-        }
-
-        if (isMap && childFragmentManager.findFragmentByTag("map") == null) {
-            childFragmentManager.beginTransaction()
-                .add(R.id.mapContainer, MapFragment(), "map")
-                .commitAllowingStateLoss()
-        }
-        if (isList) applyFilter()
-    }
-
-    // 既存コードとの互換性のために残す
-    internal fun showMapView() {
-        viewMode = ViewMode.MAP; applyViewMode()
-    }
-    internal fun switchToListView() {
-        viewMode = ViewMode.LIST; applyViewMode()
-    }
-
-    // 統合メニューから地図専用の操作を呼ぶ際のブリッジ。
-    // リスト表示中なら地図表示に切り替え、地図の準備が済んでいなければ準備完了後に実行する。
-    internal fun runOnMap(action: MapFragment.() -> Unit) {
-        if (viewMode != ViewMode.MAP) { viewMode = ViewMode.MAP; applyViewMode() }
-        val frag = childFragmentManager.findFragmentByTag("map") as? MapFragment
-        when {
-            frag?.googleMap != null -> frag.action()
-            frag != null            -> frag.pendingMenuAction = action
-            else -> binding.mapContainer.post {
-                val f = childFragmentManager.findFragmentByTag("map") as? MapFragment
-                if (f?.googleMap != null) f.action() else f?.pendingMenuAction = action
-            }
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         viewModel.reloadFromDb()
-        if (viewMode != ViewMode.LIST) applyViewMode()
     }
 
     override fun onStop() {

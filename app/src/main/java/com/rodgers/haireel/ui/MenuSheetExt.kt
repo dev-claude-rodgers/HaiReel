@@ -82,6 +82,14 @@ fun LinearLayout.addMenuRow(
     addView(row)
 }
 
+fun LinearLayout.addMenuSectionLabel(text: String, dp: Float, subColor: Int) {
+    addView(TextView(context).apply {
+        this.text = text; textSize = 11f
+        setTextColor(subColor)
+        setPadding((84 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (2 * dp).toInt())
+    })
+}
+
 fun LinearLayout.addMenuDivider(dp: Float, outlineColor: Int) {
     addView(View(context).apply {
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (1 * dp).toInt())

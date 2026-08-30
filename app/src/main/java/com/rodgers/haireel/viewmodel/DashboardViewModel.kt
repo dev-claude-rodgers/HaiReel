@@ -49,7 +49,10 @@ class DashboardViewModel @Inject constructor(
     val patterns: StateFlow<List<ReportPattern>> = _patterns
 
     init {
-        viewModelScope.launch { refresh() }
+        viewModelScope.launch {
+            try { refresh() }
+            catch (e: Exception) { android.util.Log.e("DashboardViewModel", "初期読み込み失敗", e) }
+        }
     }
 
     fun setPatternId(id: String) { _patternSel.value = id }

@@ -317,7 +317,3 @@ private fun looksLikeCsvOrTsv(text: String): Boolean {
     )
     return keywords.any { first.contains(it, ignoreCase = true) }
 }
-
-internal fun DeliveryListFragment.toggleMapView() {
-    if (viewMode == DeliveryListFragment.ViewMode.MAP) switchToListView() else showMapView()
-}

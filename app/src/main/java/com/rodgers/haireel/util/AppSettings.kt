@@ -208,42 +208,6 @@ object AppSettings {
     fun getUndoSeconds(ctx: Context): Int = prefs(ctx).getInt("undo_seconds", 5)
     fun setUndoSeconds(ctx: Context, v: Int) = prefs(ctx).edit().putInt("undo_seconds", v).apply()
 
-    // ルート最適化: 閉店優先しきい値（分）
-    fun getUrgencyThresholdMinutes(ctx: Context): Int = prefs(ctx).getInt("urgency_threshold_minutes", 60)
-    fun setUrgencyThresholdMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("urgency_threshold_minutes", v).apply()
-
-    // ルート最適化: 出発地（住所・座標）
-    fun getDepartureAddress(ctx: Context): String = prefs(ctx).getString("departure_address", "") ?: ""
-    fun setDepartureAddress(ctx: Context, v: String) = prefs(ctx).edit().putString("departure_address", v).apply()
-    fun getDepartureLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "departure_lat_bits"))
-    fun getDepartureLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "departure_lng_bits"))
-    fun setDepartureLatLng(ctx: Context, lat: Double, lng: Double) = prefs(ctx).edit()
-        .putLong("departure_lat_bits", java.lang.Double.doubleToRawLongBits(lat))
-        .putLong("departure_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
-        .apply()
-
-    // 地点間距離表示
-    fun isDistanceVisible(ctx: Context): Boolean = prefs(ctx).getBoolean("distance_visible", true)
-    fun setDistanceVisible(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("distance_visible", v).apply()
-
-    // ETA 計算設定
-    fun getDepartureTime(ctx: Context): String = prefs(ctx).getString("departure_time", "") ?: ""
-    fun setDepartureTime(ctx: Context, v: String) = prefs(ctx).edit().putString("departure_time", v).apply()
-    fun getDwellMinutes(ctx: Context): Int = prefs(ctx).getInt("dwell_minutes", 5)
-    fun setDwellMinutes(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dwell_minutes", v).apply()
-    fun getAvgSpeedKmh(ctx: Context): Int = prefs(ctx).getInt("avg_speed_kmh", 30)
-    fun setAvgSpeedKmh(ctx: Context, v: Int) = prefs(ctx).edit().putInt("avg_speed_kmh", v).apply()
-
-    // ルート最適化: 帰着地（空の場合は出発地と同じ扱い）
-    fun getArrivalAddress(ctx: Context): String = prefs(ctx).getString("arrival_address", "") ?: ""
-    fun setArrivalAddress(ctx: Context, v: String) = prefs(ctx).edit().putString("arrival_address", v).apply()
-    fun getArrivalLat(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "arrival_lat_bits"))
-    fun getArrivalLng(ctx: Context): Double = java.lang.Double.longBitsToDouble(getLongPref(prefs(ctx), "arrival_lng_bits"))
-    fun setArrivalLatLng(ctx: Context, lat: Double, lng: Double) = prefs(ctx).edit()
-        .putLong("arrival_lat_bits", java.lang.Double.doubleToRawLongBits(lat))
-        .putLong("arrival_lng_bits", java.lang.Double.doubleToRawLongBits(lng))
-        .apply()
-
     // 配達先台帳: 除外リスト（"名前|住所" キーのSet）
     fun getLedgerExcluded(ctx: Context): Set<String> =
         prefs(ctx).getStringSet("ledger_excluded", emptySet()) ?: emptySet()
@@ -259,11 +223,6 @@ object AppSettings {
     // ダークモード (-1=システム, 1=ライト, 2=ダーク)
     fun getDarkMode(ctx: Context): Int = prefs(ctx).getInt("dark_mode", -1)
     fun setDarkMode(ctx: Context, v: Int) = prefs(ctx).edit().putInt("dark_mode", v).apply()
-
-    // ユーザー独自のGoogle APIキー（EncryptedSharedPreferencesに保存）
-    fun getUserApiKey(ctx: Context): String = encryptedPrefs(ctx).getString("user_api_key", "") ?: ""
-    fun setUserApiKey(ctx: Context, key: String) { encryptedPrefs(ctx).edit().putString("user_api_key", key).apply() }
-    fun hasUserApiKey(ctx: Context): Boolean = getUserApiKey(ctx).isNotBlank()
 
     // 運営プロキシ認証用のデバイスID（初回生成しEncryptedSharedPreferencesに保存）
     fun getOrCreateDeviceId(ctx: Context): String {
@@ -337,8 +296,7 @@ object AppSettings {
     // ネットワーク不要でオフラインでも機能するようにローカルにキャッシュする
     private const val KEY_SUBSCRIPTION_ACTIVE = "iap_subscription_active"
     private const val KEY_SUBSCRIPTION_CHECKED_AT = "iap_subscription_checked_at"
-    private const val KEY_SUBSCRIPTION_SOURCE = "subscription_source" // "play" | "web"
-    private const val KEY_WEB_LICENSE_CODE = "web_license_code"
+    private const val KEY_SUBSCRIPTION_SOURCE = "subscription_source" // "play" | "web"（"web"は過去の自社HP販売分の互換用）
 
     fun isSubscriptionActive(ctx: Context): Boolean =
         prefs(ctx).getBoolean(KEY_SUBSCRIPTION_ACTIVE, false)
@@ -351,21 +309,8 @@ object AppSettings {
             .apply()
     }
 
-    /** 自社HP（Stripe）経由のライセンスコードでの認証結果を保存する */
-    fun setWebLicense(ctx: Context, code: String, active: Boolean) {
-        prefs(ctx).edit()
-            .putBoolean(KEY_SUBSCRIPTION_ACTIVE, active)
-            .putLong(KEY_SUBSCRIPTION_CHECKED_AT, System.currentTimeMillis())
-            .putString(KEY_SUBSCRIPTION_SOURCE, "web")
-            .putString(KEY_WEB_LICENSE_CODE, code)
-            .apply()
-    }
-
     fun getSubscriptionSource(ctx: Context): String =
         prefs(ctx).getString(KEY_SUBSCRIPTION_SOURCE, "play") ?: "play"
-
-    fun getWebLicenseCode(ctx: Context): String =
-        prefs(ctx).getString(KEY_WEB_LICENSE_CODE, "") ?: ""
 
     // サブスク確認が古すぎる場合は再確認を促す（7日以内なら信頼）
     fun isSubscriptionCheckStale(ctx: Context): Boolean {
@@ -397,8 +342,4 @@ object AppSettings {
     fun isTtsEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("tts_enabled", false)
     fun setTtsEnabled(ctx: Context, v: Boolean) = prefs(ctx).edit().putBoolean("tts_enabled", v).apply()
 
-    // ── テーマカラー ──────────────────────────────────────────────
-    // "blue" | "teal" | "green" | "orange" | "purple" | "red" | "indigo" | "brown"
-    fun getThemeKey(ctx: Context): String = prefs(ctx).getString("app_theme", "blue") ?: "blue"
-    fun setThemeKey(ctx: Context, key: String) = prefs(ctx).edit().putString("app_theme", key).apply()
 }

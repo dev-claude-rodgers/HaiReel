@@ -15,7 +15,6 @@ import androidx.viewpager2.widget.ViewPager2
 import com.rodgers.haireel.MainActivity
 import com.rodgers.haireel.R
 import com.rodgers.haireel.util.AppSettings
-import com.rodgers.haireel.util.applyAppTheme
 import com.rodgers.haireel.util.themeColor
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -38,23 +37,12 @@ class OnboardingActivity : AppCompatActivity() {
         Page(
             "📥",
             "まず住所を追加しましょう",
-            "配達リストの右上メニューから\n「名前・住所を追加」をタップ。\n\nテキストを貼り付けるか\nファイルから読み込めます。\n\n左上のトグルで\n「すべて / 未完了のみ / 完了のみ」を切り替えられます。"
-        ),
-        Page(
-            "🗺",
-            "地図でルートを確認",
-            "住所を追加したら地図ボタンをタップ。\n\nピンが表示されたら\n「ルート最適化」で\n現在地から最短順に自動整列できます。"
-        ),
-        Page(
-            "🔑",
-            "地図にはAPIキーが必要です",
-            "設定 → Google APIキー設定から登録できます。\n\nGoogle Cloudで無料取得でき、\n個人利用は無料枠内に収まります。\n\nキーなしでも住所管理・日報・\n点呼は使えます。"
+            "配達リストの右上メニューから\n「名前・住所を追加」をタップ。\n\nテキストを貼り付けるか\nファイルから読み込めます。\n\nハンドルをドラッグして\n配達順に並べ替えられます。"
         )
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-        applyAppTheme()
         super.onCreate(savedInstanceState)
 
         // オンボーディング済みならMainActivityに直接遷移
@@ -230,48 +218,8 @@ class OnboardingActivity : AppCompatActivity() {
             val onSurfaceVar = ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
 
             val termsText = android.widget.TextView(ctx).apply {
-                text = """利用規約
-
-第1条（目的）
-本規約は、HaiReel（以下「本アプリ」）の利用条件を定めるものです。
-ご利用の前に必ずお読みください。
-
-第2条（利用対象）
-本アプリは宅配ドライバーおよびその業務に関わる方を対象とした業務管理ツールです。
-
-第3条（知的財産権）
-本アプリのデザイン・UI・機能・画面構成・ロゴ・文言・アイコン等に関する知的財産権は、すべて開発者（RODGERS）に帰属します。
-本アプリを参考・模倣した類似アプリの作成・配布・販売を禁止します。
-
-第4条（禁止事項）
-・逆コンパイル・逆アセンブル・リバースエンジニアリング
-・本アプリのデザインや機能を模倣した類似アプリの制作・配布
-・サブスクリプションの第三者への譲渡・アカウント共有
-・違法な目的での使用
-・本アプリを利用した迷惑行為
-
-第5条（免責事項）
-・本アプリはあくまで補助ツールです。点呼記録・日報の法的効力を保証しません。
-・ルート最適化の結果は参考情報であり、精度を保証しません。
-・データの消失・破損に関して開発者は責任を負いません。
-・本アプリの利用により生じた損害について、開発者の故意または重大な過失による場合を除き、責任を負いません。
-・運転中の本アプリの操作は道路交通法に違反する場合があります。走行中は必ず安全な場所に停車してからご使用ください。
-
-第6条（サービスの変更・停止）
-開発者は事前の通知なくサービスの内容変更・停止を行う場合があります。
-
-第7条（料金）
-試用期間（7日間）は無料でご利用いただけます。
-継続利用には Google Play のサブスクリプション登録が必要です。
-月額プラン（¥300/月）または年額プラン（¥2,980/年）をお選びください。
-返金についてはGoogle Playの返金ポリシーに準じます。
-
-第8条（準拠法・管轄）
-本規約は日本法に準拠し、紛争は開発者所在地の裁判所を第一審管轄とします。
-
-第9条（規約の変更）
-本規約は事前の通知なく変更される場合があります。
-変更後の規約はアプリ内に掲示された時点で効力を生じます。"""
+                // 設定タブの利用規約と内容が食い違わないよう、本文はSettingsLegalDialogs.ktのTERMS_TEXTを共有する
+                text = TERMS_TEXT
                 textSize = 13f
                 setTextColor(onSurface)
                 setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())

@@ -252,15 +252,15 @@ class TenkoMonthAdapter(
             tvDayLabel.text = "${day}（${wd}）"
             tvDayLabel.setTextColor(dayColor)
 
-            val noWorkFg = Color.parseColor("#E65100")
-            val noWorkBg = Color.parseColor("#20FF9800")
+            val noWorkFg = ContextCompat.getColor(ctx, R.color.colorTenkoNoWork)
+            val noWorkBg = ContextCompat.getColor(ctx, R.color.colorTenkoNoWorkBg)
 
             if (row.noWork) {
                 chipBefore.visibility = View.GONE
                 chipAfter.visibility  = View.GONE
                 chipNoWork.visibility = View.VISIBLE
                 chipNoWork.alpha      = 1f
-                chipNoWork.text       = "休日"
+                chipNoWork.text       = "✓ 休日"
                 chipNoWork.setTextColor(noWorkFg)
                 chipNoWork.background = GradientDrawable().apply {
                     setColor(noWorkBg)
@@ -272,12 +272,12 @@ class TenkoMonthAdapter(
                 chipBefore.visibility = View.VISIBLE
                 chipAfter.visibility  = View.VISIBLE
                 chipNoWork.visibility = View.VISIBLE
-                chipNoWork.alpha      = 0.4f
+                chipNoWork.alpha      = 1f
                 chipNoWork.text       = "休日"
-                chipNoWork.setTextColor(ContextCompat.getColor(ctx, R.color.colorWeekdayText))
+                chipNoWork.setTextColor(noWorkFg)
                 chipNoWork.background = GradientDrawable().apply {
                     setColor(Color.TRANSPARENT)
-                    setStroke((1.5f * dp).toInt(), ContextCompat.getColor(ctx, R.color.colorWeekdayText))
+                    setStroke((1.5f * dp).toInt(), noWorkFg)
                     cornerRadius = 6 * dp
                 }
                 chipNoWork.setOnClickListener { onNoWorkToggle(row.date, true) }
@@ -332,7 +332,7 @@ class TenkoMonthAdapter(
                           else             ContextCompat.getColor(ctx, R.color.colorDayBg)
 
             fun chip(label: String, done: Boolean, isBefore: Boolean, onClick: () -> Unit) = TextView(ctx).apply {
-                text = label; textSize = 16f
+                text = if (done) "✓ $label" else label; textSize = 16f
                 val accentFg = ContextCompat.getColor(ctx, if (isBefore) R.color.colorTenkoBefore else R.color.colorTenkoAfter)
                 val accentBg = ContextCompat.getColor(ctx, if (isBefore) R.color.colorTenkoBeforeBg else R.color.colorTenkoAfterBg)
                 val doneFg   = ContextCompat.getColor(ctx, R.color.colorTenkoDoneFg)
@@ -402,14 +402,16 @@ class TenkoMonthAdapter(
                 layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
             })
             if (row.noWork) {
+                val noWorkFg = ContextCompat.getColor(ctx, R.color.colorTenkoNoWork)
+                val noWorkBg = ContextCompat.getColor(ctx, R.color.colorTenkoNoWorkBg)
                 headerRow.addView(TextView(ctx).apply {
                     text = "休日"; textSize = 12f
-                    setTextColor(Color.parseColor("#E65100"))
+                    setTextColor(noWorkFg)
                     setTypeface(null, Typeface.BOLD)
                     setPadding((6*dp).toInt(), (3*dp).toInt(), (6*dp).toInt(), (3*dp).toInt())
                     background = GradientDrawable().apply {
-                        setColor(Color.parseColor("#20FF9800"))
-                        setStroke((1*dp).toInt(), Color.parseColor("#E65100"))
+                        setColor(noWorkBg)
+                        setStroke((1*dp).toInt(), noWorkFg)
                         cornerRadius = 6*dp
                     }
                     layoutParams = LinearLayout.LayoutParams(WRAP, WRAP).also { it.marginStart = (8*dp).toInt() }

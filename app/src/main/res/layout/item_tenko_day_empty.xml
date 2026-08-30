@@ -55,7 +55,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="休"
-        android:textSize="14sp"
+        android:textSize="16sp"
         android:textStyle="bold"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"

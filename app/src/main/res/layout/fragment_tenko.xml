@@ -92,7 +92,7 @@
         android:gravity="center"
         android:paddingHorizontal="24dp"
         android:paddingVertical="20dp"
-        android:background="@color/colorTenkoDoneBg"
+        android:background="@color/colorHintBg"
         android:visibility="gone">
 
         <TextView
@@ -100,7 +100,7 @@
             android:layout_height="wrap_content"
             android:text="📋 今月の点呼記録はまだありません"
             android:textSize="14sp"
-            android:textColor="@color/colorTenkoDoneFg"
+            android:textColor="@color/colorHintText"
             android:textStyle="bold"
             android:gravity="center" />
 
@@ -110,7 +110,7 @@
             android:layout_marginTop="4dp"
             android:text="日付をタップして乗務前・乗務後の点呼を記録できます"
             android:textSize="12sp"
-            android:textColor="@color/colorBannerHintText"
+            android:textColor="@color/colorHintText"
             android:gravity="center" />
 
     </LinearLayout>

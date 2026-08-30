@@ -14,62 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.rodgers.haireel.util.AppSettings
 import com.rodgers.haireel.util.SignatureStorage
-import com.rodgers.haireel.util.themeColor
 import com.rodgers.haireel.viewmodel.*
 import kotlinx.coroutines.launch
-
-internal fun DailyReportFragment.showPrivacyPolicyDialog() {
-    if (!isAdded) return
-    val ctx = requireContext()
-    val dp  = ctx.resources.displayMetrics.density
-
-    val text = """
-プライバシーポリシー
-最終更新：2026年6月
-
-1. 収集する情報
-本アプリ（HaiReel）は、以下の情報をお客様の端末内にのみ保存します。
-・入力された配達先住所・メモ
-・日報（稼働日・件数・走行距離）
-・アプリ設定（氏名・単価・事業者情報）
-
-2. 情報の利用目的
-収集した情報は、ルート管理・日報作成・Excel出力のためにのみ使用します。
-
-3. 外部サービスの利用
-住所の地図表示・ルート案内のため、Google Maps API を使用しています。
-入力した住所はGoogle のサーバーに送信される場合があります。
-Google のプライバシーポリシーは https://policies.google.com/privacy をご参照ください。
-
-4. 第三者への提供
-お客様の情報を開発者または第三者に送信・販売・共有することはありません。
-すべてのデータはお客様の端末内にのみ保存されます。
-
-5. データの削除
-アプリをアンインストールすることで、端末に保存されたすべてのデータが削除されます。
-
-6. お問い合わせ
-本ポリシーに関するご質問は、アプリ内の「アプリについて」よりご連絡ください。
-    """.trimIndent()
-
-    val tv = android.widget.TextView(ctx).apply {
-        this.text = text
-        textSize = 14f
-        setTextColor(ctx.themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-        setPadding((20 * dp).toInt(), (16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt())
-        setLineSpacing(0f, 1.4f)
-    }
-    val scroll = android.widget.ScrollView(ctx).apply {
-        setBackgroundColor(ctx.themeColor(com.google.android.material.R.attr.colorSurface))
-        addView(tv)
-    }
-
-    MaterialAlertDialogBuilder(ctx)
-        .setTitle("プライバシーポリシー")
-        .setView(scroll)
-        .setPositiveButton("閉じる", null)
-        .show()
-}
 
 internal fun DailyReportFragment.showAppSettingsDialog() {
     if (!isAdded) return

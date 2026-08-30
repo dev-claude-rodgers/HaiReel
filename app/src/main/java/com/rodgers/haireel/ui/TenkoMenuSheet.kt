@@ -31,8 +31,10 @@ internal fun TenkoFragment.showTenkoMenu() {
         root.addMenuRow(emoji, title, sub, dp, color, onSurfaceVariant, ripple, { sheet.dismiss() }, action)
 
     fun divider() = root.addMenuDivider(dp, outlineVariant)
+    fun sectionLabel(text: String) = root.addMenuSectionLabel(text, dp, onSurfaceVariant)
 
-    // ── よく使う操作
+    // ── 運行状況の確認
+    sectionLabel("運行状況の確認")
     row("📈", "表示月の集計", "完了率・乗務時間・アルコール検知") { showMonthSummary() }
     val timerState = AppSettings.getDriveTimerState(ctx)
     val timerLabel = when (timerState) {
@@ -43,13 +45,17 @@ internal fun TenkoFragment.showTenkoMenu() {
     row("⏱", "連続運転タイマー", timerLabel) { sheet.dismiss(); show430TimerDialog() }
     divider()
     // ── 出力
+    sectionLabel("出力")
     row("📊", "Excel出力", "表示月の点呼簿をExcelで保存・共有") { exportTenko() }
     row("📤", "テキストで共有", "LINEやメールで表示月の点呼記録を送る") { shareMonthText() }
     divider()
     // ── 設定
+    sectionLabel("設定")
     row("⚙️", "点呼設定", "乗務員名・確認者名・車両・表示設定") { showTenkoSettings() }
     row("🔔", "点呼リマインダー", "乗務前後の通知時刻を設定") { showReminderDialog() }
     divider()
+    // ── 危険操作
+    sectionLabel("危険操作")
     row("🗑", "表示月の点呼データを削除", "削除直後は取り消し可能", redColor) { confirmDeleteMonth() }
 
     root.addView(View(ctx).apply {

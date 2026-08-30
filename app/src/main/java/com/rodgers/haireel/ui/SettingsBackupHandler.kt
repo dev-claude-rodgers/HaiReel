@@ -20,14 +20,14 @@ class SettingsBackupHandler(private val appContext: Context) {
     fun doRestore(
         uri: Uri,
         password: String? = null,
-        onRestored: () -> Unit,
+        onRestored: (failedCount: Int) -> Unit,
         onError: (String) -> Unit
     ) {
         Toast.makeText(appContext, "復元中...", Toast.LENGTH_SHORT).show()
         scope.launch {
             try {
-                BackupManager.restoreBackup(appContext, uri, password)
-                withContext(Dispatchers.Main) { onRestored() }
+                val failedCount = BackupManager.restoreBackup(appContext, uri, password)
+                withContext(Dispatchers.Main) { onRestored(failedCount) }
             } catch (e: Throwable) {
                 withContext(Dispatchers.Main) {
                     onError(e.localizedMessage ?: "不明なエラーが発生しました。\nバックアップファイルを確認してください。")

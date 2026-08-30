@@ -38,13 +38,10 @@ internal fun DailyReportFragment.showReportMenu() {
         root.addMenuRow(emoji, title, sub, dp, color, onSurfaceVariant, ripple, { sheet.dismiss() }, action)
 
     fun divider() = root.addMenuDivider(dp, outlineVariant)
+    fun sectionLabel(text: String) = root.addMenuSectionLabel(text, dp, onSurfaceVariant)
 
-    fun sectionLabel(text: String) = root.addView(android.widget.TextView(ctx).apply {
-        this.text = text; textSize = 11f
-        setTextColor(onSurfaceVariant)
-        setPadding((84 * dp).toInt(), (10 * dp).toInt(), (20 * dp).toInt(), (2 * dp).toInt())
-    })
-
+    // ── 記録
+    sectionLabel("記録")
     row("📅", "今日の日報を記録", "今日の行を開いて入力する") { openTodayDialog() }
     divider()
     // ── 出力・集計
@@ -53,6 +50,7 @@ internal fun DailyReportFragment.showReportMenu() {
     row("📤", "テキストで共有", "帳票パターンの締め日で集計して共有") { shareReportText() }
     divider()
     // ── 設定
+    sectionLabel("設定")
     val currentPatternName = currentPattern().title
     row("📋", "帳票パターンを選択", "現在: $currentPatternName") { showPatternListDialog() }
     row("⛽", "燃料費設定", "車種・ガソリン単価・燃費を設定する") { showFareCalculationDialog() }
