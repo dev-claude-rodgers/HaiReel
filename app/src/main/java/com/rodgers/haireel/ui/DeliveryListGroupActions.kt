@@ -781,6 +781,10 @@ internal fun DeliveryListFragment.confirmResetCompleted() {
     }
 
 internal fun DeliveryListFragment.confirmMarkAllCompleted() {
+        if (viewModel.deliveries.value.isEmpty()) {
+            android.widget.Toast.makeText(requireContext(), "配達先がありません", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         val remaining = viewModel.deliveries.value.count { !it.isCompleted }
         if (remaining == 0) {
             android.widget.Toast.makeText(requireContext(), "全件すでに完了しています", android.widget.Toast.LENGTH_SHORT).show()

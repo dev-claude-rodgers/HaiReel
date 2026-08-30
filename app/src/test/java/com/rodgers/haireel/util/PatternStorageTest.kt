@@ -174,8 +174,9 @@ class PatternStorageTest {
     }
 
     @Test
-    fun `getActiveは未設定のときensureDefaultのパターンを返す`() {
-        val active = PatternStorage.getActive(ctx)
-        assertNotNull(active)
+    fun `ensureDefaultは未設定のときデフォルトパターンを作成して返す`() {
+        val default = PatternStorage.ensureDefault(ctx)
+        assertNotNull(default)
+        assertEquals(default.id, PatternStorage.getActiveId(ctx))
     }
 }

@@ -1,6 +1,7 @@
 package com.rodgers.haireel.excel
 
 import android.content.Context
+import com.rodgers.haireel.viewmodel.ReportViewModel
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.*
@@ -153,21 +154,21 @@ class ExcelGeneratorTest {
 
     @Test
     fun `periodForPattern_closingDay25のとき前月26日から当月25日`() {
-        val (start, end) = gen.periodForPattern("2026-06", 25)
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 25)
         assertEquals("2026-05-26", start)
         assertEquals("2026-06-25", end)
     }
 
     @Test
     fun `periodForPattern_closingDay31のとき月初から月末`() {
-        val (start, end) = gen.periodForPattern("2026-06", 31)
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 31)
         assertEquals("2026-06-01", start)
         assertEquals("2026-06-30", end)
     }
 
     @Test
     fun `periodForPattern_closingDay15のとき前月16日から当月15日`() {
-        val (start, end) = gen.periodForPattern("2026-06", 15)
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 15)
         assertEquals("2026-05-16", start)
         assertEquals("2026-06-15", end)
     }
@@ -175,14 +176,14 @@ class ExcelGeneratorTest {
     @Test
     fun `periodForPattern_締め日が前月末日を超えるとき月末に丸める`() {
         // closingDay=30, yearMonth=2026-03 → prev=2026-02 (28日)
-        val (start, end) = gen.periodForPattern("2026-03", 30)
+        val (start, end) = ReportViewModel.computePeriod("2026-03", 30)
         assertEquals("2026-02-28", start)
         assertEquals("2026-03-30", end)
     }
 
     @Test
     fun `periodForPattern_closingDay1のとき前月2日から当月1日`() {
-        val (start, end) = gen.periodForPattern("2026-06", 1)
+        val (start, end) = ReportViewModel.computePeriod("2026-06", 1)
         assertEquals("2026-05-02", start)
         assertEquals("2026-06-01", end)
     }
@@ -425,7 +426,7 @@ class ExcelGeneratorTest {
     @Test
     fun `periodForPattern_closingDay31で2月は月末28日まで`() {
         // 2026-02: lastDay=28 → end=minOf(31が>=31で月末分岐) → "2026-02-28"
-        val (start, end) = gen.periodForPattern("2026-02", 31)
+        val (start, end) = ReportViewModel.computePeriod("2026-02", 31)
         assertEquals("2026-02-01", start)
         assertEquals("2026-02-28", end)
     }
@@ -433,7 +434,7 @@ class ExcelGeneratorTest {
     @Test
     fun `periodForPattern_closingDay31でうるう年2月は月末29日まで`() {
         // 2024-02: lastDay=29 → end="2024-02-29"
-        val (start, end) = gen.periodForPattern("2024-02", 31)
+        val (start, end) = ReportViewModel.computePeriod("2024-02", 31)
         assertEquals("2024-02-01", start)
         assertEquals("2024-02-29", end)
     }
@@ -443,7 +444,7 @@ class ExcelGeneratorTest {
         // yearMonth=2026-03, closingDay=28
         // prev=2026-02(28日): start=minOf(29, 28)=28 → "2026-02-28"
         // end=minOf(28, 31)=28 → "2026-03-28"
-        val (start, end) = gen.periodForPattern("2026-03", 28)
+        val (start, end) = ReportViewModel.computePeriod("2026-03", 28)
         assertEquals("2026-02-28", start)
         assertEquals("2026-03-28", end)
     }
@@ -452,7 +453,7 @@ class ExcelGeneratorTest {
     fun `periodForPattern_closingDay25で2026年1月は前年12月26日から`() {
         // prev=2025-12(31日): start=minOf(26, 31)=26 → "2025-12-26"
         // end=minOf(25, 31)=25 → "2026-01-25"
-        val (start, end) = gen.periodForPattern("2026-01", 25)
+        val (start, end) = ReportViewModel.computePeriod("2026-01", 25)
         assertEquals("2025-12-26", start)
         assertEquals("2026-01-25", end)
     }

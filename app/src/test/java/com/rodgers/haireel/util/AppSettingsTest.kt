@@ -25,8 +25,8 @@ class AppSettingsTest {
     // ── getClosingDay デフォルト値 ────────────────────────────
 
     @Test
-    fun `getClosingDayのデフォルト値は25`() {
-        assertEquals(25, AppSettings.getClosingDay(ctx))
+    fun `getClosingDayのデフォルト値は31`() {
+        assertEquals(31, AppSettings.getClosingDay(ctx))
     }
 
     @Test

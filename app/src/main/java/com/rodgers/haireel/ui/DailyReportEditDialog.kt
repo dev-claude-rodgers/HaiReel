@@ -437,9 +437,18 @@ fun showDailyReportEditDialog(
             Toast.makeText(ctx, "終了メーターは開始メーターより大きい値にしてください", Toast.LENGTH_SHORT).show()
             return@setOnClickListener
         }
-        val dist       = distIn.text.toString().toFloatOrNull()
+        val distRaw   = distIn.text.toString().toFloatOrNull()
+        val delivRaw  = delivCntIn.text.toString().toIntOrNull() ?: 0
+        val pkgRaw    = pkgCntIn.text.toString().toIntOrNull() ?: 0
+        val incomeRaw = incomeIn.text.toString().toIntOrNull() ?: 0
+        val fuelRaw   = fuelIn.text.toString().toIntOrNull() ?: 0
+        if ((distRaw != null && distRaw < 0f) || delivRaw < 0 || pkgRaw < 0 || incomeRaw < 0 || fuelRaw < 0) {
+            Toast.makeText(ctx, "マイナスの値は入力できません", Toast.LENGTH_SHORT).show()
+            return@setOnClickListener
+        }
+        val dist       = distRaw
             ?: if (em > sm && sm > 0) (em - sm).toFloat() else record.distanceKm
-        val delivCount = delivCntIn.text.toString().toIntOrNull() ?: 0
+        val delivCount = delivRaw
         val workMins   = ((endH * 60 + endM + endDateOffset * 24 * 60) - (startH * 60 + startM)).coerceAtLeast(0)
         val updated = record.copy(
             date          = selectedDate,
@@ -450,12 +459,12 @@ fun showDailyReportEditDialog(
             endMeter      = if (isNoWork) 0 else em,
             distanceKm    = if (isNoWork) 0f else dist,
             deliveryCount = if (isNoWork) 0 else delivCount,
-            packageCount  = if (isNoWork) 0 else (pkgCntIn.text.toString().toIntOrNull() ?: 0),
+            packageCount  = if (isNoWork) 0 else pkgRaw,
             area          = if (isNoWork) "" else areaIn.text.toString().trim(),
             alcCheck      = if (isNoWork) "" else alcValues[alcIdx],
             remarks       = remarksIn.text.toString().trim(),
-            income        = if (isNoWork) 0 else (incomeIn.text.toString().toIntOrNull() ?: 0),
-            fuelCost      = if (isNoWork) 0 else (fuelIn.text.toString().toIntOrNull() ?: 0),
+            income        = if (isNoWork) 0 else incomeRaw,
+            fuelCost      = if (isNoWork) 0 else fuelRaw,
             assignmentId  = assignmentId(),
             noWork        = isNoWork
         )

@@ -90,18 +90,30 @@ class DeliveryListFragment : Fragment() {
         val id = pendingPhotoDeliveryId ?: return@registerForActivityResult
         pendingPhotoDeliveryId = null
         uri ?: return@registerForActivityResult
-        val dest = File(requireContext().filesDir, "camera_photos/delivery_photo_${id}_${System.currentTimeMillis()}.jpg")
+        if (!isAdded) return@registerForActivityResult
+        val ctx = requireContext()
+        val dest = File(ctx.filesDir, "camera_photos/delivery_photo_${id}_${System.currentTimeMillis()}.jpg")
             .also { it.parentFile?.mkdirs() }
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                requireContext().contentResolver.openInputStream(uri)?.use { it.copyTo(dest.outputStream()) }
+                ctx.contentResolver.openInputStream(uri)?.use { it.copyTo(dest.outputStream()) }
                 withContext(Dispatchers.Main) { viewModel.addPhoto(id, dest.absolutePath) }
-            } catch (e: Exception) { Log.w("DeliveryListFragment", "カメラ写真コピー失敗", e) }
+            } catch (e: Exception) {
+                Log.w("DeliveryListFragment", "カメラ写真コピー失敗", e)
+                withContext(Dispatchers.Main) {
+                    if (isAdded) Toast.makeText(ctx, "写真の追加に失敗しました", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
     internal val cameraPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) pendingPhotoDeliveryId?.let { launchCamera(it) }
+        if (granted) {
+            pendingPhotoDeliveryId?.let { launchCamera(it) }
+        } else {
+            pendingPhotoDeliveryId = null
+            if (isAdded) Toast.makeText(requireContext(), "カメラ権限が許可されていないため撮影できません", Toast.LENGTH_SHORT).show()
+        }
     }
 
     internal val inputLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -257,8 +269,9 @@ class DeliveryListFragment : Fragment() {
         }
 
         binding.buttonSelectAll.setOnClickListener {
-            val list = viewModel.deliveries.value
-            if (adapter.selectedIds.size == list.size) {
+            // フィルタ表示中の一覧のみを対象にする（未表示の項目を巻き込まない）
+            val list = adapter.getCurrentList()
+            if (adapter.selectedIds.size == list.size && list.isNotEmpty()) {
                 adapter.clearSelection()
             } else {
                 adapter.selectAll(list.map { it.id }.toSet())
@@ -343,7 +356,7 @@ class DeliveryListFragment : Fragment() {
 
     internal fun updateSelectionUI() {
         val count = adapter.selectedIds.size
-        val total = viewModel.deliveries.value.size
+        val total = adapter.getCurrentList().size
         val hasSelection = count > 0
         binding.buttonDeleteSelected.text = if (hasSelection) "削除($count)" else "削除"
         binding.buttonDeleteSelected.isEnabled = hasSelection
@@ -372,6 +385,15 @@ class DeliveryListFragment : Fragment() {
         val sorted = filtered.sortedBy { it.order }
         adapter.submitList(sorted)
         binding.textEmpty.visibility = if (sorted.isEmpty()) View.VISIBLE else View.GONE
+
+        // フィルタ変更で非表示になった項目が選択に残らないようにする
+        if (adapter.isSelectMode) {
+            val visibleIds = sorted.map { it.id }.toSet()
+            if (adapter.selectedIds.retainAll(visibleIds)) {
+                adapter.notifyDataSetChanged()
+                updateSelectionUI()
+            }
+        }
 
         val total = list.size
         val done  = list.count { it.isCompleted }

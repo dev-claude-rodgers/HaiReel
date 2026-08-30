@@ -22,7 +22,6 @@ class DeliveryEntityMappingTest {
             address = "東京都新宿区1-1",
             geocodedAddress = "東京都新宿区1丁目1番",
             note = "メモ",
-            photoUri = "file:///old.jpg",
             photoUris = listOf("file:///a.jpg", "file:///b.jpg"),
             timeSlot = "14:00-16:00",
             packageCount = 3,
@@ -40,7 +39,7 @@ class DeliveryEntityMappingTest {
         assertEquals("東京都新宿区1-1", entity.address)
         assertEquals("東京都新宿区1丁目1番", entity.geocodedAddress)
         assertEquals("メモ", entity.note)
-        assertEquals("file:///old.jpg", entity.photoUri)
+        assertNull(entity.photoUri)
         assertNotNull(entity.photoUrisJson)
         assertEquals("14:00-16:00", entity.timeSlot)
         assertEquals(3, entity.packageCount)
@@ -103,7 +102,6 @@ class DeliveryEntityMappingTest {
 
         assertNull(restored.name)
         assertNull(restored.note)
-        assertNull(restored.photoUri)
         assertNull(restored.photoUris)
         assertNull(restored.rooms)
         assertNull(restored.timeSlot)
