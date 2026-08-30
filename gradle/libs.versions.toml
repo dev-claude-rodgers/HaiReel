@@ -59,6 +59,7 @@ billing = { group = "com.android.billingclient", name = "billing-ktx", version.r
 coil = { group = "io.coil-kt", name = "coil", version.ref = "coil" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version = "3.5.1" }
 espresso-intents = { group = "androidx.test.espresso", name = "espresso-intents", version = "3.5.1" }
+espresso-contrib = { group = "androidx.test.espresso", name = "espresso-contrib", version = "3.5.1" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version = "1.1.5" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version = "1.5.2" }
 

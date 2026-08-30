@@ -38,6 +38,7 @@ class SettingsFlowTest {
             .edit()
             .putBoolean("driver_mode", true)
             .putBoolean("show_mode_on_launch", false)
+            .putBoolean("iap_subscription_active", true)
             .commit()
         scenario = ActivityScenario.launch(MainActivity::class.java)
         onView(withId(R.id.nav_settings)).perform(click())

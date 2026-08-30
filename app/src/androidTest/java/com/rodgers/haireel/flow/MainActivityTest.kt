@@ -39,6 +39,7 @@ class MainActivityTest {
             .edit()
             .putBoolean("driver_mode", true)
             .putBoolean("show_mode_on_launch", false)
+            .putBoolean("iap_subscription_active", true)
             .commit()
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }

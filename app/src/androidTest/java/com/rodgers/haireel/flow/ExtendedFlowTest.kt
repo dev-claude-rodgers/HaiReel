@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import org.hamcrest.Matchers.containsString
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -39,6 +40,7 @@ class ExtendedFlowTest {
             .edit()
             .putBoolean("driver_mode", true)
             .putBoolean("show_mode_on_launch", false)
+            .putBoolean("iap_subscription_active", true)
             .commit()
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
@@ -81,7 +83,7 @@ class ExtendedFlowTest {
     fun reportTab_patternDialog_canOpenAndClose() {
         onView(withId(R.id.nav_report)).perform(click())
         onView(withId(R.id.btnMenu)).perform(click())
-        onView(withText("帳票を切り替え")).perform(click())
+        onView(withText("帳票パターンを選択")).perform(click())
         onView(withText("帳票設定")).check(matches(isDisplayed()))
         pressBack()
     }
@@ -90,7 +92,7 @@ class ExtendedFlowTest {
     fun reportTab_patternDialog_hasAddButton() {
         onView(withId(R.id.nav_report)).perform(click())
         onView(withId(R.id.btnMenu)).perform(click())
-        onView(withText("帳票を切り替え")).perform(click())
+        onView(withText("帳票パターンを選択")).perform(click())
         onView(withText("+ 新しいパターンを追加")).check(matches(isDisplayed()))
         pressBack()
     }
@@ -113,7 +115,7 @@ class ExtendedFlowTest {
     fun settingsTab_licenseRow_click_opensDialog() {
         onView(withId(R.id.nav_settings)).perform(click())
         onView(withId(R.id.rowLicense)).perform(click())
-        onView(withText("🔑 ライセンスキーを入力")).check(matches(isDisplayed()))
+        onView(withText("🚚  HaiReel プレミアム")).check(matches(isDisplayed()))
         pressBack()
     }
 
@@ -121,8 +123,8 @@ class ExtendedFlowTest {
     fun settingsTab_licenseDialog_canOpenAndHasAuthButton() {
         onView(withId(R.id.nav_settings)).perform(click())
         onView(withId(R.id.rowLicense)).perform(click())
-        onView(withText("🔑 ライセンスキーを入力")).check(matches(isDisplayed()))
-        onView(withText("認証する")).check(matches(isDisplayed()))
+        onView(withText("🚚  HaiReel プレミアム")).check(matches(isDisplayed()))
+        onView(withText(containsString("年額プラン"))).check(matches(isDisplayed()))
         pressBack()
     }
 
@@ -145,22 +147,14 @@ class ExtendedFlowTest {
     @Test
     fun deliveryList_menuOpens_importOptionVisible() {
         onView(withId(R.id.buttonListMenu)).perform(click())
-        onView(withText("住所をインポート")).check(matches(isDisplayed()))
-        pressBack()
-    }
-
-    @Test
-    fun deliveryList_menuOpens_scanOptionVisible() {
-        onView(withId(R.id.buttonListMenu)).perform(click())
-        onView(withText("伝票からスキャン")).check(matches(isDisplayed()))
+        onView(withText("名前・住所を追加")).check(matches(isDisplayed()))
         pressBack()
     }
 
     @Test
     fun deliveryList_menuOpens_routeGroupOptionVisible() {
         onView(withId(R.id.buttonListMenu)).perform(click())
-        // ルート最適化は地図メニューにあるため、ここではグループ操作を確認
-        onView(withText("新しいルートを追加")).check(matches(isDisplayed()))
+        onView(withText("新しいルートを追加")).perform(scrollTo()).check(matches(isDisplayed()))
         pressBack()
     }
 

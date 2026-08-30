@@ -37,6 +37,7 @@ class DeliveryListFlowTest {
             .edit()
             .putBoolean("driver_mode", true)
             .putBoolean("show_mode_on_launch", false)
+            .putBoolean("iap_subscription_active", true)
             .commit()
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
@@ -61,7 +62,7 @@ class DeliveryListFlowTest {
     @Test
     fun deliveryList_menuButton_opensSheet() {
         onView(withId(R.id.buttonListMenu)).perform(click())
-        onView(withText("住所をインポート")).check(matches(isDisplayed()))
+        onView(withText("名前・住所を追加")).check(matches(isDisplayed()))
         pressBack()
     }
 
@@ -86,14 +87,14 @@ class DeliveryListFlowTest {
     @Test
     fun deliveryList_filterChip_clickOnce_showsIncomplete() {
         onView(withId(R.id.chipIncomplete)).perform(click())
-        onView(withId(R.id.chipIncomplete)).check(matches(withText("未完了")))
+        onView(withId(R.id.chipIncomplete)).check(matches(withText("未完了のみ")))
     }
 
     @Test
     fun deliveryList_filterChip_clickTwice_showsCompleted() {
         onView(withId(R.id.chipIncomplete)).perform(click())
         onView(withId(R.id.chipIncomplete)).perform(click())
-        onView(withId(R.id.chipIncomplete)).check(matches(withText("完了")))
+        onView(withId(R.id.chipIncomplete)).check(matches(withText("完了のみ")))
     }
 
     @Test

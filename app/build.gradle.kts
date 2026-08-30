@@ -161,6 +161,9 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.espresso.intents)
+    androidTestImplementation(libs.espresso.contrib) {
+        exclude(group = "com.android.support", module = "support-annotations")
+    }
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.compiler)
 }

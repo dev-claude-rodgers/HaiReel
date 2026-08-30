@@ -15,6 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import org.hamcrest.Matchers.allOf
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -38,6 +39,7 @@ class DailyReportFlowTest {
             .edit()
             .putBoolean("driver_mode", true)
             .putBoolean("show_mode_on_launch", false)
+            .putBoolean("iap_subscription_active", true)
             .commit()
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
@@ -94,7 +96,7 @@ class DailyReportFlowTest {
     fun reportTab_patternButton_opensPatternList() {
         onView(withId(R.id.nav_report)).perform(click())
         onView(withId(R.id.btnMenu)).perform(click())
-        onView(withText("帳票を切り替え")).perform(click())
+        onView(withText("帳票パターンを選択")).perform(click())
         onView(withText("帳票設定")).check(matches(isDisplayed()))
         pressBack()
     }
@@ -107,8 +109,9 @@ class DailyReportFlowTest {
         onView(withId(R.id.btnMenu)).perform(click())
         onView(withText("今日の日報を記録")).perform(click())
 
-        // 配達件数フィールドに入力（hint="0"、最初のEditText）
-        onView(withHint("0")).perform(click(), clearText(), typeText("30"), closeSoftKeyboard())
+        // 配達件数フィールドに入力（"配達件数 ／ 個数"行内、直後に" 件  "ラベルを持つEditText）
+        onView(allOf(withHint("0"), hasSibling(withText(" 件  "))))
+            .perform(click(), clearText(), typeText("30"), closeSoftKeyboard())
 
         onView(withText("保存")).perform(click())
 
@@ -135,7 +138,7 @@ class DailyReportFlowTest {
         onView(withText("今日の日報を記録")).perform(click())
 
         onView(withText("稼働あり")).check(matches(isDisplayed()))
-        onView(withText("休み")).check(matches(isDisplayed()))
+        onView(withText("休日")).check(matches(isDisplayed()))
         pressBack()
     }
 
@@ -145,7 +148,7 @@ class DailyReportFlowTest {
         onView(withId(R.id.btnMenu)).perform(click())
         onView(withText("今日の日報を記録")).perform(click())
 
-        onView(withText("休み")).perform(click())
+        onView(withText("休日")).perform(click())
 
         // ダイアログ自体はまだ表示されている
         onView(withText("保存")).check(matches(isDisplayed()))

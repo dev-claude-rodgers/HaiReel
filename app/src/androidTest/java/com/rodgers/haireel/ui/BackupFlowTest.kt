@@ -2,6 +2,7 @@ package com.rodgers.haireel.ui
 
 import android.app.Activity
 import android.app.Instrumentation
+import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
@@ -13,6 +14,7 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import androidx.test.platform.app.InstrumentationRegistry
 import com.rodgers.haireel.MainActivity
 import com.rodgers.haireel.R
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -32,7 +34,16 @@ class BackupFlowTest {
     val hiltRule = HiltAndroidRule(this)
 
     @Before
-    fun setUp() { hiltRule.inject(); Intents.init() }
+    fun setUp() {
+        hiltRule.inject()
+        Intents.init()
+        // 試用期間切れ判定による強制サブスクダイアログを防ぐ
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        ctx.getSharedPreferences(com.rodgers.haireel.util.AppSettings.PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("iap_subscription_active", true)
+            .commit()
+    }
 
     @After
     fun tearDown() { Intents.release() }

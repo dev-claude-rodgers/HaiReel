@@ -32,7 +32,7 @@ class DeliveryAddFlowTest {
     fun inputActivity_住所入力してインポートボタンが押せる() {
         ActivityScenario.launch(InputActivity::class.java).use {
             onView(withId(R.id.editTextAddresses))
-                .perform(typeText("東京都新宿区西新宿1-1-1"), closeSoftKeyboard())
+                .perform(replaceText("東京都新宿区西新宿1-1-1"), closeSoftKeyboard())
             onView(withId(R.id.buttonImport))
                 .check(matches(isDisplayed()))
                 .perform(click())
