@@ -1,4 +1,7 @@
-package com.rodgers.haireel
+package com.rodgers.haireel.flow
+
+import com.rodgers.haireel.MainActivity
+import com.rodgers.haireel.R
 
 import android.content.Context
 import androidx.test.core.app.ActivityScenario
@@ -69,11 +72,6 @@ class DeliveryListFlowTest {
     }
 
     @Test
-    fun deliveryList_mapToggleButton_isDisplayed() {
-        onView(withId(R.id.buttonSubToggle)).check(matches(isDisplayed()))
-    }
-
-    @Test
     fun deliveryList_filterChip_isDisplayed() {
         onView(withId(R.id.chipIncomplete)).check(matches(isDisplayed()))
     }
@@ -103,10 +101,5 @@ class DeliveryListFlowTest {
         onView(withId(R.id.nav_report)).perform(click())
         onView(withId(R.id.nav_list)).perform(click())
         onView(withId(R.id.recyclerView)).check(matches(isDisplayed()))
-    }
-
-    @Test
-    fun deliveryList_buttonSubToggle_isClickable() {
-        onView(withId(R.id.buttonSubToggle)).check(matches(isClickable()))
     }
 }

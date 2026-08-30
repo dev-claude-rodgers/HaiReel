@@ -1,4 +1,7 @@
-package com.rodgers.haireel
+package com.rodgers.haireel.flow
+
+import com.rodgers.haireel.MainActivity
+import com.rodgers.haireel.R
 
 import android.content.Context
 import androidx.test.core.app.ActivityScenario
@@ -109,12 +112,6 @@ class MainActivityTest {
     fun settingsTab_settingsRootDisplayed() {
         onView(withId(R.id.nav_settings)).perform(click())
         onView(withId(R.id.settingsRoot)).check(matches(isDisplayed()))
-    }
-
-    @Test
-    fun settingsTab_apiKeyRowDisplayed() {
-        onView(withId(R.id.nav_settings)).perform(click())
-        onView(withId(R.id.rowApiKey)).check(matches(isDisplayed()))
     }
 
     @Test

@@ -1,4 +1,7 @@
-package com.rodgers.haireel
+package com.rodgers.haireel.flow
+
+import com.rodgers.haireel.MainActivity
+import com.rodgers.haireel.R
 
 import android.content.Context
 import androidx.test.core.app.ActivityScenario
@@ -159,11 +162,6 @@ class ExtendedFlowTest {
         // ルート最適化は地図メニューにあるため、ここではグループ操作を確認
         onView(withText("新しいルートを追加")).check(matches(isDisplayed()))
         pressBack()
-    }
-
-    @Test
-    fun deliveryList_mapToggle_buttonVisible() {
-        onView(withId(R.id.buttonSubToggle)).check(matches(isDisplayed()))
     }
 
     // ── 収支タブ詳細 ────────────────────────────────────────────

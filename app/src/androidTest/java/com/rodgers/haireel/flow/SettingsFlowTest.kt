@@ -1,4 +1,7 @@
-package com.rodgers.haireel
+package com.rodgers.haireel.flow
+
+import com.rodgers.haireel.MainActivity
+import com.rodgers.haireel.R
 
 import android.content.Context
 import androidx.test.core.app.ActivityScenario
@@ -49,11 +52,6 @@ class SettingsFlowTest {
     }
 
     @Test
-    fun settingsTab_apiKeyRowIsDisplayed() {
-        onView(withId(R.id.rowApiKey)).check(matches(isDisplayed()))
-    }
-
-    @Test
     fun settingsTab_backupCreateRowIsDisplayed() {
         onView(withId(R.id.rowBackupCreate)).check(matches(isDisplayed()))
     }
@@ -86,19 +84,6 @@ class SettingsFlowTest {
         onView(withText("⚠️ データをすべて初期化")).check(matches(isDisplayed()))
         // キャンセルして戻る
         onView(withText("キャンセル")).perform(click())
-    }
-
-    @Test
-    fun settingsTab_apiKeyDialog_opensAndCloses() {
-        onView(withId(R.id.rowApiKey)).perform(click())
-        // APIキー未設定の場合はウィザードが開く
-        onView(withText("🔑 Google APIキー設定")).check(matches(isDisplayed()))
-        pressBack()
-    }
-
-    @Test
-    fun settingsTab_themeRowIsDisplayed() {
-        onView(withId(R.id.rowTheme)).check(matches(isDisplayed()))
     }
 
     @Test

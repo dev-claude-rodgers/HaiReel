@@ -1,4 +1,7 @@
-package com.rodgers.haireel
+package com.rodgers.haireel.flow
+
+import com.rodgers.haireel.MainActivity
+import com.rodgers.haireel.R
 
 import android.content.Context
 import androidx.test.core.app.ActivityScenario
