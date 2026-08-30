@@ -6,8 +6,6 @@ import com.rodgers.haireel.db.KnownAddressDao
 import com.rodgers.haireel.model.Delivery
 import com.rodgers.haireel.model.DeliveryGroup
 import com.rodgers.haireel.repository.DeliveryRepository
-import com.rodgers.haireel.util.GeocodingApi
-import com.rodgers.haireel.util.GeocodingManager
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -32,8 +30,6 @@ class DeliveryViewModelTest {
 
     private lateinit var mockApp: Application
     private lateinit var mockRepo: DeliveryRepository
-    private lateinit var mockGeocodingManager: GeocodingManager
-    private lateinit var mockGeocodingApi: GeocodingApi
     private lateinit var mockKnownAddressDao: KnownAddressDao
     private lateinit var viewModel: DeliveryViewModel
 
@@ -48,8 +44,6 @@ class DeliveryViewModelTest {
         Dispatchers.setMain(testDispatcher)
         mockApp = mockk(relaxed = true)
         mockRepo = mockk(relaxed = true)
-        mockGeocodingManager = mockk(relaxed = true)
-        mockGeocodingApi = mockk(relaxed = true)
         mockKnownAddressDao = mockk(relaxed = true)
         coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
             groups = listOf(group),
@@ -58,7 +52,7 @@ class DeliveryViewModelTest {
         every { mockRepo.getCurrentGroupId() } returns group.id
         every { mockRepo.getAreaHint(any()) } returns ""
         every { mockRepo.migrateGlobalAreaHint(any()) } returns null
-        viewModel = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        viewModel = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
     }
 
     @After
@@ -109,7 +103,7 @@ class DeliveryViewModelTest {
         coEvery { mockRepo.loadInitialData() } returns DeliveryRepository.InitialData(
             groups = listOf(group), allDeliveries = mapOf(group.id to emptyList())
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.markAllCompleted()
         assertTrue(vm.deliveries.value.isEmpty())
     }
@@ -166,7 +160,7 @@ class DeliveryViewModelTest {
                 group2.id to listOf(makeDelivery("d3"), makeDelivery("d4"))
             )
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.switchGroup("g2")
         assertEquals("g2", vm.currentGroupId.value)
         assertEquals(2, vm.deliveries.value.size)
@@ -199,14 +193,14 @@ class DeliveryViewModelTest {
     @Test
     fun `loadInitialData失敗時はerrorMessageが設定される`() {
         coEvery { mockRepo.loadInitialData() } throws RuntimeException("DB破損")
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         assertEquals("データの読み込みに失敗しました", vm.errorMessage.value)
     }
 
     @Test
     fun `loadInitialData失敗時はdeliveriesが空リストのまま`() {
         coEvery { mockRepo.loadInitialData() } throws RuntimeException("DB破損")
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         assertTrue(vm.deliveries.value.isEmpty())
     }
 
@@ -259,7 +253,7 @@ class DeliveryViewModelTest {
     @Test
     fun `clearErrorでerrorMessageがnullになる`() {
         coEvery { mockRepo.loadInitialData() } throws RuntimeException("テストエラー")
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         assertNotNull(vm.errorMessage.value)
         vm.clearError()
         assertNull(vm.errorMessage.value)
@@ -290,13 +284,6 @@ class DeliveryViewModelTest {
         assertEquals("#FF5722", g?.colorHex)
     }
 
-    @Test
-    fun `linkPatternToGroupでpatternIdが変わる`() {
-        viewModel.linkPatternToGroup(group.id, 42)
-        val g = viewModel.groups.value.find { it.id == group.id }
-        assertEquals(42, g?.patternId)
-    }
-
     // ── 名前・ふりがな更新 ────────────────────────────────────
 
     @Test
@@ -319,25 +306,6 @@ class DeliveryViewModelTest {
         viewModel.updateNameAndAddressOnly("d1", "", "東京都渋谷区1-1", null)
         val d1 = viewModel.deliveries.value.find { it.id == "d1" }
         assertNull(d1?.name)
-    }
-
-    // ── 候補適用 ──────────────────────────────────────────────
-
-    @Test
-    fun `applyCandidateで座標と住所が更新される`() {
-        viewModel.applyCandidate("d1", "テスト商店", "東京都千代田区1-1", 35.68, 139.76)
-        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
-        assertEquals(35.68, d1?.lat ?: 0.0, 0.001)
-        assertEquals(139.76, d1?.lng ?: 0.0, 0.001)
-        assertTrue(d1?.isGeocoded == true)
-    }
-
-    @Test
-    fun `applyCandidateで名前が空の場合は既存名を維持する`() {
-        viewModel.updateNameAndAddressOnly("d1", "既存の名前", "東京都新宿区d1", null)
-        viewModel.applyCandidate("d1", "", "東京都千代田区1-1", 35.68, 139.76)
-        val d1 = viewModel.deliveries.value.find { it.id == "d1" }
-        assertEquals("既存の名前", d1?.name)
     }
 
     // ── searchDeliveriesByName ────────────────────────────────
@@ -363,7 +331,7 @@ class DeliveryViewModelTest {
                 makeNamedDelivery("d2", "鈴木薬局", "東京都渋谷区2")
             ))
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         val result = vm.searchDeliveriesByName("山田")
         assertEquals(1, result.size)
         assertEquals("山田商店", result[0].name)
@@ -377,7 +345,7 @@ class DeliveryViewModelTest {
                 makeNamedDelivery("d1", "テスト店", "東京都渋谷区神南1-1")
             ))
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         val result = vm.searchDeliveriesByName("渋谷区")
         assertEquals(1, result.size)
     }
@@ -391,7 +359,7 @@ class DeliveryViewModelTest {
                 makeNamedDelivery("d2", "テスト薬局", "東京都新宿区2")
             ))
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         val result = vm.searchDeliveriesByName("テスト", excludeId = "d1")
         assertTrue(result.none { it.id == "d1" })
         assertTrue(result.any { it.id == "d2" })
@@ -413,7 +381,7 @@ class DeliveryViewModelTest {
             groups = listOf(group, group2),
             allDeliveries = mapOf(group.id to emptyList(), group2.id to emptyList())
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.switchGroup("g2")
         assertEquals("g2", vm.currentGroup()?.id)
     }
@@ -454,7 +422,7 @@ class DeliveryViewModelTest {
             groups = listOf(group, group2),
             allDeliveries = mapOf(group.id to emptyList(), group2.id to emptyList())
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.switchGroup(group.id)
         vm.deleteGroup(group.id)
         assertEquals("g2", vm.currentGroupId.value)
@@ -514,15 +482,6 @@ class DeliveryViewModelTest {
         assertTrue(d1?.roomList?.isEmpty() == true)
     }
 
-    // ── clearGeocodingFailure ─────────────────────────────────
-
-    @Test
-    fun `clearGeocodingFailureでgeocodingFailedCountが0になる`() {
-        viewModel._geocodingFailedCount.value = 5
-        viewModel.clearGeocodingFailure()
-        assertEquals(0, viewModel.geocodingFailedCount.value)
-    }
-
     // ── DeliveryViewModelGroups: 未カバー領域 ──────────────────
 
     @Test
@@ -533,7 +492,7 @@ class DeliveryViewModelTest {
             groups = listOf(group),
             allDeliveries = mapOf(group.id to listOf(d1, d2))
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.copyGroup(group.id)
 
         val newGroupId = vm.groups.value.last().id
@@ -547,7 +506,7 @@ class DeliveryViewModelTest {
             groups = listOf(group),
             allDeliveries = mapOf(group.id to emptyList())
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         val before = vm.groups.value.size
         vm.copyGroup(group.id)
 
@@ -563,7 +522,7 @@ class DeliveryViewModelTest {
             groups = listOf(group, group2),
             allDeliveries = mapOf(group.id to emptyList(), group2.id to emptyList())
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.switchGroup(group.id)
         vm.deleteGroup(group2.id)
 
@@ -578,7 +537,7 @@ class DeliveryViewModelTest {
             groups = listOf(group),
             allDeliveries = mapOf(group.id to listOf(d1))
         )
-        val vm = DeliveryViewModel(mockApp, mockRepo, mockGeocodingManager, mockGeocodingApi, mockKnownAddressDao)
+        val vm = DeliveryViewModel(mockApp, mockRepo, mockKnownAddressDao)
         vm.renameGroup(group.id, "新しい名前")
 
         assertEquals("新しい名前", vm.groups.value.first().name)

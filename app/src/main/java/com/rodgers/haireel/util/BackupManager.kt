@@ -80,14 +80,31 @@ object BackupManager {
         }
     }
 
+    // v2チャンク復号をバックグラウンドスレッドで行うため、スレッド内の例外は
+    // 呼び出し元のtry-catchでは捕捉できない。エラーをerrorHolderに保持し、
+    // ストリームを読み終えた後にthrowIfFailed()で確認できるようにする
+    private class ChunkedDecryptResult(
+        val stream: InputStream,
+        private val thread: Thread,
+        private val errorHolder: java.util.concurrent.atomic.AtomicReference<Exception?>
+    ) {
+        fun throwIfFailed() {
+            thread.join(5_000)
+            errorHolder.get()?.let {
+                error("パスワードが違います、またはファイルが破損しています。")
+            }
+        }
+    }
+
     // v2: チャンク方式ストリーミング復号（各チャンクを独立して復号・認証）
     // フォーマット: [Salt:16B][チャンクループ: [IV:12B][サイズ:4B][暗号化データ+タグ]]
-    private fun decryptChunkedToStream(raw: InputStream, password: String): InputStream {
+    private fun decryptChunkedToStream(raw: InputStream, password: String): ChunkedDecryptResult {
         val salt = ByteArray(SALT_LEN).also { raw.read(it) }
         val key  = deriveKey(password, salt)
         val pipe   = java.io.PipedOutputStream()
         val pipeIn = java.io.PipedInputStream(pipe, CHUNK_SIZE + 512)
-        Thread {
+        val errorHolder = java.util.concurrent.atomic.AtomicReference<Exception?>(null)
+        val thread = Thread {
             try {
                 val iv      = ByteArray(IV_LEN)
                 val sizeBuf = ByteArray(4)
@@ -116,12 +133,14 @@ object BackupManager {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BackupManager", "チャンク復号エラー", e)
+                errorHolder.set(e)
             } finally {
                 try { pipe.close() } catch (_: Exception) {}
                 try { raw.close()  } catch (_: Exception) {}
             }
-        }.also { it.isDaemon = true }.start()
-        return pipeIn
+        }.also { it.isDaemon = true }
+        thread.start()
+        return ChunkedDecryptResult(pipeIn, thread, errorHolder)
     }
 
     // v1: 後方互換 全体読み込み復号
@@ -223,29 +242,33 @@ object BackupManager {
         val isEncrypted = headerRead == ENC_HEADER.size && headerBuf.contentEquals(ENC_HEADER)
 
         val isV2 = headerRead == ENC_HEADER_V2.size && headerBuf.contentEquals(ENC_HEADER_V2)
-        val inputStream = if (isEncrypted || isV2) {
+        if (isEncrypted || isV2) {
             val pw = password?.takeIf { it.isNotBlank() }
                 ?: AppSettings.getBackupPassword(context).takeIf { it.isNotBlank() }
                 ?: error("このバックアップはパスワードで暗号化されています。パスワードを入力してください。")
             if (isV2) {
-                // v2: チャンク方式ストリーミング復号（OOM回避）
-                try { decryptChunkedToStream(raw, pw) }
-                catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
+                // v2: チャンク方式ストリーミング復号（OOM回避）。復号はバックグラウンドスレッドで
+                // 行われるため、ストリームを読み終えた後に throwIfFailed() でスレッド内の
+                // パスワード誤り・破損エラーを確認する（確認しないと「復元完了0件」と誤表示される）
+                val decrypted = decryptChunkedToStream(raw, pw)
+                val failedCount = restoreFromStream(context, decrypted.stream)
+                decrypted.throwIfFailed()
+                return failedCount
             } else {
                 // v1: 後方互換 全体読み込み復号
                 val remaining = raw.readBytes()
                 raw.close()
                 val fullData = headerBuf + remaining
-                try { decryptBytes(fullData, pw).inputStream() }
-                catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
+                val decrypted = try { decryptBytes(fullData, pw).inputStream() }
+                    catch (e: Exception) { error("パスワードが違います、またはファイルが破損しています。") }
+                return restoreFromStream(context, decrypted)
             }
-        } else {
-            // 非暗号化: 読んだヘッダーバイトをストリームの先頭に結合してそのまま使用
-            java.io.SequenceInputStream(
-                headerBuf.copyOf(headerRead).inputStream(),
-                raw
-            )
         }
+        // 非暗号化: 読んだヘッダーバイトをストリームの先頭に結合してそのまま使用
+        val inputStream = java.io.SequenceInputStream(
+            headerBuf.copyOf(headerRead).inputStream(),
+            raw
+        )
         return restoreFromStream(context, inputStream)
     }
 
