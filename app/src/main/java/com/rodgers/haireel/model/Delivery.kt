@@ -16,7 +16,6 @@ data class Delivery(
     val openTime: String? = null,       // 営業開始時間（例: "09:00"）
     val closeTime: String? = null,      // 営業終了時間（例: "18:00"）
     val packageCount: Int = 0,          // 荷物の個数
-    val dwellMinutes: Int? = null,      // 個別滞在時間（null=グローバル設定を使用）
     var lat: Double = 0.0,
     var lng: Double = 0.0,
     var isCompleted: Boolean = false,

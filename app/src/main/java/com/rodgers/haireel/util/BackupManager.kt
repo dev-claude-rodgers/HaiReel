@@ -361,7 +361,6 @@ object BackupManager {
                                     openTime        = o.optString("openTime").ifBlank { null },
                                     closeTime       = o.optString("closeTime").ifBlank { null },
                                     packageCount    = o.optInt("packageCount", 0),
-                                    dwellMinutes    = o.optInt("dwellMinutes", -1).takeIf { it >= 0 },
                                     lat             = o.optDouble("lat", 0.0),
                                     lng             = o.optDouble("lng", 0.0),
                                     isCompleted     = o.optBoolean("isCompleted", false),
@@ -800,7 +799,6 @@ object BackupManager {
                 put("openTime",        d.openTime ?: "")
                 put("closeTime",       d.closeTime ?: "")
                 put("packageCount",    d.packageCount)
-                put("dwellMinutes",    d.dwellMinutes ?: -1)
                 put("lat",             d.lat)
                 put("lng",             d.lng)
                 put("isCompleted",     d.isCompleted)

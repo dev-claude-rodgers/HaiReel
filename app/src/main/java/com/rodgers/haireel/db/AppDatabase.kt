@@ -13,7 +13,7 @@ import com.rodgers.haireel.model.WorkRecord
 
 @Database(
     entities = [WorkRecord::class, TenkoRecord::class, DeliveryEntity::class, DeliveryGroupEntity::class, GeocodingCacheEntity::class, KnownAddressEntity::class, FuelRecord::class, Vehicle::class],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -42,6 +42,52 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // dwell_minutes列を削除（出発・滞在設定機能の廃止に伴う）。SQLiteのバージョンによっては
+        // ALTER TABLE DROP COLUMNが使えないため、テーブル再作成方式で行う
+        internal val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `deliveries_new` (
+                        `id` TEXT NOT NULL,
+                        `group_id` TEXT NOT NULL,
+                        `sort_order` INTEGER NOT NULL,
+                        `name` TEXT,
+                        `name_kana` TEXT,
+                        `address` TEXT NOT NULL,
+                        `geocoded_address` TEXT,
+                        `note` TEXT,
+                        `photo_uri` TEXT,
+                        `photo_uris_json` TEXT,
+                        `rooms_json` TEXT,
+                        `time_slot` TEXT,
+                        `open_time` TEXT,
+                        `close_time` TEXT,
+                        `package_count` INTEGER NOT NULL,
+                        `lat` REAL NOT NULL,
+                        `lng` REAL NOT NULL,
+                        `is_completed` INTEGER NOT NULL,
+                        `is_geocoded` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO `deliveries_new` (
+                        id, group_id, sort_order, name, name_kana, address, geocoded_address,
+                        note, photo_uri, photo_uris_json, rooms_json, time_slot, open_time,
+                        close_time, package_count, lat, lng, is_completed, is_geocoded
+                    )
+                    SELECT
+                        id, group_id, sort_order, name, name_kana, address, geocoded_address,
+                        note, photo_uri, photo_uris_json, rooms_json, time_slot, open_time,
+                        close_time, package_count, lat, lng, is_completed, is_geocoded
+                    FROM `deliveries`
+                """.trimIndent())
+                db.execSQL("DROP TABLE `deliveries`")
+                db.execSQL("ALTER TABLE `deliveries_new` RENAME TO `deliveries`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_deliveries_group_id` ON `deliveries` (`group_id`)")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -49,8 +95,11 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "report_db"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                // バージョンダウングレード時のみ破壊的マイグレーションを許容する。
+                // アップグレード時にMigrationが不足している場合はクラッシュさせ、
+                // データを無言で失う（fallbackToDestructiveMigration）事故を防ぐ
+                .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
                 .also { INSTANCE = it }
             }
